@@ -6,63 +6,63 @@ import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/domain/shop_bag.dart';
 import 'package:too_good_to_leave_shop/screens/bag_edit_screen.dart';
 
-class BagListScreen extends StatefulWidget {
+class BagListScreen extends StatelessWidget {
   const BagListScreen({required this.repository, super.key});
 
   final ShopRepository repository;
 
-  @override
-  State<BagListScreen> createState() => _BagListScreenState();
-}
-
-class _BagListScreenState extends State<BagListScreen> {
-  late List<ShopBag> _bags = widget.repository.getBags();
-
-  void _refresh() => setState(() => _bags = widget.repository.getBags());
-
-  Future<void> _openEditor([ShopBag? bag]) async {
-    await Navigator.of(context).push<void>(
+  void _openEditor(BuildContext context, [ShopBag? bag]) {
+    Navigator.of(context).push<void>(
       MaterialPageRoute(
-        builder: (_) =>
-            BagEditScreen(repository: widget.repository, existing: bag),
+        builder: (_) => BagEditScreen(repository: repository, existing: bag),
       ),
     );
-    _refresh();
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
 
-    return Scaffold(
-      backgroundColor: colors.surfaceBase,
-      appBar: AppBar(
-        backgroundColor: colors.surfaceBase,
-        title: Text('Your bags', style: context.type.title),
-      ),
-      body: _bags.isEmpty
-          ? Center(
-              child: Text(
-                'No bags yet — add your first surprise bag.',
-                style: context.type.body.copyWith(color: colors.textSecondary),
-              ),
-            )
-          : ListView.separated(
-              padding: const EdgeInsets.all(Space.x4),
-              itemCount: _bags.length,
-              separatorBuilder: (_, _) => const SizedBox(height: Space.x3),
-              itemBuilder: (context, index) {
-                final bag = _bags[index];
-                return _BagCard(bag: bag, onTap: () => _openEditor(bag));
-              },
-            ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openEditor(),
-        backgroundColor: colors.actionPrimaryBg,
-        foregroundColor: colors.actionPrimaryFg,
-        icon: const Icon(Icons.add),
-        label: const Text('Add bag'),
-      ),
+    return ListenableBuilder(
+      listenable: repository,
+      builder: (context, _) {
+        final bags = repository.getBags();
+        return Scaffold(
+          backgroundColor: colors.surfaceBase,
+          appBar: AppBar(
+            backgroundColor: colors.surfaceBase,
+            title: Text('Your bags', style: context.type.title),
+          ),
+          body: bags.isEmpty
+              ? Center(
+                  child: Text(
+                    'No bags yet — add your first surprise bag.',
+                    style: context.type.body.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.all(Space.x4),
+                  itemCount: bags.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: Space.x3),
+                  itemBuilder: (context, index) {
+                    final bag = bags[index];
+                    return _BagCard(
+                      bag: bag,
+                      onTap: () => _openEditor(context, bag),
+                    );
+                  },
+                ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () => _openEditor(context),
+            backgroundColor: colors.actionPrimaryBg,
+            foregroundColor: colors.actionPrimaryFg,
+            icon: const Icon(Icons.add),
+            label: const Text('Add bag'),
+          ),
+        );
+      },
     );
   }
 }

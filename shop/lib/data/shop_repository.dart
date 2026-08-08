@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:too_good_to_leave_shop/core/domain/clock.dart';
 import 'package:too_good_to_leave_shop/core/domain/dietary_envelope.dart';
 import 'package:too_good_to_leave_shop/core/domain/money.dart';
@@ -5,27 +6,37 @@ import 'package:too_good_to_leave_shop/core/domain/pickup_token.dart';
 import 'package:too_good_to_leave_shop/core/domain/pickup_window.dart';
 import 'package:too_good_to_leave_shop/domain/shop_bag.dart';
 import 'package:too_good_to_leave_shop/domain/shop_order.dart';
+import 'package:too_good_to_leave_shop/domain/shop_profile.dart';
 
 /// Thrown when a fallback code doesn't match the order it's checked against.
 class PickupCodeMismatchException implements Exception {
   const PickupCodeMismatchException();
 }
 
-/// In-memory shop-side data — bags this shop lists, and the orders that
-/// result. Standalone: nothing here is shared with the customer app, which
-/// runs against its own fakes (Phase 1's "build against fakes" pattern,
-/// applied on this side too).
-class ShopRepository {
+/// In-memory shop-side data — registration, bags, orders, and (as later
+/// areas land) payments/analytics/notifications/settings. Standalone:
+/// nothing here is shared with the customer app, which runs against its own
+/// fakes (Phase 1's "build against fakes" pattern, applied on this side
+/// too).
+///
+/// A [ChangeNotifier] rather than manual per-screen refresh calls — this
+/// repository's surface area is only going to grow (registration, payments,
+/// analytics, notifications, settings all still to come), and a listenable
+/// single source of truth scales better than each screen re-fetching after
+/// every mutation it happens to know about.
+class ShopRepository extends ChangeNotifier {
   ShopRepository({this._clock = const SystemClock()}) {
-    _seed();
+    _seedOrdersAndBags();
   }
 
   final Clock _clock;
+
+  ShopProfile? _profile;
   final List<ShopBag> _bags = [];
   final List<ShopOrder> _orders = [];
   int _nextBagId = 1;
 
-  void _seed() {
+  void _seedOrdersAndBags() {
     final now = _clock.now();
     final today = DateTime(now.year, now.month, now.day);
 
@@ -102,9 +113,35 @@ class ShopRepository {
     ]);
   }
 
-  List<ShopBag> getBags() => List.unmodifiable(_bags);
+  // ---------------------------------------------------------------------
+  // Registration
+  // ---------------------------------------------------------------------
 
-  List<ShopOrder> getOrders() => List.unmodifiable(_orders);
+  ShopProfile? get profile => _profile;
+
+  bool get isRegistered => _profile != null;
+
+  void register(ShopProfile profile) {
+    _profile = profile;
+    notifyListeners();
+  }
+
+  /// Stands in for a real review process — there's no admin surface in this
+  /// standalone build, so approval is a demo action the registration flow's
+  /// own "pending review" screen exposes, rather than something that
+  /// silently never resolves.
+  void simulateApproval() {
+    final current = _profile;
+    if (current == null) return;
+    _profile = current.copyWith(status: ShopApprovalStatus.verified);
+    notifyListeners();
+  }
+
+  // ---------------------------------------------------------------------
+  // Bags
+  // ---------------------------------------------------------------------
+
+  List<ShopBag> getBags() => List.unmodifiable(_bags);
 
   ShopBag createBag({
     required String title,
@@ -124,17 +161,26 @@ class ShopRepository {
       pickupWindow: pickupWindow,
     );
     _bags.add(bag);
+    notifyListeners();
     return bag;
   }
 
   void updateBag(ShopBag updated) {
     final index = _bags.indexWhere((b) => b.id == updated.id);
     if (index != -1) _bags[index] = updated;
+    notifyListeners();
   }
 
   void deleteBag(String id) {
     _bags.removeWhere((b) => b.id == id);
+    notifyListeners();
   }
+
+  // ---------------------------------------------------------------------
+  // Orders
+  // ---------------------------------------------------------------------
+
+  List<ShopOrder> getOrders() => List.unmodifiable(_orders);
 
   /// Confirms a pickup by fallback code (manual entry) — the counter path
   /// every order supports regardless of whether the QR layers scan (A1).
@@ -150,5 +196,6 @@ class ShopRepository {
       throw const PickupCodeMismatchException();
     }
     _orders[index] = order.copyWith(status: ShopOrderStatus.collected);
+    notifyListeners();
   }
 }

@@ -5,59 +5,56 @@ import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/domain/shop_order.dart';
 import 'package:too_good_to_leave_shop/screens/order_detail_screen.dart';
 
-class OrderListScreen extends StatefulWidget {
+class OrderListScreen extends StatelessWidget {
   const OrderListScreen({required this.repository, super.key});
 
   final ShopRepository repository;
 
-  @override
-  State<OrderListScreen> createState() => _OrderListScreenState();
-}
-
-class _OrderListScreenState extends State<OrderListScreen> {
-  late List<ShopOrder> _orders = widget.repository.getOrders();
-
-  void _refresh() => setState(() => _orders = widget.repository.getOrders());
-
-  Future<void> _openOrder(ShopOrder order) async {
-    await Navigator.of(context).push<void>(
+  void _openOrder(BuildContext context, ShopOrder order) {
+    Navigator.of(context).push<void>(
       MaterialPageRoute(
-        builder: (_) =>
-            OrderDetailScreen(repository: widget.repository, order: order),
+        builder: (_) => OrderDetailScreen(repository: repository, order: order),
       ),
     );
-    _refresh();
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
 
-    return Scaffold(
-      backgroundColor: colors.surfaceBase,
-      appBar: AppBar(
-        backgroundColor: colors.surfaceBase,
-        title: Text('Orders', style: context.type.title),
-      ),
-      body: _orders.isEmpty
-          ? Center(
-              child: Text(
-                'No orders yet.',
-                style: context.type.body.copyWith(color: colors.textSecondary),
-              ),
-            )
-          : ListView.separated(
-              padding: const EdgeInsets.all(Space.x4),
-              itemCount: _orders.length,
-              separatorBuilder: (_, _) => const SizedBox(height: Space.x3),
-              itemBuilder: (context, index) {
-                final order = _orders[index];
-                return _OrderCard(
-                  order: order,
-                  onTap: () => _openOrder(order),
-                );
-              },
-            ),
+    return ListenableBuilder(
+      listenable: repository,
+      builder: (context, _) {
+        final orders = repository.getOrders();
+        return Scaffold(
+          backgroundColor: colors.surfaceBase,
+          appBar: AppBar(
+            backgroundColor: colors.surfaceBase,
+            title: Text('Orders', style: context.type.title),
+          ),
+          body: orders.isEmpty
+              ? Center(
+                  child: Text(
+                    'No orders yet.',
+                    style: context.type.body.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.all(Space.x4),
+                  itemCount: orders.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: Space.x3),
+                  itemBuilder: (context, index) {
+                    final order = orders[index];
+                    return _OrderCard(
+                      order: order,
+                      onTap: () => _openOrder(context, order),
+                    );
+                  },
+                ),
+        );
+      },
     );
   }
 }
