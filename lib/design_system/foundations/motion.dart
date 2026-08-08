@@ -24,7 +24,11 @@ abstract final class Motion {
   static const slowThreshold = Duration(seconds: 8);
 
   static const easeStandard = Curves.easeInOutCubic;
-  static const easeEnter = Curves.easeOutCubic;
+
+  /// "Too Good To Leave" rebrand — Airbnb-style restrained easing
+  /// (`cubic-bezier(0.16, 1, 0.3, 1)`), used for enter transitions in place
+  /// of the old `easeOutCubic`. No bounce, no spring overshoot.
+  static const easeEnter = Cubic(0.16, 1, 0.3, 1);
   static const easeExit = Curves.easeInCubic;
 }
 

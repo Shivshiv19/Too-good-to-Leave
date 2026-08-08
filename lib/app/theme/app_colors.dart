@@ -84,29 +84,26 @@ final class AppColors extends ThemeExtension<AppColors> {
   /// Light theme token set.
   factory AppColors.light() => const AppColors(
     brightness: Brightness.light,
-    surfaceBase: Neutral.c0,
+    surfaceBase: Cream.c100,
     surfaceRaised: Neutral.c0,
-    surfaceSunken: Neutral.c50,
+    surfaceSunken: Cream.c200,
     surfaceOverlay: Neutral.c0,
     textPrimary: Neutral.c900,
     textSecondary: Neutral.c600,
     textTertiary: Neutral.c500,
 
-    // The §6.2.3 decision. `Ember.c500` with a WHITE label is ~3.4:1 and
-    // FAILS the 4.5:1 body-text requirement — the standard orange-button
-    // trap, which most design systems ship broken. Rather than darkening
-    // the fill to a muddy `Ember.c700`, the vibrant fill is kept and the
-    // label goes near-black, which clears 4.5:1 comfortably.
-    //
-    // Flagged in §6.2.3 as the one token worth a visual designer's review:
-    // dark-on-orange can read faintly "warning-ish" in isolation.
-    textOnAction: Neutral.c900,
+    // `Green.c700`'s a dark fill, so the label goes light rather than dark —
+    // the inverse of the old ember palette's near-black-on-vivid-orange
+    // choice, which was tuned for a *light* vibrant fill (§6.2.3's original
+    // reasoning doesn't transfer; re-verify contrast if the fill shade
+    // changes again).
+    textOnAction: Cream.c100,
     borderSubtle: Neutral.c200,
     borderStrong: Neutral.c300,
-    actionPrimaryBg: Ember.c500,
-    actionPrimaryFg: Neutral.c900,
-    actionSecondaryFg: Ember.c700,
-    actionSecondaryBorder: Ember.c700,
+    actionPrimaryBg: Green.c700,
+    actionPrimaryFg: Cream.c100,
+    actionSecondaryFg: Green.c700,
+    actionSecondaryBorder: Green.c700,
     actionDestructiveBg: FeedbackHues.criticalLight,
     actionDestructiveFg: Neutral.c0,
     scrim: Color(0x991A1614),
@@ -146,12 +143,14 @@ final class AppColors extends ThemeExtension<AppColors> {
     borderSubtle: DarkSurface.borderSubtle,
     borderStrong: DarkSurface.borderStrong,
 
-    // Lightened one step in dark mode. A fully saturated fill on a dark
-    // surface vibrates against it.
-    actionPrimaryBg: Ember.c400,
+    // Lightened to the lime/olive accent tone in dark mode — a fully
+    // saturated deep-green fill vibrates against an already-dark-green
+    // surface, the same reasoning the old ember palette applied one step up
+    // its own ramp.
+    actionPrimaryBg: Green.c400,
     actionPrimaryFg: Neutral.c900,
-    actionSecondaryFg: Ember.c300,
-    actionSecondaryBorder: Ember.c300,
+    actionSecondaryFg: Green.c300,
+    actionSecondaryBorder: Green.c300,
     actionDestructiveBg: FeedbackHues.criticalDark,
     actionDestructiveFg: Neutral.c900,
     scrim: Color(0xB30F0D0C),

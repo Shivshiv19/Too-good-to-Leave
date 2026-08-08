@@ -28,12 +28,14 @@ abstract final class Space {
   static const sectionGap = x6;
 }
 
-/// Corner radii (§6.4).
+/// Corner radii (§6.4). Larger and softer since the "Too Good To Leave"
+/// rebrand — pill is the default for anything tappable and horizontal
+/// (buttons, search, chips, nav), everything else uses generous rounding.
 abstract final class Radii {
-  static const sm = 8.0;
-  static const md = 12.0;
-  static const lg = 16.0;
-  static const xl = 24.0;
+  static const sm = 12.0;
+  static const md = 18.0;
+  static const lg = 24.0;
+  static const xl = 32.0;
   static const full = 999.0;
 
   /// Cards.

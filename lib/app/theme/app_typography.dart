@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 /// # LAYER 2 — Semantic type tokens
 ///
@@ -18,10 +19,14 @@ import 'package:flutter/material.dart';
 ///
 /// ## Fonts
 ///
-/// Families are named here. The binaries are **not yet in the repo** — see the
-/// commented `fonts:` block in `pubspec.yaml`. Until they are added Flutter
-/// silently falls back to the platform font, so the app runs and looks
-/// reasonable; it simply is not on-spec typography.
+/// Display/heading roles use **Sora** (soft geometric, rounded terminals —
+/// the "Too Good To Leave" rebrand's Airbnb-calm direction); body roles stay
+/// on **Inter**, already on-brand for the original palette. Both are fetched
+/// via `google_fonts` rather than bundled binaries — no `assets/fonts/` files
+/// to manage, and the fallback-to-system-font gap the original bundled-font
+/// plan left open (see the commented `fonts:` block in `pubspec.yaml`) never
+/// opens in the first place. `NotoSansDevanagari` and `JetBrainsMono` remain
+/// unbundled system-font fallbacks — this rebrand didn't touch either.
 @immutable
 final class AppTypography extends ThemeExtension<AppTypography> {
   const AppTypography({
@@ -41,74 +46,40 @@ final class AppTypography extends ThemeExtension<AppTypography> {
 
   /// The single type scale. Colour is applied by the consuming widget from
   /// `AppColors`; these styles carry no colour.
-  factory AppTypography.standard() => const AppTypography(
-    display: TextStyle(
-      fontFamily: _sans,
-      fontFamilyFallback: _fallback,
-      fontSize: 32,
-      height: 40 / 32,
-      fontWeight: FontWeight.w700,
-    ),
-    headline: TextStyle(
-      fontFamily: _sans,
-      fontFamilyFallback: _fallback,
+  ///
+  /// Not `const` — `GoogleFonts.*` resolves/loads the font at call time.
+  factory AppTypography.standard() => AppTypography(
+    display: _sora(fontSize: 32, height: 40 / 32, fontWeight: FontWeight.w700),
+    headline: _sora(
       fontSize: 24,
       height: 32 / 24,
       fontWeight: FontWeight.w700,
     ),
-    title: TextStyle(
-      fontFamily: _sans,
-      fontFamilyFallback: _fallback,
-      fontSize: 20,
-      height: 28 / 20,
-      fontWeight: FontWeight.w600,
-    ),
-    titleSmall: TextStyle(
-      fontFamily: _sans,
-      fontFamilyFallback: _fallback,
+    title: _sora(fontSize: 20, height: 28 / 20, fontWeight: FontWeight.w600),
+    titleSmall: _sora(
       fontSize: 18,
       height: 26 / 18,
       fontWeight: FontWeight.w600,
     ),
-    bodyLarge: TextStyle(
-      fontFamily: _sans,
-      fontFamilyFallback: _fallback,
+    bodyLarge: _inter(
       fontSize: 16,
       height: 24 / 16,
       fontWeight: FontWeight.w400,
     ),
-    body: TextStyle(
-      fontFamily: _sans,
-      fontFamilyFallback: _fallback,
-      fontSize: 14,
-      height: 22 / 14,
-      fontWeight: FontWeight.w400,
-    ),
-    caption: TextStyle(
-      fontFamily: _sans,
-      fontFamilyFallback: _fallback,
+    body: _inter(fontSize: 14, height: 22 / 14, fontWeight: FontWeight.w400),
+    caption: _inter(
       fontSize: 12,
       height: 18 / 12,
       fontWeight: FontWeight.w400,
     ),
-    label: TextStyle(
-      fontFamily: _sans,
-      fontFamilyFallback: _fallback,
-      fontSize: 14,
-      height: 20 / 14,
-      fontWeight: FontWeight.w600,
-    ),
-    priceLarge: TextStyle(
-      fontFamily: _sans,
-      fontFamilyFallback: _fallback,
+    label: _inter(fontSize: 14, height: 20 / 14, fontWeight: FontWeight.w600),
+    priceLarge: _inter(
       fontSize: 28,
       height: 36 / 28,
       fontWeight: FontWeight.w700,
       fontFeatures: [FontFeature.tabularFigures()],
     ),
-    priceMedium: TextStyle(
-      fontFamily: _sans,
-      fontFamilyFallback: _fallback,
+    priceMedium: _inter(
       fontSize: 20,
       height: 28 / 20,
       fontWeight: FontWeight.w700,
@@ -121,7 +92,7 @@ final class AppTypography extends ThemeExtension<AppTypography> {
     // arm's length across a shop counter. Monospace for unambiguous 0/O and
     // 1/l/I — and the code alphabet itself already excludes the ambiguous
     // characters (§2.1).
-    codeMono: TextStyle(
+    codeMono: const TextStyle(
       fontFamily: _mono,
       fontSize: 24,
       height: 32 / 24,
@@ -134,9 +105,7 @@ final class AppTypography extends ThemeExtension<AppTypography> {
     // **Tabular figures are not a detail.** Proportional digits change
     // width as they tick, so a countdown visibly jitters and reflows its
     // container — on a screen the user stares at while standing in a shop.
-    countdown: TextStyle(
-      fontFamily: _sans,
-      fontFamilyFallback: _fallback,
+    countdown: _inter(
       fontSize: 16,
       height: 24 / 16,
       fontWeight: FontWeight.w600,
@@ -144,9 +113,34 @@ final class AppTypography extends ThemeExtension<AppTypography> {
     ),
   );
 
-  static const _sans = 'Inter';
   static const _mono = 'JetBrainsMono';
   static const _fallback = ['NotoSansDevanagari'];
+
+  /// `GoogleFonts.sora(...)` has no `fontFamilyFallback` parameter — it's
+  /// applied via `copyWith` on the `TextStyle` it returns instead.
+  static TextStyle _sora({
+    required double fontSize,
+    required double height,
+    required FontWeight fontWeight,
+    List<FontFeature>? fontFeatures,
+  }) => GoogleFonts.sora(
+    fontSize: fontSize,
+    height: height,
+    fontWeight: fontWeight,
+    fontFeatures: fontFeatures,
+  ).copyWith(fontFamilyFallback: _fallback);
+
+  static TextStyle _inter({
+    required double fontSize,
+    required double height,
+    required FontWeight fontWeight,
+    List<FontFeature>? fontFeatures,
+  }) => GoogleFonts.inter(
+    fontSize: fontSize,
+    height: height,
+    fontWeight: fontWeight,
+    fontFeatures: fontFeatures,
+  ).copyWith(fontFamilyFallback: _fallback);
 
   final TextStyle display;
   final TextStyle headline;

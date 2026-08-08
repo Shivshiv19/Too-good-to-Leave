@@ -204,17 +204,17 @@ class _AppButtonState extends State<AppButton> {
             // already carries its own `borderRadius`) must express the
             // rounding instead.
             borderRadius: border == null
-                ? BorderRadius.circular(Radii.md)
+                ? BorderRadius.circular(Radii.full)
                 : null,
             shape: border == null
                 ? null
                 : RoundedRectangleBorder(
                     side: BorderSide(color: border, width: 1.5),
-                    borderRadius: BorderRadius.circular(Radii.md),
+                    borderRadius: BorderRadius.circular(Radii.full),
                   ),
             child: InkWell(
               onTap: isEnabled ? widget.onPressed : null,
-              borderRadius: BorderRadius.circular(Radii.md),
+              borderRadius: BorderRadius.circular(Radii.full),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: Space.x5,

@@ -33,36 +33,41 @@ enum Elevation {
   ///
   /// Shadow colour is derived from the **warm** neutral ramp rather than pure
   /// black — a cold shadow against warm neutrals reads as a rendering artefact.
+  ///
+  /// Softer and more diffuse since the "Too Good To Leave" rebrand — larger
+  /// blur radii relative to spread/offset (Airbnb-style: shadows read as
+  /// ambient warmth around a surface, not a hard-edged drop shadow), tinted
+  /// from the brand green rather than the old warm-neutral near-black.
   List<BoxShadow> shadowsFor(Brightness brightness) {
     if (brightness == Brightness.dark) return const [];
     return switch (this) {
       Elevation.flat => const [],
       Elevation.card => const [
         BoxShadow(
-          color: Color(0x0F1A1614),
-          blurRadius: 3,
-          offset: Offset(0, 1),
-        ),
-      ],
-      Elevation.sticky => const [
-        BoxShadow(
-          color: Color(0x141A1614),
+          color: Color(0x0F1E2119),
           blurRadius: 8,
           offset: Offset(0, 2),
         ),
       ],
+      Elevation.sticky => const [
+        BoxShadow(
+          color: Color(0x121E2119),
+          blurRadius: 24,
+          offset: Offset(0, 8),
+        ),
+      ],
       Elevation.overlay => const [
         BoxShadow(
-          color: Color(0x1F1A1614),
-          blurRadius: 16,
-          offset: Offset(0, 4),
+          color: Color(0x1A1E2119),
+          blurRadius: 40,
+          offset: Offset(0, 16),
         ),
       ],
       Elevation.highest => const [
         BoxShadow(
-          color: Color(0x291A1614),
-          blurRadius: 24,
-          offset: Offset(0, 8),
+          color: Color(0x231E2119),
+          blurRadius: 56,
+          offset: Offset(0, 20),
         ),
       ],
     };
