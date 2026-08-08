@@ -9,6 +9,7 @@ import 'package:too_good_to_leave_shop/core/domain/pickup_token.dart';
 import 'package:too_good_to_leave_shop/core/domain/pickup_window.dart';
 import 'package:too_good_to_leave_shop/domain/payout.dart';
 import 'package:too_good_to_leave_shop/domain/shop_bag.dart';
+import 'package:too_good_to_leave_shop/domain/shop_notification.dart';
 import 'package:too_good_to_leave_shop/domain/shop_order.dart';
 import 'package:too_good_to_leave_shop/domain/shop_profile.dart';
 
@@ -21,6 +22,7 @@ const _profileKey = 'shop_profile';
 const _bagsKey = 'shop_bags';
 const _ordersKey = 'shop_orders';
 const _payoutsKey = 'shop_payouts';
+const _notificationsKey = 'shop_notifications';
 
 /// Shop-side data — registration, bags, orders, and (as later areas land)
 /// payments/analytics/notifications/settings. Standalone: nothing here is
@@ -56,6 +58,7 @@ class ShopRepository extends ChangeNotifier {
     final bagsJson = prefs.getString(_bagsKey);
     final ordersJson = prefs.getString(_ordersKey);
     final payoutsJson = prefs.getString(_payoutsKey);
+    final notificationsJson = prefs.getString(_notificationsKey);
 
     if (profileJson == null && bagsJson == null) {
       // First-ever launch on this browser — nothing persisted yet.
@@ -90,6 +93,13 @@ class ShopRepository extends ChangeNotifier {
             .map(PayoutRecord.fromJson),
       );
     }
+    if (notificationsJson != null) {
+      repo._notifications.addAll(
+        (jsonDecode(notificationsJson) as List)
+            .cast<Map<String, dynamic>>()
+            .map(ShopNotification.fromJson),
+      );
+    }
     return repo;
   }
 
@@ -99,8 +109,21 @@ class ShopRepository extends ChangeNotifier {
   final List<ShopBag> _bags = [];
   final List<ShopOrder> _orders = [];
   final List<PayoutRecord> _payouts = [];
+  final List<ShopNotification> _notifications = [];
   int _nextBagId = 1;
   int _nextPayoutId = 1;
+  int _nextNotificationId = 1;
+
+  void _addNotification(String message) {
+    _notifications.insert(
+      0,
+      ShopNotification(
+        id: 'notif_${_nextNotificationId++}',
+        message: message,
+        createdAt: _clock.now(),
+      ),
+    );
+  }
 
   /// Derives the next id from the highest `bag_N` suffix actually present,
   /// not just `_bags.length` — a count would collide again the moment any
@@ -131,6 +154,10 @@ class ShopRepository extends ChangeNotifier {
     await prefs.setString(
       _payoutsKey,
       jsonEncode(_payouts.map((p) => p.toJson()).toList()),
+    );
+    await prefs.setString(
+      _notificationsKey,
+      jsonEncode(_notifications.map((n) => n.toJson()).toList()),
     );
   }
 
@@ -384,6 +411,9 @@ class ShopRepository extends ChangeNotifier {
       throw const PickupCodeMismatchException();
     }
     _orders[index] = order.copyWith(status: ShopOrderStatus.collected);
+    _addNotification(
+      'Pickup confirmed for ${order.bagTitle} — ${order.customerName}.',
+    );
     notifyListeners();
     await _persist();
   }
@@ -398,7 +428,11 @@ class ShopRepository extends ChangeNotifier {
     final index = _orders.indexWhere((o) => o.id == orderId);
     if (index == -1) return;
     if (_orders[index].status != ShopOrderStatus.reserved) return;
-    _orders[index] = _orders[index].copyWith(status: ShopOrderStatus.expired);
+    final order = _orders[index];
+    _orders[index] = order.copyWith(status: ShopOrderStatus.expired);
+    _addNotification(
+      'No-show recorded for ${order.bagTitle} — ${order.customerName}.',
+    );
     notifyListeners();
     await _persist();
   }
@@ -413,8 +447,10 @@ class ShopRepository extends ChangeNotifier {
     final index = _orders.indexWhere((o) => o.id == orderId);
     if (index == -1) return;
     if (_orders[index].status != ShopOrderStatus.reserved) return;
-    _orders[index] = _orders[index].copyWith(
-      status: ShopOrderStatus.cancelled,
+    final order = _orders[index];
+    _orders[index] = order.copyWith(status: ShopOrderStatus.cancelled);
+    _addNotification(
+      'Order cancelled for ${order.bagTitle} — ${order.customerName}.',
     );
     notifyListeners();
     await _persist();
@@ -479,8 +515,30 @@ class ShopRepository extends ChangeNotifier {
       orderIds: unpaid.map((o) => o.id).toList(),
     );
     _payouts.add(payout);
+    _addNotification('Payout of ₹${payout.amount.wholeUnits} requested.');
     notifyListeners();
     await _persist();
     return payout;
+  }
+
+  // ---------------------------------------------------------------------
+  // Notifications
+  // ---------------------------------------------------------------------
+
+  /// Newest first — [_addNotification] inserts at index 0.
+  List<ShopNotification> getNotifications() => List.unmodifiable(
+    _notifications,
+  );
+
+  int get unreadNotificationCount =>
+      _notifications.where((n) => !n.read).length;
+
+  Future<void> markAllNotificationsRead() async {
+    if (unreadNotificationCount == 0) return;
+    for (var i = 0; i < _notifications.length; i++) {
+      _notifications[i] = _notifications[i].copyWith(read: true);
+    }
+    notifyListeners();
+    await _persist();
   }
 }

@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:too_good_to_leave_shop/core/domain/money.dart';
@@ -111,10 +112,18 @@ void main() {
     expect(find.text('Test Bakery'), findsOneWidget);
     expect(find.text('Test Owner'), findsOneWidget);
 
+    // The Notifications row pushed "Log out" below the fold in a test's
+    // default viewport — scroll it into view before tapping.
+    await tester.ensureVisible(find.text('Log out'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Log out'));
     await tester.pumpAndSettle();
-    // Confirm the dialog.
-    await tester.tap(find.text('Log out').last);
+    // Confirm the dialog — targeted by widget type rather than `.last`,
+    // since ordinal text-matching is fragile once the screen has more than
+    // one "Log out" on it at once (the button underneath, and the dialog's
+    // own action).
+    expect(find.text('Log out?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Log out'));
     await tester.pumpAndSettle();
 
     expect(find.text('Register your shop'), findsOneWidget);
@@ -328,6 +337,58 @@ void main() {
         ImpactEstimate.co2eKgAvoided(10),
         10 * ImpactEstimate.kgPerBag * ImpactEstimate.co2eKgPerKgFood,
       );
+    });
+  });
+
+  group('notifications', () {
+    test('confirming a pickup, marking a no-show, cancelling, and '
+        'requesting a payout each add an unread notification', () async {
+      final repo = ShopRepository();
+      expect(repo.unreadNotificationCount, 0);
+
+      final reserved = repo
+          .getOrders()
+          .firstWhere((o) => o.status == ShopOrderStatus.reserved);
+      await repo.confirmPickupByCode(
+        orderId: reserved.id,
+        code: reserved.token.fallbackCode,
+      );
+      expect(repo.unreadNotificationCount, 1);
+
+      await repo.requestPayout();
+      expect(repo.unreadNotificationCount, 2);
+      expect(repo.getNotifications(), hasLength(2));
+      // Newest first.
+      expect(repo.getNotifications().first.message, contains('Payout'));
+    });
+
+    test('markAllNotificationsRead clears the unread count', () async {
+      final repo = ShopRepository();
+      final reserved = repo
+          .getOrders()
+          .firstWhere((o) => o.status == ShopOrderStatus.reserved);
+      await repo.markNoShow(reserved.id);
+      expect(repo.unreadNotificationCount, 1);
+
+      await repo.markAllNotificationsRead();
+
+      expect(repo.unreadNotificationCount, 0);
+      expect(repo.getNotifications().every((n) => n.read), true);
+    });
+  });
+
+  group('persistence', () {
+    test('notifications survive a fresh load()', () async {
+      final first = await ShopRepository.load();
+      final reserved = first
+          .getOrders()
+          .firstWhere((o) => o.status == ShopOrderStatus.reserved);
+      await first.cancelOrder(reserved.id);
+
+      final reloaded = await ShopRepository.load();
+
+      expect(reloaded.getNotifications(), hasLength(1));
+      expect(reloaded.getNotifications().first.message, contains('cancelled'));
     });
   });
 }
