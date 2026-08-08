@@ -2,7 +2,9 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:too_good_to_leave_shop/core/domain/money.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
+import 'package:too_good_to_leave_shop/domain/payout.dart';
 import 'package:too_good_to_leave_shop/domain/shop_bag.dart';
 import 'package:too_good_to_leave_shop/domain/shop_category.dart';
 import 'package:too_good_to_leave_shop/domain/shop_order.dart';
@@ -268,6 +270,46 @@ void main() {
         repo.getOrders().firstWhere((o) => o.id == collected.id).status,
         ShopOrderStatus.collected,
       );
+    });
+  });
+
+  group('payments', () {
+    test('totalEarnedAllTime and pendingPayoutAmount start equal, net of '
+        'commission on the one seeded collected order', () {
+      final repo = ShopRepository();
+      final collected = repo
+          .getOrders()
+          .firstWhere((o) => o.status == ShopOrderStatus.collected);
+      final expectedNet = EarningsBreakdown(gross: collected.price).net;
+
+      expect(repo.totalEarnedAllTime, expectedNet);
+      expect(repo.pendingPayoutAmount, expectedNet);
+    });
+
+    test('requestPayout pays out everything pending, then has nothing left '
+        'to pay', () async {
+      final repo = ShopRepository();
+      final pendingBefore = repo.pendingPayoutAmount;
+
+      final payout = await repo.requestPayout();
+
+      expect(payout, isNotNull);
+      expect(payout!.amount, pendingBefore);
+      expect(repo.pendingPayoutAmount, const Money.zero());
+      // All-time total is unaffected by a payout — it's still the same
+      // money, just no longer *pending*.
+      expect(repo.totalEarnedAllTime, pendingBefore);
+      expect(repo.getPayouts(), hasLength(1));
+    });
+
+    test('requestPayout is a no-op when nothing is pending', () async {
+      final repo = ShopRepository();
+      await repo.requestPayout();
+
+      final second = await repo.requestPayout();
+
+      expect(second, isNull);
+      expect(repo.getPayouts(), hasLength(1));
     });
   });
 }

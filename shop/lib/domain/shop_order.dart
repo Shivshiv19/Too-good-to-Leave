@@ -1,5 +1,16 @@
+import 'package:too_good_to_leave_shop/core/domain/money.dart';
 import 'package:too_good_to_leave_shop/core/domain/pickup_token.dart';
 import 'package:too_good_to_leave_shop/core/domain/pickup_window.dart';
+
+Map<String, dynamic> _moneyToJson(Money money) => {
+  'amountInPaise': money.amountInPaise,
+  'currencyCode': money.currency.code,
+};
+
+Money _moneyFromJson(Map<String, dynamic> json) => Money(
+  json['amountInPaise'] as int,
+  currency: Currency.fromCode(json['currencyCode'] as String),
+);
 
 Map<String, dynamic> _pickupWindowToJson(PickupWindow window) => {
   'startAt': window.startAt.toIso8601String(),
@@ -47,9 +58,13 @@ enum ShopOrderStatus {
 
 /// An incoming reservation, as the shop sees it.
 ///
-/// Only carries what a counter needs to confirm a pickup — no payment or
-/// customer-account detail crosses into the shop's view (a customer's name
-/// is enough to greet them; nothing else is the shop's business).
+/// Carries what a counter needs to confirm a pickup, plus [price] — a
+/// snapshot of what the bag cost at the moment it was reserved, the same
+/// way the real customer-app `Order` entity snapshots price rather than
+/// pointing back at a bag whose price could change later. No *payment
+/// method* or customer-account detail crosses into the shop's view; the
+/// price itself is legitimately needed here now for the payments/earnings
+/// area (§8.12-shop area 5) — a shop has to know what it earned per order.
 final class ShopOrder {
   ShopOrder({
     required this.id,
@@ -57,6 +72,7 @@ final class ShopOrder {
     required this.customerName,
     required this.pickupWindow,
     required this.token,
+    required this.price,
     this.status = ShopOrderStatus.reserved,
   });
 
@@ -65,6 +81,7 @@ final class ShopOrder {
   final String customerName;
   final PickupWindow pickupWindow;
   final PickupToken token;
+  final Money price;
   final ShopOrderStatus status;
 
   ShopOrder copyWith({ShopOrderStatus? status}) => ShopOrder(
@@ -73,6 +90,7 @@ final class ShopOrder {
     customerName: customerName,
     pickupWindow: pickupWindow,
     token: token,
+    price: price,
     status: status ?? this.status,
   );
 
@@ -82,6 +100,7 @@ final class ShopOrder {
     'customerName': customerName,
     'pickupWindow': _pickupWindowToJson(pickupWindow),
     'token': _tokenToJson(token),
+    'price': _moneyToJson(price),
     'status': status.name,
   };
 
@@ -93,6 +112,7 @@ final class ShopOrder {
       json['pickupWindow'] as Map<String, dynamic>,
     ),
     token: _tokenFromJson(json['token'] as Map<String, dynamic>),
+    price: _moneyFromJson(json['price'] as Map<String, dynamic>),
     status: ShopOrderStatus.values.byName(json['status'] as String),
   );
 }

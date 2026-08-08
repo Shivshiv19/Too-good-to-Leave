@@ -6,6 +6,7 @@ import 'package:too_good_to_leave_shop/design_system/foundations/elevation.dart'
 import 'package:too_good_to_leave_shop/screens/account_screen.dart';
 import 'package:too_good_to_leave_shop/screens/bag_list_screen.dart';
 import 'package:too_good_to_leave_shop/screens/order_list_screen.dart';
+import 'package:too_good_to_leave_shop/screens/payments_screen.dart';
 
 /// The shop app's tab shell. A floating pill nav, matching the customer
 /// app's rebrand (`app_shell_screen.dart` there), kept intentionally simple
@@ -33,6 +34,7 @@ class _ShopShellScreenState extends State<ShopShellScreen> {
         children: [
           BagListScreen(repository: widget.repository),
           OrderListScreen(repository: widget.repository),
+          PaymentsScreen(repository: widget.repository),
           AccountScreen(repository: widget.repository),
         ],
       ),
@@ -84,6 +86,11 @@ class _ShopShellScreenState extends State<ShopShellScreen> {
                     icon: Icon(Icons.receipt_long_outlined),
                     selectedIcon: Icon(Icons.receipt_long),
                     label: 'Orders',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.account_balance_wallet_outlined),
+                    selectedIcon: Icon(Icons.account_balance_wallet),
+                    label: 'Payments',
                   ),
                   NavigationDestination(
                     icon: Icon(Icons.storefront_outlined),

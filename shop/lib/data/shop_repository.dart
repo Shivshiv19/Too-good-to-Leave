@@ -7,6 +7,7 @@ import 'package:too_good_to_leave_shop/core/domain/dietary_envelope.dart';
 import 'package:too_good_to_leave_shop/core/domain/money.dart';
 import 'package:too_good_to_leave_shop/core/domain/pickup_token.dart';
 import 'package:too_good_to_leave_shop/core/domain/pickup_window.dart';
+import 'package:too_good_to_leave_shop/domain/payout.dart';
 import 'package:too_good_to_leave_shop/domain/shop_bag.dart';
 import 'package:too_good_to_leave_shop/domain/shop_order.dart';
 import 'package:too_good_to_leave_shop/domain/shop_profile.dart';
@@ -19,6 +20,7 @@ class PickupCodeMismatchException implements Exception {
 const _profileKey = 'shop_profile';
 const _bagsKey = 'shop_bags';
 const _ordersKey = 'shop_orders';
+const _payoutsKey = 'shop_payouts';
 
 /// Shop-side data — registration, bags, orders, and (as later areas land)
 /// payments/analytics/notifications/settings. Standalone: nothing here is
@@ -53,6 +55,7 @@ class ShopRepository extends ChangeNotifier {
     final profileJson = prefs.getString(_profileKey);
     final bagsJson = prefs.getString(_bagsKey);
     final ordersJson = prefs.getString(_ordersKey);
+    final payoutsJson = prefs.getString(_payoutsKey);
 
     if (profileJson == null && bagsJson == null) {
       // First-ever launch on this browser — nothing persisted yet.
@@ -80,6 +83,13 @@ class ShopRepository extends ChangeNotifier {
             .map(ShopOrder.fromJson),
       );
     }
+    if (payoutsJson != null) {
+      repo._payouts.addAll(
+        (jsonDecode(payoutsJson) as List)
+            .cast<Map<String, dynamic>>()
+            .map(PayoutRecord.fromJson),
+      );
+    }
     return repo;
   }
 
@@ -88,7 +98,9 @@ class ShopRepository extends ChangeNotifier {
   ShopProfile? _profile;
   final List<ShopBag> _bags = [];
   final List<ShopOrder> _orders = [];
+  final List<PayoutRecord> _payouts = [];
   int _nextBagId = 1;
+  int _nextPayoutId = 1;
 
   /// Derives the next id from the highest `bag_N` suffix actually present,
   /// not just `_bags.length` — a count would collide again the moment any
@@ -115,6 +127,10 @@ class ShopRepository extends ChangeNotifier {
     await prefs.setString(
       _ordersKey,
       jsonEncode(_orders.map((o) => o.toJson()).toList()),
+    );
+    await prefs.setString(
+      _payoutsKey,
+      jsonEncode(_payouts.map((p) => p.toJson()).toList()),
     );
   }
 
@@ -176,6 +192,7 @@ class ShopRepository extends ChangeNotifier {
         bagTitle: 'Bakery Surprise Bag',
         customerName: 'Aditi',
         pickupWindow: _bags[0].pickupWindow,
+        price: _bags[0].price,
         token: PickupToken(
           rotatingPayload: 'rot_ord1',
           rotationExpiresAt: now.add(const Duration(seconds: 60)),
@@ -189,6 +206,7 @@ class ShopRepository extends ChangeNotifier {
         bagTitle: 'Lunch Combo Surprise',
         customerName: 'Rohan',
         pickupWindow: _bags[1].pickupWindow,
+        price: _bags[1].price,
         token: PickupToken(
           rotatingPayload: 'rot_ord2',
           rotationExpiresAt: now.add(const Duration(seconds: 60)),
@@ -400,5 +418,69 @@ class ShopRepository extends ChangeNotifier {
     );
     notifyListeners();
     await _persist();
+  }
+
+  // ---------------------------------------------------------------------
+  // Payments / payouts
+  // ---------------------------------------------------------------------
+
+  List<PayoutRecord> getPayouts() => List.unmodifiable(_payouts);
+
+  /// Collected orders not yet covered by any past payout.
+  List<ShopOrder> get _unpaidCollectedOrders {
+    final paidOrderIds = _payouts.expand((p) => p.orderIds).toSet();
+    return _orders
+        .where(
+          (o) =>
+              o.status == ShopOrderStatus.collected &&
+              !paidOrderIds.contains(o.id),
+        )
+        .toList();
+  }
+
+  /// Net earnings across every collected order, regardless of payout
+  /// status — the shop's all-time total.
+  Money get totalEarnedAllTime {
+    final collected = _orders.where(
+      (o) => o.status == ShopOrderStatus.collected,
+    );
+    var total = const Money.zero();
+    for (final order in collected) {
+      total += EarningsBreakdown(gross: order.price).net;
+    }
+    return total;
+  }
+
+  /// Net earnings from collected orders not yet paid out — what a
+  /// [requestPayout] right now would actually pay.
+  Money get pendingPayoutAmount {
+    var total = const Money.zero();
+    for (final order in _unpaidCollectedOrders) {
+      total += EarningsBreakdown(gross: order.price).net;
+    }
+    return total;
+  }
+
+  /// Requests a payout covering every unpaid collected order. A no-op
+  /// (returns `null`) when there's nothing to pay — a ₹0 payout record
+  /// would be a confusing entry in the shop's payout history for money
+  /// that never moved.
+  ///
+  /// No real payment processor sits behind this in a standalone build —
+  /// it records the shop's side of the request rather than moving money.
+  Future<PayoutRecord?> requestPayout() async {
+    final unpaid = _unpaidCollectedOrders;
+    if (unpaid.isEmpty) return null;
+    final amount = pendingPayoutAmount;
+    final payout = PayoutRecord(
+      id: 'payout_${_nextPayoutId++}',
+      requestedAt: _clock.now(),
+      amount: amount,
+      orderIds: unpaid.map((o) => o.id).toList(),
+    );
+    _payouts.add(payout);
+    notifyListeners();
+    await _persist();
+    return payout;
   }
 }
