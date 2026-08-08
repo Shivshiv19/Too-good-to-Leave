@@ -1,0 +1,140 @@
+name: surplus_marketplace
+description: Surplus-food marketplace for India — customer application.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  # Dart 3.12 ships with Flutter 3.44 stable. 3.10+ is required for the
+  # dot-shorthand syntax the framework's own generated code now uses.
+  sdk: ^3.12.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State + DI (Phase 8 §8.4)
+  flutter_riverpod: ^3.1.0
+  riverpod_annotation: ^4.0.0
+
+  # Models (freezed for DTOs and sealed unions only — core/domain value
+  # objects are hand-written, see Phase 9 §9.1 D-1)
+  freezed_annotation: ^3.1.0
+  json_annotation: ^4.9.0
+
+  # Routing (Phase 4 §4.1)
+  go_router: ^17.3.0
+
+  # Network (Phase 8 §8.9)
+  dio: ^5.7.0
+
+  # Storage
+  flutter_secure_storage: ^10.3.1
+  drift: ^2.20.0
+  sqlite3_flutter_libs: ^0.6.0+eol
+  path_provider: ^2.1.4
+  shared_preferences: ^2.3.2
+
+  # Presentation
+  cached_network_image: ^3.4.1
+  # Pinned by flutter_localizations from the SDK — must match exactly.
+  intl: ^0.20.2
+  qr_flutter: ^4.1.0 # must honour A21 fixed light surface
+  screen_brightness: ^2.1.11 # §5d.3
+
+  # Platform capability — each sits behind a core abstraction (§8.6)
+  geolocator: ^14.0.3
+  permission_handler: ^12.0.3
+  firebase_core: ^4.12.1
+  firebase_messaging: ^16.4.3 # behind PushProvider
+  smart_auth: ^3.2.0 # SMS Retriever + Phone Number Hint (§5a.7)
+  # Provider-agnostic tile map widget, behind MapTileConfig (§8.6) — takes a
+  # raw tile URL template, so swapping MapTiler for Mappls/Ola/Google's own
+  # raster tiles later is a config change, not a dependency change.
+  flutter_map: ^8.3.1
+  latlong2: ^0.10.1 # flutter_map's own coordinate type
+
+  # Utility
+  share_plus: ^13.3.0
+  package_info_plus: ^10.2.1
+  device_info_plus: ^13.2.0
+  connectivity_plus: ^7.3.1
+  image_picker: ^1.2.3
+  url_launcher: ^6.3.2
+
+  # NOTE: payment gateway SDK deliberately absent. PaymentGateway is an
+  # interface in core (§8.6); no gateway type may reach domain or presentation.
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+
+  build_runner: ^2.4.13
+  freezed: ^3.2.3
+  json_serializable: ^6.8.0
+  riverpod_generator: ^4.0.0+1
+  go_router_builder: ^4.4.0
+  drift_dev: ^2.20.0
+
+  # Lints (Phase 8 §8.7)
+  very_good_analysis: ^10.3.0
+  custom_lint: ^0.8.1
+  riverpod_lint: ^3.1.0
+
+  # Test
+  mocktail: ^1.0.4
+  alchemist: ^0.14.0
+
+flutter:
+  uses-material-design: true
+  generate: true # l10n from ARB
+
+  # assets:
+  #   - assets/fixtures/
+
+  # ---------------------------------------------------------------------------
+  # FONTS — deliberately commented out until the font binaries are added.
+  #
+  # Phase 6 §6.3.1 specifies Inter (Latin), Noto Sans Devanagari (fallback),
+  # and JetBrains Mono (codes), all BUNDLED rather than network-fetched.
+  #
+  # The .ttf files are not in this repo. Until they are placed in
+  # assets/fonts/, Flutter silently falls back to the platform font — the app
+  # runs and looks reasonable, it simply is not on-spec typography.
+  #
+  # Declaring a font whose file is missing FAILS the build, which is why this
+  # block stays commented rather than shipping broken.
+  #
+  # To activate: download the families below into assets/fonts/ and uncomment.
+  #
+  #   Inter            — Inter-Regular / Medium / SemiBold / Bold  (400/500/600/700)
+  #   NotoSansDevanagari — Regular / SemiBold / Bold               (400/600/700)
+  #   JetBrainsMono    — Medium                                    (500)
+  # ---------------------------------------------------------------------------
+  #
+  # fonts:
+  #   - family: Inter
+  #     fonts:
+  #       - asset: assets/fonts/Inter-Regular.ttf
+  #         weight: 400
+  #       - asset: assets/fonts/Inter-Medium.ttf
+  #         weight: 500
+  #       - asset: assets/fonts/Inter-SemiBold.ttf
+  #         weight: 600
+  #       - asset: assets/fonts/Inter-Bold.ttf
+  #         weight: 700
+  #   - family: NotoSansDevanagari
+  #     fonts:
+  #       - asset: assets/fonts/NotoSansDevanagari-Regular.ttf
+  #         weight: 400
+  #       - asset: assets/fonts/NotoSansDevanagari-SemiBold.ttf
+  #         weight: 600
+  #       - asset: assets/fonts/NotoSansDevanagari-Bold.ttf
+  #         weight: 700
+  #   - family: JetBrainsMono
+  #     fonts:
+  #       - asset: assets/fonts/JetBrainsMono-Medium.ttf
+  #         weight: 500

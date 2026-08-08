@@ -1,0 +1,1576 @@
+{
+  "@@locale": "en",
+
+  "@_COMMENT_SCOPE": {},
+  "@_SCOPE": {
+    "description": "Cross-cutting and money/safety-critical copy only. See docs/10-copy-deck.md. Discovery browse, engagement, account, and help copy land with their features per Phase 8 §8.12."
+  },
+
+  "@_COMMENT_GENERIC_ERRORS": {},
+
+  "errorOfflineTitle": "Check your connection",
+  "@errorOfflineTitle": {
+    "description": "No connectivity. §C5 network class."
+  },
+  "errorOfflineBody": "You're offline. We'll retry when you're back.",
+  "@errorOfflineBody": {},
+
+  "errorTimeoutTitle": "That took too long",
+  "@errorTimeoutTitle": {},
+  "errorTimeoutBody": "Please try again.",
+  "@errorTimeoutBody": {},
+
+  "errorServerTitle": "Something went wrong on our side",
+  "@errorServerTitle": {
+    "description": "5xx. 'On our side' is deliberate — users blame themselves for server errors and then stop trying."
+  },
+  "errorServerBody": "This isn't your fault. Please try again.",
+  "@errorServerBody": {},
+
+  "errorRetry": "Try again",
+  "@errorRetry": {},
+  "errorDetails": "Details",
+  "@errorDetails": {
+    "description": "Expands to show the correlation ID for support. Never shown in primary copy (§7.1.5)."
+  },
+  "errorReference": "Reference: {correlationId}",
+  "@errorReference": {
+    "placeholders": { "correlationId": { "type": "String" } }
+  },
+
+  "@_COMMENT_LIFECYCLE": {},
+
+  "sessionExpiredTitle": "Please sign in again",
+  "@sessionExpiredTitle": {},
+  "sessionExpiredBody": "Your orders and reservations are safe.",
+  "@sessionExpiredBody": {
+    "description": "Load-bearing. An unexpected sign-out in an app holding a prepaid reservation reads as 'my order is gone' (§5a.11)."
+  },
+  "sessionExpiredCta": "Sign in",
+  "@sessionExpiredCta": {},
+
+  "forceUpdateTitle": "Time to update",
+  "@forceUpdateTitle": {},
+  "forceUpdateBody": "This version is no longer supported. Update to keep ordering.",
+  "@forceUpdateBody": {},
+  "forceUpdateCta": "Update now",
+  "@forceUpdateCta": {},
+  "forceUpdateStoreUnavailable": "We couldn't open the store. You can find the update at {storeUrl}",
+  "@forceUpdateStoreUnavailable": {
+    "placeholders": { "storeUrl": { "type": "String" } }
+  },
+
+  "maintenanceTitle": "We'll be back shortly",
+  "@maintenanceTitle": {},
+  "maintenanceBody": "We're doing some maintenance.",
+  "@maintenanceBody": {},
+  "maintenanceBodyWithEta": "We're doing some maintenance. We expect to be back {eta}.",
+  "@maintenanceBodyWithEta": {
+    "description": "An unspecified outage reads as abandonment, so the ETA variant is preferred whenever known (§5a.10).",
+    "placeholders": { "eta": { "type": "String" } }
+  },
+
+  "@_COMMENT_NAV": {},
+
+  "navDiscover": "Discover",
+  "@navDiscover": {},
+  "navOrders": "Orders",
+  "@navOrders": {},
+  "navSaved": "Saved",
+  "@navSaved": {},
+  "navAccount": "Account",
+  "@navAccount": {},
+  "navOrdersBadgeSemantic": "{count, plural, =1{1 pickup opening soon} other{{count} pickups opening soon}}",
+  "@navOrdersBadgeSemantic": {
+    "description": "§5d.1 — load-bearing, not decorative: the in-app substitute for a denied notification permission (§5c.9).",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "@_COMMENT_PHONE_ENTRY": {},
+
+  "phoneEntryHeadline": "What's your number?",
+  "@phoneEntryHeadline": {},
+  "phoneEntryContextBannerDefault": "Sign in to continue",
+  "@phoneEntryContextBannerDefault": {
+    "description": "§5a.6 — the real banner text is carried from the redirect target (e.g. 'Sign in to reserve your bag'), but no calling feature supplies one yet (no checkout). This generic fallback is used until one does."
+  },
+  "phoneEntryInvalidNumber": "Enter a valid 10-digit mobile number",
+  "@phoneEntryInvalidNumber": {},
+  "phoneEntryTermsConsent": "By continuing, you agree to our Terms and Privacy Policy.",
+  "@phoneEntryTermsConsent": {
+    "description": "Rendered as plain text for now — /account/legal/:docId (§5f.9) doesn't exist yet, so the links have nowhere to go."
+  },
+
+  "@_COMMENT_OTP_SCREEN": {},
+
+  "otpVerifyHeadline": "Enter the code",
+  "@otpVerifyHeadline": {},
+  "otpVerifySentTo": "Code sent to {phone}",
+  "@otpVerifySentTo": {
+    "placeholders": { "phone": { "type": "String" } }
+  },
+  "otpChangeNumber": "Change",
+  "@otpChangeNumber": {},
+  "otpVerifyCta": "Verify",
+  "@otpVerifyCta": {},
+
+  "@_COMMENT_PROFILE_SETUP": {},
+
+  "profileSetupHeadline": "What should we call you?",
+  "@profileSetupHeadline": {},
+  "profileSetupNameLabel": "Your name",
+  "@profileSetupNameLabel": {},
+  "profileSetupNameInvalid": "Enter a name between 2 and 50 characters",
+  "@profileSetupNameInvalid": {},
+
+  "@_COMMENT_OTP": {},
+
+  "otpInvalidTitle": "That code isn't right",
+  "@otpInvalidTitle": {
+    "description": "Never 'Invalid OTP' or 'Authentication failed'."
+  },
+  "otpAttemptsLeft": "{count, plural, =1{1 attempt left} other{{count} attempts left}}",
+  "@otpAttemptsLeft": {
+    "description": "Shown explicitly — a silent rejection leaves the user unable to judge whether to retry or start over (§5a.7).",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "otpExpiredTitle": "That code expired",
+  "@otpExpiredTitle": {},
+  "otpExpiredBody": "Codes last 10 minutes. Get a new one.",
+  "@otpExpiredBody": {},
+  "otpExhaustedTitle": "Too many tries",
+  "@otpExhaustedTitle": {},
+  "otpExhaustedBody": "Try again in {duration}.",
+  "@otpExhaustedBody": {
+    "placeholders": { "duration": { "type": "String" } }
+  },
+  "otpRateLimitedTitle": "Too many code requests",
+  "@otpRateLimitedTitle": {},
+  "otpRateLimitedBody": "Try again in {duration}.",
+  "@otpRateLimitedBody": {
+    "placeholders": { "duration": { "type": "String" } }
+  },
+  "otpSmsFailedTitle": "We couldn't send an SMS",
+  "@otpSmsFailedTitle": {
+    "description": "The TRAI DLT reality makes this routine, not an edge case (Phase 1 §3.5)."
+  },
+  "otpSmsFailedBody": "Try WhatsApp instead.",
+  "@otpSmsFailedBody": {},
+
+  "otpWaiting": "Waiting for SMS…",
+  "@otpWaiting": {},
+  "otpResendIn": "Resend in {seconds}s",
+  "@otpResendIn": {
+    "placeholders": { "seconds": { "type": "int" } }
+  },
+  "otpResend": "Resend code",
+  "@otpResend": {},
+  "otpTryWhatsApp": "Get the code on WhatsApp",
+  "@otpTryWhatsApp": {},
+  "otpTryVoice": "Get a call instead",
+  "@otpTryVoice": {},
+  "otpFieldSemanticLabel": "Verification code, 6 digits",
+  "@otpFieldSemanticLabel": {
+    "description": "The six boxes present as ONE logical field — the most common accessibility defect in OTP UIs (§5a.7)."
+  },
+  "otpReceivedAnnouncement": "Code received, verifying",
+  "@otpReceivedAnnouncement": {},
+
+  "@_COMMENT_ONBOARDING": {},
+
+  "onboardingPage1Headline": "Made today, not sold in time",
+  "@onboardingPage1Headline": {
+    "description": "Answers 'is this old food?' (§5a.2 page 1)."
+  },
+  "onboardingPage1Body": "Shops list what's left at closing time — fresh, just unsold.",
+  "@onboardingPage1Body": {},
+  "onboardingPage2Headline": "Real discounts, not a gimmick",
+  "@onboardingPage2Headline": {
+    "description": "Answers 'is the discount real?' (§5a.2 page 2). Concrete example lands in copy review, not hardcoded here — see D-19."
+  },
+  "onboardingPage2Body": "A ₹350 bag for ₹120. You see the shop's price before you reserve.",
+  "@onboardingPage2Body": {},
+  "onboardingPage3Headline": "Collect it yourself, on your time",
+  "@onboardingPage3Headline": {
+    "description": "Answers 'what do I actually do?' (§5a.2 page 3)."
+  },
+  "onboardingPage3Body": "Pick a bag nearby, then collect it inside its pickup window.",
+  "@onboardingPage3Body": {},
+  "onboardingPageIndicatorSemantic": "Page {current} of {total}",
+  "@onboardingPageIndicatorSemantic": {
+    "placeholders": {
+      "current": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "onboardingSkip": "Skip",
+  "@onboardingSkip": {},
+  "onboardingNext": "Next",
+  "@onboardingNext": {},
+  "onboardingGetStarted": "Get started",
+  "@onboardingGetStarted": {},
+
+  "@_COMMENT_LOCATION": {},
+
+  "locationPrimerHeadline": "Find food near you",
+  "@locationPrimerHeadline": {},
+  "locationPrimerBody1": "We use your location to show bags from shops close enough to actually collect.",
+  "@locationPrimerBody1": {},
+  "locationPrimerBody2": "Your exact address is never shared with a merchant.",
+  "@locationPrimerBody2": {},
+  "locationPrimerAllowCta": "Allow location",
+  "@locationPrimerAllowCta": {},
+  "locationPrimerManualCta": "Enter location manually",
+  "@locationPrimerManualCta": {
+    "description": "§5a.3 — must carry genuine visual weight, not a greyed-out afterthought. For a user who never grants location, this is the only path."
+  },
+  "locationPrimerRequestingAnnouncement": "Opening the system location permission dialog",
+  "@locationPrimerRequestingAnnouncement": {
+    "description": "Announced when focus leaves the app for the OS dialog (§5a.3)."
+  },
+
+  "locationSetupTitle": "Where should we look for food?",
+  "@locationSetupTitle": {},
+  "locationSetupSearchLabel": "Search locality or pincode",
+  "@locationSetupSearchLabel": {},
+  "locationSetupUseCurrentLocation": "Use current location",
+  "@locationSetupUseCurrentLocation": {},
+  "locationSetupRecentSectionTitle": "Recent",
+  "@locationSetupRecentSectionTitle": {},
+  "locationSetupPopularSectionTitle": "Popular in {city}",
+  "@locationSetupPopularSectionTitle": {
+    "placeholders": { "city": { "type": "String" } }
+  },
+  "locationSetupNoResults": "We couldn't find that. Try a locality or pincode",
+  "@locationSetupNoResults": {},
+  "locationSetupResultsAnnouncement": "{count, plural, =0{No results} =1{1 result} other{{count} results}}",
+  "@locationSetupResultsAnnouncement": {
+    "description": "§5a.4 — autocomplete results are a live region announcing the result count.",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "locationSetupDropPin": "Drop a pin instead",
+  "@locationSetupDropPin": {},
+  "locationSetupConfirmPinCta": "Set this location",
+  "@locationSetupConfirmPinCta": {},
+  "locationSetupGpsFailed": "Couldn't get your location",
+  "@locationSetupGpsFailed": {},
+  "locationSetupGpsRetry": "Try again",
+  "@locationSetupGpsRetry": {},
+  "locationSetupOfflineBanner": "You're offline — using your last known area",
+  "@locationSetupOfflineBanner": {},
+  "locationSetupOutsideBounds": "We haven't launched in this area yet",
+  "@locationSetupOutsideBounds": {},
+  "locationSetupApproximateNotice": "Showing your general area only — precise location isn't available.",
+  "@locationSetupApproximateNotice": {
+    "description": "§5a.4 validation rule — display precision must match granted precision."
+  },
+  "locationSetupDeniedPermanentlyNotice": "Location is turned off for this app. You can still search or drop a pin, or turn it on in Settings.",
+  "@locationSetupDeniedPermanentlyNotice": {},
+  "locationSetupOpenSettings": "Open settings",
+  "@locationSetupOpenSettings": {},
+  "locationSetupPincodeInvalid": "Enter a valid 6-digit pincode",
+  "@locationSetupPincodeInvalid": {},
+  "locationSetupConfirmCta": "Confirm location",
+  "@locationSetupConfirmCta": {},
+  "locationSetupConfirmDisabledReason": "Choose a location to continue",
+  "@locationSetupConfirmDisabledReason": {},
+  "locationSetupMapSemanticLabel": "Map showing selected location: {address}",
+  "@locationSetupMapSemanticLabel": {
+    "placeholders": { "address": { "type": "String" } }
+  },
+
+  "@_COMMENT_DIETARY": {},
+
+  "dietaryPureVeg": "Pure vegetarian",
+  "@dietaryPureVeg": {
+    "description": "Mandatory text label beside the mark. The mark is conventional, not universal, and is inaccessible alone (A22)."
+  },
+  "dietaryContainsEgg": "Contains egg",
+  "@dietaryContainsEgg": {},
+  "dietaryNonVeg": "Non-vegetarian",
+  "@dietaryNonVeg": {},
+  "dietaryJain": "Jain",
+  "@dietaryJain": {},
+
+  "dietarySetupTitle": "So we only show food you can eat",
+  "@dietarySetupTitle": {},
+  "dietarySetupNote": "You can change this anytime in Settings.",
+  "@dietarySetupNote": {},
+  "dietaryPrefJain": "Jain",
+  "@dietaryPrefJain": {},
+  "dietaryPrefPureVeg": "Pure vegetarian",
+  "@dietaryPrefPureVeg": {},
+  "dietaryPrefVegWithEgg": "Vegetarian, egg is fine",
+  "@dietaryPrefVegWithEgg": {},
+  "dietaryPrefEverything": "I eat everything",
+  "@dietaryPrefEverything": {},
+  "dietaryShowEverything": "Show me everything",
+  "@dietaryShowEverything": {},
+  "dietaryWideningNote": "This will show food outside your usual preference.",
+  "@dietaryWideningNote": {
+    "description": "Session-only, and never overwrites the stored acceptance set (D-b5)."
+  },
+  "dietarySetupContinueDisabledReason": "Choose a dietary preference to continue",
+  "@dietarySetupContinueDisabledReason": {
+    "description": "§5a.5 — Continue is deliberately blocking; silently defaulting a religious dietary constraint is the worst failure this app could ship."
+  },
+
+  "@_COMMENT_BAG": {},
+
+  "bagImageRepresentative": "Picture is an example. What's inside changes daily.",
+  "@bagImageRepresentative": {
+    "description": "An unmarked appealing photo of food not in the bag is a misleading commercial representation (§5b.9)."
+  },
+  "bagWasPrice": "was {amount}",
+  "@bagWasPrice": {
+    "description": "The qualifier is mandatory — announced as a bare number, a struck price sounds like THE price (§5b.1).",
+    "placeholders": { "amount": { "type": "String" } }
+  },
+  "bagDiscountBadge": "{percent}% off",
+  "@bagDiscountBadge": {
+    "placeholders": { "percent": { "type": "int" } }
+  },
+  "bagScarcityFew": "Only a few left",
+  "@bagScarcityFew": {
+    "description": "Qualitative in cached contexts. Exact counts only after a fresh fetch (A8)."
+  },
+  "bagScarcityExact": "{count, plural, =1{1 left} other{{count} left}}",
+  "@bagScarcityExact": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "bagReserveCta": "Reserve for {amount}",
+  "@bagReserveCta": {
+    "placeholders": { "amount": { "type": "String" } }
+  },
+  "bagBringOwnBag": "Bring your own bag if you can",
+  "@bagBringOwnBag": {},
+
+  "bagSoldOutTitle": "This bag just went",
+  "@bagSoldOutTitle": {
+    "description": "Frequent under burst supply, not an edge case — so it offers alternatives, not an apology (§5b.9)."
+  },
+  "bagSoldOutBody": "Someone reserved the last one. Here are others nearby.",
+  "@bagSoldOutBody": {},
+  "bagWithdrawnTitle": "This bag is no longer available",
+  "@bagWithdrawnTitle": {},
+  "bagWithdrawnBody": "The shop took it off the list. Here's what else is nearby.",
+  "@bagWithdrawnBody": {},
+  "bagWindowClosedTitle": "Collection time has passed",
+  "@bagWindowClosedTitle": {},
+  "bagWindowClosedBody": "This bag's pickup window has closed.",
+  "@bagWindowClosedBody": {},
+  "bagSeeAlternatives": "See what else is nearby",
+  "@bagSeeAlternatives": {},
+  "bagWatchShop": "Tell me when they list again",
+  "@bagWatchShop": {},
+
+  "purchaseCapTitle": "You can reserve up to {cap} of these",
+  "@purchaseCapTitle": {
+    "placeholders": { "cap": { "type": "int" } }
+  },
+  "purchaseCapBody": "This keeps enough for other people. You have {remaining} left on this bag.",
+  "@purchaseCapBody": {
+    "description": "The first sentence converts an arbitrary-seeming limit into a fairness rule (A9).",
+    "placeholders": { "remaining": { "type": "int" } }
+  },
+
+  "@_COMMENT_EMPTY_STATES": {},
+
+  "noCoverageTitle": "We're not live in {locality} yet",
+  "@noCoverageTitle": {
+    "placeholders": { "locality": { "type": "String" } }
+  },
+  "noCoverageBody": "Tell us you're here and we'll let you know when we launch.",
+  "@noCoverageBody": {},
+  "noCoverageCta": "Notify me when bags are available in {locality}",
+  "@noCoverageCta": {
+    "placeholders": { "locality": { "type": "String" } }
+  },
+  "noCoverageNearest": "{area} is {distance} away and live now",
+  "@noCoverageNearest": {
+    "placeholders": {
+      "area": { "type": "String" },
+      "distance": { "type": "String" }
+    }
+  },
+
+  "noSupplyNowTitle": "No bags in {locality} right now",
+  "@noSupplyNowTitle": {
+    "description": "Distinct from noCoverage — same emptiness, opposite remedy (A10).",
+    "placeholders": { "locality": { "type": "String" } }
+  },
+  "noSupplyNowBody": "Shops here usually list between {start} and {end}.",
+  "@noSupplyNowBody": {
+    "placeholders": {
+      "start": { "type": "String" },
+      "end": { "type": "String" }
+    }
+  },
+
+  "overFilteredTitle": "No bags match your filters",
+  "@overFilteredTitle": {},
+  "overFilteredCta": "Clear filters",
+  "@overFilteredCta": {},
+
+  "notifyRegistered": "We'll let you know",
+  "@notifyRegistered": {},
+  "noSupplyNowWatchCta": "Watch merchants who list here",
+  "@noSupplyNowWatchCta": {},
+  "retryCta": "Try again",
+  "@retryCta": {},
+
+  "@_COMMENT_DISCOVER": {},
+
+  "discoverSearchHint": "Search shops, food types, or areas",
+  "@discoverSearchHint": {},
+  "discoverSectionCollectNow": "Collect now",
+  "@discoverSectionCollectNow": {
+    "description": "§5b.1 D-b1 urgency section header."
+  },
+  "discoverSectionLaterToday": "Later today",
+  "@discoverSectionLaterToday": {
+    "description": "Reused verbatim as the §5b.4 pickup-time filter option label."
+  },
+  "discoverSectionTomorrow": "Tomorrow",
+  "@discoverSectionTomorrow": {
+    "description": "Reused verbatim as the §5b.4 pickup-time filter option label."
+  },
+  "discoverPickupTimeAvailableNow": "Available now",
+  "@discoverPickupTimeAvailableNow": {},
+  "discoverMapUnavailable": "Map view isn't available right now — showing list instead",
+  "@discoverMapUnavailable": {
+    "description": "§5b.2 — retained for the map-SDK-fails-to-load case even though a real MapTiler view now renders by default; automatic fallback to list, never a blank rectangle."
+  },
+  "discoverMapViewCta": "Map view",
+  "@discoverMapViewCta": {},
+  "discoverListViewCta": "List view",
+  "@discoverListViewCta": {},
+  "discoverMapPinSemantic": "{bagTitle} at {merchant}",
+  "@discoverMapPinSemantic": {
+    "placeholders": {
+      "bagTitle": { "type": "String" },
+      "merchant": { "type": "String" }
+    }
+  },
+
+  "@_COMMENT_FILTER_SORT": {},
+
+  "filterSheetTitle": "Filters",
+  "@filterSheetTitle": {},
+  "filterDietaryGroup": "Dietary",
+  "@filterDietaryGroup": {},
+  "filterPickupTimeGroup": "Pickup time",
+  "@filterPickupTimeGroup": {},
+  "filterDistanceGroup": "Distance",
+  "@filterDistanceGroup": {},
+  "filterPriceGroup": "Price",
+  "@filterPriceGroup": {},
+  "filterCategoryGroup": "Category",
+  "@filterCategoryGroup": {},
+  "filterFoodTypeGroup": "Food type",
+  "@filterFoodTypeGroup": {},
+  "filterMinRatingGroup": "Minimum rating",
+  "@filterMinRatingGroup": {},
+  "filterPriceAny": "Any price",
+  "@filterPriceAny": {},
+  "filterPriceUnder100": "Under ₹100",
+  "@filterPriceUnder100": {},
+  "filterPrice100To200": "₹100–₹200",
+  "@filterPrice100To200": {},
+  "filterPriceAbove200": "Above ₹200",
+  "@filterPriceAbove200": {},
+  "filterResetCta": "Reset",
+  "@filterResetCta": {},
+  "filterApplyCta": "{count, plural, =0{Show 0 bags} =1{Show 1 bag} other{Show {count} bags}}",
+  "@filterApplyCta": {
+    "description": "§5b.4 — the live count on Apply prevents the commonest filter dead end.",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "sortSheetTitle": "Sort",
+  "@sortSheetTitle": {},
+  "sortUrgencyThenDistance": "Urgency then distance",
+  "@sortUrgencyThenDistance": {},
+  "sortByDistance": "Distance",
+  "@sortByDistance": {},
+  "sortByPickupTime": "Pickup time",
+  "@sortByPickupTime": {},
+  "sortByPriceAsc": "Price: low to high",
+  "@sortByPriceAsc": {},
+  "sortByDiscountDesc": "Discount %",
+  "@sortByDiscountDesc": {},
+  "sortByRating": "Rating",
+  "@sortByRating": {},
+  "sortDefaultBadge": "Default",
+  "@sortDefaultBadge": {},
+
+  "@_COMMENT_LOCATION_SWITCHER": {},
+
+  "locationSwitcherTitle": "Change location",
+  "@locationSwitcherTitle": {},
+  "locationSwitcherSearchNewArea": "Search a new area",
+  "@locationSwitcherSearchNewArea": {},
+  "locationSwitcherCurrentBadge": "Current",
+  "@locationSwitcherCurrentBadge": {},
+
+  "@_COMMENT_MERCHANT": {},
+
+  "merchantFssaiLabel": "FSSAI licence",
+  "@merchantFssaiLabel": {},
+  "merchantFssaiValidUntil": "Valid until {date}",
+  "@merchantFssaiValidUntil": {
+    "placeholders": { "date": { "type": "String" } }
+  },
+  "merchantVerifiedBadge": "Verified",
+  "@merchantVerifiedBadge": {},
+  "merchantHalalCertified": "Halal certified",
+  "@merchantHalalCertified": {},
+  "merchantGrievanceLabel": "Grievance officer",
+  "@merchantGrievanceLabel": {},
+  "merchantSaveCta": "Save",
+  "@merchantSaveCta": {},
+  "merchantSavedCta": "Saved",
+  "@merchantSavedCta": {},
+  "merchantWatchingCta": "Watching",
+  "@merchantWatchingCta": {},
+  "merchantNoBagsTitle": "No bags right now",
+  "@merchantNoBagsTitle": {
+    "description": "§5b.8 — the highest-value empty state in the app; converts into a Watch subscription."
+  },
+  "merchantNoBagsBody": "{name} usually lists {time}",
+  "@merchantNoBagsBody": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "time": { "type": "String" }
+    }
+  },
+  "merchantSeeAllReviews": "See all {count} reviews",
+  "@merchantSeeAllReviews": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "merchantRatingSemantic": "{average} out of 5, {count} reviews",
+  "@merchantRatingSemantic": {
+    "description": "§5b.8 — never a bare number.",
+    "placeholders": {
+      "average": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+  "merchantPhotoSemantic": "Photo {n} of {count}",
+  "@merchantPhotoSemantic": {
+    "placeholders": {
+      "n": { "type": "int" },
+      "count": { "type": "int" }
+    }
+  },
+
+  "@_COMMENT_REVIEWS": {},
+
+  "reviewsListTitle": "Reviews",
+  "@reviewsListTitle": {},
+  "reviewsEmptyTitle": "No reviews yet",
+  "@reviewsEmptyTitle": {
+    "description": "§5b.11 — framed neutrally; an absence of reviews must not read as a negative signal for a verified merchant."
+  },
+  "reviewsEmptyBody": "Be the first to review {name}",
+  "@reviewsEmptyBody": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "reviewsHistogramSemantic": "{star} stars: {count} reviews, {percent}%",
+  "@reviewsHistogramSemantic": {
+    "description": "§5b.11 — text equivalent for the histogram bar, which is inaccessible alone.",
+    "placeholders": {
+      "star": { "type": "int" },
+      "count": { "type": "int" },
+      "percent": { "type": "String" }
+    }
+  },
+  "reviewsVerifiedBadge": "Verified purchase",
+  "@reviewsVerifiedBadge": {},
+
+  "@_COMMENT_BAG_DETAIL": {},
+
+  "bagDetailWhatToExpectLabel": "What to expect",
+  "@bagDetailWhatToExpectLabel": {},
+  "bagDetailAllergenLabel": "Allergen notes",
+  "@bagDetailAllergenLabel": {},
+  "bagDetailPickupInstructionsLabel": "Pickup instructions",
+  "@bagDetailPickupInstructionsLabel": {},
+  "bagDetailQuantityLabel": "Quantity",
+  "@bagDetailQuantityLabel": {},
+  "bagDetailStepperCapReached": "You've reached the limit for this bag",
+  "@bagDetailStepperCapReached": {
+    "description": "§5b.9 — announced when the stepper's cap (A9) is reached."
+  },
+  "bagDetailReserveComingSoon": "Reservations aren't open yet — checkout is coming soon",
+  "@bagDetailReserveComingSoon": {
+    "description": "Phase 8 §8.12 step 6 (checkout) doesn't exist yet — same honest-disabled-CTA shape as D-17's ForceUpdateScreen store button."
+  },
+
+  "@_COMMENT_SEARCH": {},
+
+  "searchScopeHint": "Search shops, bakeries, food types — bag contents are a surprise.",
+  "@searchScopeHint": {
+    "description": "§5b.3 D-b4 — load-bearing. Without it a dish search gets a bare empty screen and reads as 'this marketplace has nothing'."
+  },
+  "searchNoResultsTitle": "No matches for '{query}'",
+  "@searchNoResultsTitle": {
+    "placeholders": { "query": { "type": "String" } }
+  },
+  "searchTrendingTitle": "Trending categories",
+  "@searchTrendingTitle": {},
+  "searchRecentTitle": "Recent searches",
+  "@searchRecentTitle": {},
+  "searchRemoveRecentSemantic": "Remove {query} from recent searches",
+  "@searchRemoveRecentSemantic": {
+    "placeholders": { "query": { "type": "String" } }
+  },
+  "searchResultsAnnouncement": "{count, plural, =0{No results} =1{1 result} other{{count} results}}",
+  "@searchResultsAnnouncement": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "@_COMMENT_CART": {},
+
+  "cartTitle": "Your reservation",
+  "@cartTitle": {},
+  "cartHoldBanner": "Held for you",
+  "@cartHoldBanner": {},
+  "cartHoldFrozen": "Held while we confirm your payment",
+  "@cartHoldFrozen": {
+    "description": "A2 — a countdown ticking toward a deadline that no longer applies would mislead."
+  },
+  "cartHoldExpiredTitle": "Your hold expired",
+  "@cartHoldExpiredTitle": {},
+  "cartHoldExpiredBody": "We held this bag for {minutes} minutes. Tap to hold it again — it may still be available.",
+  "@cartHoldExpiredBody": {
+    "description": "'may still be available' — promising availability we have not revalidated (R2) would fail twice in a row.",
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "cartHoldAgain": "Hold it again",
+  "@cartHoldAgain": {},
+  "cartReplaceTitle": "You already have a bag from {merchant}",
+  "@cartReplaceTitle": {
+    "placeholders": { "merchant": { "type": "String" } }
+  },
+  "cartReplaceBody": "You can only reserve from one shop at a time.",
+  "@cartReplaceBody": {},
+  "cartReplaceConfirm": "Replace it",
+  "@cartReplaceConfirm": {},
+  "cartQuantityIncrease": "Increase quantity",
+  "@cartQuantityIncrease": {},
+  "cartQuantityDecrease": "Decrease quantity",
+  "@cartQuantityDecrease": {},
+  "cartContinueCta": "Continue to payment",
+  "@cartContinueCta": {},
+
+  "priceSubtotal": "Bag subtotal",
+  "@priceSubtotal": {},
+  "pricePlatformFee": "Platform fee",
+  "@pricePlatformFee": {},
+  "priceDiscount": "Discount",
+  "@priceDiscount": {},
+  "priceTotal": "Total to pay",
+  "@priceTotal": {},
+  "priceTotalInclusive": "Includes all taxes and fees",
+  "@priceTotalInclusive": {},
+  "priceTotalSemantic": "Total to pay, {amount}, including all taxes and fees",
+  "@priceTotalSemantic": {
+    "placeholders": { "amount": { "type": "String" } }
+  },
+  "priceRequoting": "Updating total…",
+  "@priceRequoting": {
+    "description": "A11 — the client asks the server for a new quote and never computes one (R1)."
+  },
+  "priceQuoteStaleTitle": "The price changed",
+  "@priceQuoteStaleTitle": {},
+  "priceQuoteStaleBody": "We've updated the total. Please check it before you pay.",
+  "@priceQuoteStaleBody": {},
+
+  "@_COMMENT_CHECKOUT_TERMS": {},
+
+  "checkoutTermsPickup": "Collect between {start} and {end} at {merchant}.",
+  "@checkoutTermsPickup": {
+    "placeholders": {
+      "start": { "type": "String" },
+      "end": { "type": "String" },
+      "merchant": { "type": "String" }
+    }
+  },
+  "checkoutTermsNoShow": "If you don't collect it, you won't get a refund — the shop sets this bag aside for you and can't sell it to anyone else.",
+  "@checkoutTermsNoShow": {
+    "description": "§3.5 obligation 1. The clause after the dash is what makes a harsh term fair rather than punitive."
+  },
+  "checkoutTermsCancellation": "Free cancellation until {cutoff}.",
+  "@checkoutTermsCancellation": {
+    "description": "Rendered from policyValues (A19). Cutoff value is A15 — pending sign-off.",
+    "placeholders": { "cutoff": { "type": "String" } }
+  },
+  "checkoutPayCta": "Pay {amount}",
+  "@checkoutPayCta": {
+    "description": "A button announced only as 'Pay' before debiting an account is an unacceptable ambiguity (§5c.2).",
+    "placeholders": { "amount": { "type": "String" } }
+  },
+  "checkoutPaySubtext": "You'll be taken to your UPI app.",
+  "@checkoutPaySubtext": {},
+  "checkoutMethodRecommended": "Recommended",
+  "@checkoutMethodRecommended": {
+    "description": "Text, not a colour badge alone (§5c.3)."
+  },
+  "checkoutMethodUnavailable": "Unavailable right now",
+  "@checkoutMethodUnavailable": {},
+  "checkoutRememberUpiApp": "Remember my choice",
+  "@checkoutRememberUpiApp": {},
+  "checkoutMethodUpi": "UPI",
+  "@checkoutMethodUpi": {},
+  "checkoutMethodCard": "Cards",
+  "@checkoutMethodCard": {},
+  "checkoutMethodNetBanking": "Net banking",
+  "@checkoutMethodNetBanking": {},
+  "checkoutMethodWallet": "Wallets",
+  "@checkoutMethodWallet": {},
+  "checkoutPayByUpiId": "Pay by UPI ID",
+  "@checkoutPayByUpiId": {},
+  "checkoutAppChooserTitle": "Choose a UPI app",
+  "@checkoutAppChooserTitle": {},
+  "checkoutNoUpiAppsFound": "No UPI apps found on this device",
+  "@checkoutNoUpiAppsFound": {},
+  "checkoutAppLaunchFailed": "That app isn't available anymore. Choose another.",
+  "@checkoutAppLaunchFailed": {
+    "description": "§5c.4 — launch fails because the app was removed between detection and tap; re-detect and re-present rather than failing the payment."
+  },
+  "calendarAdded": "Added to your calendar",
+  "@calendarAdded": {},
+  "verifyingLeaveConfirm": "Leave",
+  "@verifyingLeaveConfirm": {},
+
+  "@_COMMENT_PAYMENT": {},
+
+  "processingTitle": "Processing your payment",
+  "@processingTitle": {},
+  "processingNoExit": "Please don't close this screen.",
+  "@processingNoExit": {
+    "description": "The absence of a back button must be EXPLAINED — an unexplained trap is indistinguishable from a freeze, and a screen-reader user has no visual cue (§5c.5)."
+  },
+  "processingSlow": "Still working. Please don't close the app.",
+  "@processingSlow": {},
+
+  "verifyingTitle": "Confirming your payment",
+  "@verifyingTitle": {},
+  "verifyingInstruction": "Please don't pay again. We're checking with your bank.",
+  "@verifyingInstruction": {
+    "description": "THE most important copy in the application. An instruction, not reassurance. Announced ASSERTIVELY (§5c.6) — double payment is the top user fear and top support cost on Indian UPI flows."
+  },
+  "verifyingReassurance": "Your money is safe.",
+  "@verifyingReassurance": {},
+  "verifyingSlow": "This is taking longer than usual. We'll notify you within {minutes} minutes.",
+  "@verifyingSlow": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "verifyingColdStart": "Picking up where you left off.",
+  "@verifyingColdStart": {
+    "description": "A3 — without this, a payment screen the user did not navigate to reads as a fraudulent charge attempt."
+  },
+  "verifyingNotifyMe": "Notify me instead",
+  "@verifyingNotifyMe": {},
+  "verifyingLeaveTitle": "Leave this screen?",
+  "@verifyingLeaveTitle": {},
+  "verifyingLeaveBody": "We'll keep checking and send you a notification. Your money is safe.",
+  "@verifyingLeaveBody": {},
+  "verifyingUnreachable": "We can't reach our servers. Your payment is safe and we'll confirm it shortly.",
+  "@verifyingUnreachable": {
+    "description": "Nothing on this screen may ever imply the money is lost, even when we genuinely do not know its state."
+  },
+
+  "paymentFailedTitle": "Payment didn't go through",
+  "@paymentFailedTitle": {},
+  "chargeStateNotCharged": "You haven't been charged.",
+  "@chargeStateNotCharged": {
+    "description": "A13 — used ONLY when the server confirms notCharged. Never inferred."
+  },
+  "chargeStateUncertain": "If any amount was debited, it will be returned to your account within {minDays} to {maxDays} working days.",
+  "@chargeStateUncertain": {
+    "description": "A13 — the honest variant. Defaulting to the reassuring one when unsure is tempting and wrong.",
+    "placeholders": {
+      "minDays": { "type": "int" },
+      "maxDays": { "type": "int" }
+    }
+  },
+  "paymentReasonDeclined": "Your bank declined it.",
+  "@paymentReasonDeclined": {},
+  "paymentReasonInsufficientFunds": "There wasn't enough balance.",
+  "@paymentReasonInsufficientFunds": {},
+  "paymentReasonCancelled": "You cancelled in your UPI app.",
+  "@paymentReasonCancelled": {},
+  "paymentReasonTimeout": "It timed out before completing.",
+  "@paymentReasonTimeout": {},
+  "paymentReasonUnknown": "It didn't complete.",
+  "@paymentReasonUnknown": {},
+  "paymentRetryCta": "Try again — {amount}",
+  "@paymentRetryCta": {
+    "placeholders": { "amount": { "type": "String" } }
+  },
+  "paymentTryAnotherMethod": "Try another method",
+  "@paymentTryAnotherMethod": {},
+  "paymentGatewayUnreachable": "We couldn't reach payment. Try another method?",
+  "@paymentGatewayUnreachable": {},
+  "paymentHoldStillActive": "Your bag is still held for {duration}",
+  "@paymentHoldStillActive": {
+    "placeholders": { "duration": { "type": "String" } }
+  },
+
+  "holdCollisionTitle": "Your payment went through, but this bag was taken",
+  "@holdCollisionTitle": {
+    "description": "A2 collision. Rare by design; still needs authored copy (§5c.6)."
+  },
+  "holdCollisionBody": "We've started a full refund of {amount}.",
+  "@holdCollisionBody": {
+    "placeholders": { "amount": { "type": "String" } }
+  },
+
+  "@_COMMENT_CONFIRMED": {},
+
+  "confirmedTitle": "Reserved",
+  "@confirmedTitle": {
+    "description": "Calm, not celebratory. The user bought discounted surplus food; over-celebration reads as overcompensation."
+  },
+  "confirmedOrderCode": "Order code",
+  "@confirmedOrderCode": {},
+  "confirmedViewPickup": "View pickup details",
+  "@confirmedViewPickup": {},
+  "confirmedAddToCalendar": "Add to calendar",
+  "@confirmedAddToCalendar": {
+    "description": "The cheapest available intervention against the §3.5 no-show journey."
+  },
+  "confirmedBackToDiscover": "Back to browsing",
+  "@confirmedBackToDiscover": {},
+
+  "notifyPrimerTitle": "We'll remind you to collect",
+  "@notifyPrimerTitle": {},
+  "notifyPrimerReason1": "When your pickup window opens",
+  "@notifyPrimerReason1": {},
+  "notifyPrimerReason2": "When it's about to close",
+  "@notifyPrimerReason2": {},
+  "notifyPrimerReason3": "If the shop has to cancel",
+  "@notifyPrimerReason3": {},
+  "notifyPrimerAllow": "Turn on reminders",
+  "@notifyPrimerAllow": {},
+  "notifyPrimerDecline": "Not now",
+  "@notifyPrimerDecline": {
+    "description": "Carries genuine visual weight — de-emphasising it to inflate grant rates is a dark pattern (§5c.9)."
+  },
+  "notifyPrimerDeniedNote": "No problem — we'll remind you inside the app instead. You can turn notifications on later in Settings.",
+  "@notifyPrimerDeniedNote": {},
+
+  "@_COMMENT_ORDERS_LIST": {},
+
+  "ordersTitle": "Your orders",
+  "@ordersTitle": {},
+  "ordersSegmentActive": "Active",
+  "@ordersSegmentActive": {},
+  "ordersSegmentPast": "Past",
+  "@ordersSegmentPast": {},
+  "ordersEmptyActiveTitle": "Nothing to collect right now",
+  "@ordersEmptyActiveTitle": {
+    "description": "§5d.1 — framed as a neutral fact, the steady state for most users most of the time; must not read as an error."
+  },
+  "ordersEmptyPastTitle": "Bags you've collected will appear here",
+  "@ordersEmptyPastTitle": {},
+  "ordersEmptyBothTitle": "Nothing here yet",
+  "@ordersEmptyBothTitle": {},
+  "ordersEmptyBothBody": "Reserved bags will show up here as soon as you grab your first one.",
+  "@ordersEmptyBothBody": {},
+  "ordersDiscoverCta": "Browse what's nearby",
+  "@ordersDiscoverCta": {},
+  "ordersStaleBanner": "Showing your last saved orders — reconnect to refresh",
+  "@ordersStaleBanner": {},
+  "orderCardSemantic": "Order {code}. {bagTitle} from {merchant}. {windowState}",
+  "@orderCardSemantic": {
+    "description": "§5d.1's own accessibility example — one merged node per card.",
+    "placeholders": {
+      "code": { "type": "String" },
+      "bagTitle": { "type": "String" },
+      "merchant": { "type": "String" },
+      "windowState": { "type": "String" }
+    }
+  },
+  "ordersShowCodeSemantic": "Show pickup code for order {code}",
+  "@ordersShowCodeSemantic": {
+    "placeholders": { "code": { "type": "String" } }
+  },
+
+  "@_COMMENT_ORDER_STATUS_CHIP": {},
+
+  "orderStatusPendingPayment": "Payment pending",
+  "@orderStatusPendingPayment": {},
+  "orderStatusConfirmed": "Confirmed",
+  "@orderStatusConfirmed": {},
+  "orderStatusPaymentFailed": "Payment failed",
+  "@orderStatusPaymentFailed": {},
+  "orderStatusReadyForPickup": "Ready for pickup",
+  "@orderStatusReadyForPickup": {},
+  "orderStatusCollected": "Collected",
+  "@orderStatusCollected": {},
+  "orderStatusCancelledByCustomer": "Cancelled by you",
+  "@orderStatusCancelledByCustomer": {},
+  "orderStatusCancelledByMerchant": "Cancelled by shop",
+  "@orderStatusCancelledByMerchant": {},
+  "orderStatusExpiredUncollected": "Not collected",
+  "@orderStatusExpiredUncollected": {},
+
+  "@_COMMENT_ORDER_DETAIL": {},
+
+  "orderDetailShareReceipt": "Share receipt",
+  "@orderDetailShareReceipt": {},
+  "orderDetailPaymentMethod": "Payment method",
+  "@orderDetailPaymentMethod": {},
+  "orderPaymentMasked": "{method} ending {last4}",
+  "@orderPaymentMasked": {
+    "placeholders": {
+      "method": { "type": "String" },
+      "last4": { "type": "String" }
+    }
+  },
+  "orderActionCompletePayment": "Complete payment",
+  "@orderActionCompletePayment": {},
+  "orderActionShowPickupCode": "Show pickup code",
+  "@orderActionShowPickupCode": {},
+  "orderActionCancel": "Cancel reservation",
+  "@orderActionCancel": {},
+  "orderActionReportIssue": "Report an issue",
+  "@orderActionReportIssue": {},
+  "orderActionViewRefund": "View refund",
+  "@orderActionViewRefund": {},
+
+  "@_COMMENT_PICKUP": {},
+
+  "pickupShowThis": "Show this at the counter",
+  "@pickupShowThis": {},
+  "pickupFallbackLabel": "Or read out this code",
+  "@pickupFallbackLabel": {
+    "description": "Never hidden behind a 'can't scan?' link — hiding it means hunting through the UI while staff wait (§5d.3)."
+  },
+  "pickupInstructionsPrefix": "Ask staff for a {appName} pickup",
+  "@pickupInstructionsPrefix": {
+    "description": "Blocked on brand naming.",
+    "placeholders": { "appName": { "type": "String" } }
+  },
+  "pickupOfflineNote": "Working offline — your code is still valid",
+  "@pickupOfflineNote": {
+    "description": "A1 layer 2. Honest and reassuring, not an error."
+  },
+  "pickupOpensAt": "Opens at {time}",
+  "@pickupOpensAt": {
+    "placeholders": { "time": { "type": "String" } }
+  },
+  "pickupOpensIn": "Opens in {duration}",
+  "@pickupOpensIn": {
+    "placeholders": { "duration": { "type": "String" } }
+  },
+  "pickupCollectNow": "Collect now — closes in {duration}",
+  "@pickupCollectNow": {
+    "placeholders": { "duration": { "type": "String" } }
+  },
+  "pickupClosingSoon": "Closing soon — {duration} left",
+  "@pickupClosingSoon": {
+    "placeholders": { "duration": { "type": "String" } }
+  },
+  "pickupDirections": "Directions to {merchant}",
+  "@pickupDirections": {
+    "placeholders": { "merchant": { "type": "String" } }
+  },
+  "pickupBrightnessToggle": "Brighten screen",
+  "@pickupBrightnessToggle": {
+    "description": "Manual control — a forced brightness change is an accessibility problem for photosensitive users (§5d.3)."
+  },
+  "pickupCollectedTitle": "Collected",
+  "@pickupCollectedTitle": {},
+  "pickupCollectedBody": "Enjoy it.",
+  "@pickupCollectedBody": {},
+
+  "@_COMMENT_ORDER_STATES": {},
+
+  "orderExpiredTitle": "This pickup window has closed",
+  "@orderExpiredTitle": {
+    "description": "§3.5. Rejected: 'You missed this pickup' — accurate, and it breaks the rule against blaming the user."
+  },
+  "orderExpiredBody": "The window closed at {time}. Because the shop had set this bag aside, we can't refund it — but if you were there and couldn't collect, tell us.",
+  "@orderExpiredBody": {
+    "description": "The final clause matters: §3.3 documents merchant-side failures that produce this same state.",
+    "placeholders": { "time": { "type": "String" } }
+  },
+  "orderExpiredReportCta": "I was there but couldn't collect",
+  "@orderExpiredReportCta": {},
+  "orderGoodwillTitle": "This one's on us",
+  "@orderGoodwillTitle": {},
+  "orderGoodwillBody": "It happens. We've added a one-time credit to your account.",
+  "@orderGoodwillBody": {},
+
+  "merchantCancelledTitle": "Your bag isn't available",
+  "@merchantCancelledTitle": {},
+  "merchantCancelledBody": "{merchant} had to cancel. This isn't your fault — we've already started your full refund of {amount}.",
+  "@merchantCancelledBody": {
+    "description": "Leads with the refund. The user may be standing outside the shop; the money answer comes first (§3.4).",
+    "placeholders": {
+      "merchant": { "type": "String" },
+      "amount": { "type": "String" }
+    }
+  },
+
+  "cancelOrderTitle": "Cancel this reservation?",
+  "@cancelOrderTitle": {},
+  "cancelOrderFullRefund": "You'll get {amount} back.",
+  "@cancelOrderFullRefund": {
+    "placeholders": { "amount": { "type": "String" } }
+  },
+  "cancelOrderNoRefund": "You won't get a refund — free cancellation ended at {cutoff}.",
+  "@cancelOrderNoRefund": {
+    "placeholders": { "cutoff": { "type": "String" } }
+  },
+  "cancelOrderConfirmWithRefund": "Cancel reservation and get {amount} back",
+  "@cancelOrderConfirmWithRefund": {
+    "description": "The button states the money outcome — never a bare 'Confirm' on a destructive financial action (§5d.5).",
+    "placeholders": { "amount": { "type": "String" } }
+  },
+  "cancelOrderConfirmNoRefund": "Cancel reservation — no refund",
+  "@cancelOrderConfirmNoRefund": {},
+  "cancelOrderKeep": "Keep reservation",
+  "@cancelOrderKeep": {},
+  "cancellationTooLateTitle": "Too late to cancel",
+  "@cancellationTooLateTitle": {},
+  "cancellationTooLateBody": "Free cancellation ended at {cutoff}. The shop has already set this bag aside.",
+  "@cancellationTooLateBody": {
+    "description": "The reason is what makes the refusal acceptable (A15).",
+    "placeholders": { "cutoff": { "type": "String" } }
+  },
+
+  "@_COMMENT_REFUND": {},
+
+  "refundStepStarted": "Refund started",
+  "@refundStepStarted": {},
+  "refundStepSentToBank": "Sent to your bank",
+  "@refundStepSentToBank": {},
+  "refundStepCredited": "Credited",
+  "@refundStepCredited": {},
+  "refundStepSemantic": "Step {index} of {total}, {label}, {state}",
+  "@refundStepSemantic": {
+    "placeholders": {
+      "index": { "type": "int" },
+      "total": { "type": "int" },
+      "label": { "type": "String" },
+      "state": { "type": "String" }
+    }
+  },
+  "refundExpectedBy": "Usually {date} — {minDays} to {maxDays} working days",
+  "@refundExpectedBy": {
+    "description": "Never 'processing' without a date. An open-ended wait is what converts a waiting customer into one who believes they have been robbed (§5d.4).",
+    "placeholders": {
+      "date": { "type": "String" },
+      "minDays": { "type": "int" },
+      "maxDays": { "type": "int" }
+    }
+  },
+  "refundDestination": "To your {method} ending {last4}",
+  "@refundDestination": {
+    "placeholders": {
+      "method": { "type": "String" },
+      "last4": { "type": "String" }
+    }
+  },
+  "refundBankReference": "Bank reference",
+  "@refundBankReference": {},
+  "refundFailedTitle": "This refund didn't complete",
+  "@refundFailedTitle": {},
+  "refundFailedBody": "Our team is on it and will contact you by {date}. You don't need to do anything.",
+  "@refundFailedBody": {
+    "description": "Proactive by design. A failed refund that waits for a complaint is a lost customer (§3.4).",
+    "placeholders": { "date": { "type": "String" } }
+  },
+
+  "@_COMMENT_ISSUES": {},
+
+  "issueTypeMerchantClosed": "The shop was closed",
+  "@issueTypeMerchantClosed": {},
+  "issueTypeNoBagReady": "There was no bag ready",
+  "@issueTypeNoBagReady": {},
+  "issueTypeWrongLocation": "I couldn't find the shop",
+  "@issueTypeWrongLocation": {},
+  "issueTypeCantMakeIt": "I can't make it in time",
+  "@issueTypeCantMakeIt": {},
+  "issueTypeNotAsDescribed": "It wasn't what was described",
+  "@issueTypeNotAsDescribed": {},
+  "issueTypeQuantityWrong": "There was less than expected",
+  "@issueTypeQuantityWrong": {},
+  "issueTypeQuality": "There was a quality problem",
+  "@issueTypeQuality": {},
+  "issueTypeFoodSafety": "The food made me unwell",
+  "@issueTypeFoodSafety": {},
+  "issueTypeRefused": "Staff refused to hand it over",
+  "@issueTypeRefused": {},
+
+  "foodSafetyAdvisoryTitle": "Please don't eat it",
+  "@foodSafetyAdvisoryTitle": {
+    "description": "A16. Shown BEFORE the form — the next few minutes matter more than our ticket. Blunt on purpose: the one place where hedged copy could cause harm."
+  },
+  "foodSafetyAdvisoryBody": "If you haven't eaten this food, stop now. Tell us what happened and we'll act quickly.",
+  "@foodSafetyAdvisoryBody": {},
+  "foodSafetyAckTitle": "We've logged this as urgent",
+  "@foodSafetyAckTitle": {},
+  "foodSafetyAckBody": "Reference {reference}. Someone will contact you within {hours} hours.",
+  "@foodSafetyAckBody": {
+    "placeholders": {
+      "reference": { "type": "String" },
+      "hours": { "type": "int" }
+    }
+  },
+  "issueSlaNote": "We'll respond within {hours} hours.",
+  "@issueSlaNote": {
+    "placeholders": { "hours": { "type": "int" } }
+  },
+  "issueSubmitted": "Thanks — we've got it",
+  "@issueSubmitted": {},
+  "issuePhotoUploadFailed": "We couldn't upload your photos, but your report was sent.",
+  "@issuePhotoUploadFailed": {
+    "description": "Losing a report because an image failed is an unforced error (§5d.6)."
+  },
+  "issueRemovePhoto": "Remove photo {index}",
+  "@issueRemovePhoto": {
+    "placeholders": { "index": { "type": "int" } }
+  },
+  "issueTitle": "Report an issue",
+  "@issueTitle": {},
+  "issueTypeSectionLabel": "What went wrong?",
+  "@issueTypeSectionLabel": {},
+  "issueDescriptionLabel": "Tell us what happened",
+  "@issueDescriptionLabel": {},
+  "issueDescriptionTooShort": "Please add a few more details (at least 10 characters).",
+  "@issueDescriptionTooShort": {},
+  "issueSubmitCta": "Submit report",
+  "@issueSubmitCta": {},
+
+  "@_COMMENT_REVIEW": {},
+
+  "reviewTitle": "How was it?",
+  "@reviewTitle": {},
+  "reviewRatingSemantic": "Rate {value} of 5 stars",
+  "@reviewRatingSemantic": {
+    "description": "Five discrete buttons, not a drag target — the most common accessibility failure in review UIs (§5e.3).",
+    "placeholders": { "value": { "type": "int" } }
+  },
+  "reviewRatingRequired": "Choose a rating to continue",
+  "@reviewRatingRequired": {
+    "description": "Announced, not merely enforced by a silently disabled button."
+  },
+  "reviewTagGreatValue": "Great value",
+  "@reviewTagGreatValue": {},
+  "reviewTagFresh": "Fresh",
+  "@reviewTagFresh": {},
+  "reviewTagGenerous": "Generous portion",
+  "@reviewTagGenerous": {},
+  "reviewTagEasyPickup": "Easy pickup",
+  "@reviewTagEasyPickup": {},
+  "reviewTagFriendlyStaff": "Friendly staff",
+  "@reviewTagFriendlyStaff": {},
+  "reviewTagNotFresh": "Not fresh",
+  "@reviewTagNotFresh": {},
+  "reviewTagTooLittle": "Too little",
+  "@reviewTagTooLittle": {},
+  "reviewTagHardToFind": "Hard to find",
+  "@reviewTagHardToFind": {},
+  "reviewTagLongWait": "Long wait",
+  "@reviewTagLongWait": {},
+  "reviewTagNotAsDescribed": "Not as described",
+  "@reviewTagNotAsDescribed": {},
+  "reviewEscalationPrompt": "Something went wrong? Report it so we can fix it.",
+  "@reviewEscalationPrompt": {
+    "description": "The §5e.3 bridge. Without it, our earliest food-safety signal lands in a reviews table nobody is paged on."
+  },
+  "reviewSubmittedTitle": "Thanks",
+  "@reviewSubmittedTitle": {},
+  "reviewSubmittedBody": "This helps other people trust {merchant}.",
+  "@reviewSubmittedBody": {
+    "description": "Stating the value is what makes a user review a second time.",
+    "placeholders": { "merchant": { "type": "String" } }
+  },
+  "reviewAlreadyExists": "You've already reviewed this",
+  "@reviewAlreadyExists": {},
+  "reviewNotYetEligible": "You can review this after you collect it",
+  "@reviewNotYetEligible": {},
+  "reviewContactWarning": "This will be public. You may not want to include your phone number or email.",
+  "@reviewContactWarning": {
+    "description": "Warn, never block. Users put contact details in reviews without realising they will be published (§5e.3)."
+  },
+
+  "@_COMMENT_ENGAGEMENT": {},
+
+  "savedTitle": "Saved",
+  "@savedTitle": {},
+  "savedEmptyTitle": "Save shops you like",
+  "@savedEmptyTitle": {},
+  "savedEmptyBody": "We'll tell you when they have bags.",
+  "@savedEmptyBody": {},
+  "savedFilterLiveOnly": "Only show shops with bags now",
+  "@savedFilterLiveOnly": {},
+  "savedUnsave": "Unsave",
+  "@savedUnsave": {},
+  "savedUnsaveUndoMessage": "{name} removed from Saved",
+  "@savedUnsaveUndoMessage": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "savedWatchOnSemantic": "Notifications on for {name}",
+  "@savedWatchOnSemantic": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "savedWatchOffSemantic": "Notifications off for {name}",
+  "@savedWatchOffSemantic": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "availabilityAvailableNow": "{count, plural, =1{1 bag now} other{{count} bags now}}",
+  "@availabilityAvailableNow": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "availabilityExpectedLater": "Usually lists {time}",
+  "@availabilityExpectedLater": {
+    "placeholders": { "time": { "type": "String" } }
+  },
+  "availabilityClosedToday": "Closed today",
+  "@availabilityClosedToday": {},
+
+  "reviewCommentLabel": "Add a comment (optional)",
+  "@reviewCommentLabel": {},
+  "reviewSubmitCta": "Submit review",
+  "@reviewSubmitCta": {},
+  "reviewDoneCta": "Done",
+  "@reviewDoneCta": {},
+
+  "notifTypeOrderConfirmed": "Order confirmed",
+  "@notifTypeOrderConfirmed": {},
+  "notifTypePaymentFailed": "Payment failed",
+  "@notifTypePaymentFailed": {},
+  "notifTypeMerchantCancelled": "Order cancelled by the shop",
+  "@notifTypeMerchantCancelled": {},
+  "notifTypeRefundInitiated": "Refund started",
+  "@notifTypeRefundInitiated": {},
+  "notifTypeRefundCompleted": "Refund credited",
+  "@notifTypeRefundCompleted": {},
+  "notifTypePickupWindowOpening": "Pickup window opening soon",
+  "@notifTypePickupWindowOpening": {},
+  "notifTypePickupClosingSoon": "Pickup closing soon",
+  "@notifTypePickupClosingSoon": {},
+  "notifTypeRateYourPickup": "How was your pickup?",
+  "@notifTypeRateYourPickup": {},
+  "notifTypeNewBagsNearby": "New bags nearby",
+  "@notifTypeNewBagsNearby": {},
+  "notifTypeWatchedMerchantListed": "A shop you watch just listed",
+  "@notifTypeWatchedMerchantListed": {},
+  "notifBodyTemplate": "{bagTitle} · {merchant}",
+  "@notifBodyTemplate": {
+    "placeholders": {
+      "bagTitle": { "type": "String" },
+      "merchant": { "type": "String" }
+    }
+  },
+  "notifSemantic": "{unreadPrefix}{title}. {body}. {time}.",
+  "@notifSemantic": {
+    "description": "Unread state composed into the label itself, never a coloured dot alone (§5e.1).",
+    "placeholders": {
+      "unreadPrefix": { "type": "String" },
+      "title": { "type": "String" },
+      "body": { "type": "String" },
+      "time": { "type": "String" }
+    }
+  },
+  "notifUnreadPrefix": "Unread. ",
+  "@notifUnreadPrefix": {},
+
+  "@_COMMENT_NOTIFICATIONS": {},
+
+  "notificationsTitle": "Notifications",
+  "@notificationsTitle": {},
+  "notificationsEmptyTitle": "No notifications yet",
+  "@notificationsEmptyTitle": {},
+  "notificationsEmptyBody": "We'll let you know about bags nearby and pickup reminders.",
+  "@notificationsEmptyBody": {},
+  "notificationsMarkAllRead": "Mark all read",
+  "@notificationsMarkAllRead": {},
+  "notificationsMarkAllReadAnnouncement": "All notifications marked as read",
+  "@notificationsMarkAllReadAnnouncement": {},
+  "notificationsSectionToday": "Today",
+  "@notificationsSectionToday": {},
+  "notificationsSectionYesterday": "Yesterday",
+  "@notificationsSectionYesterday": {},
+  "notificationsSectionEarlier": "Earlier",
+  "@notificationsSectionEarlier": {},
+
+  "notificationNotDismissibleTitle": "Keep this until you collect",
+  "@notificationNotDismissibleTitle": {},
+  "notificationNotDismissibleBody": "This is about an order you've paid for.",
+  "@notificationNotDismissibleBody": {},
+  "notificationsOffTitle": "Notifications are off",
+  "@notificationsOffTitle": {},
+  "notificationsOffBody": "Turn them on to get pickup reminders.",
+  "@notificationsOffBody": {
+    "description": "An empty notification centre while permission is denied is actively misleading (§5e.1)."
+  },
+  "notificationsAlwaysOn": "Always on",
+  "@notificationsAlwaysOn": {},
+  "notificationsAlwaysOnReason": "You've paid for these orders, so we always tell you about them.",
+  "@notificationsAlwaysOnReason": {},
+  "notificationAlwaysOnSemantic": "{label}, always on",
+  "@notificationAlwaysOnSemantic": {
+    "description": "Must not render as a greyed-out switch — a disabled toggle reads as a bug (§5f.4).",
+    "placeholders": { "label": { "type": "String" } }
+  },
+
+  "@_COMMENT_ACCOUNT": {},
+
+  "accountTitle": "Account",
+  "@accountTitle": {},
+  "accountSignIn": "Sign in",
+  "@accountSignIn": {},
+  "accountSignInBody": "Sign in to reserve bags, track orders, and save your favourite shops.",
+  "@accountSignInBody": {},
+  "accountSignInRequired": "sign in required",
+  "@accountSignInRequired": {
+    "description": "Announced with a gated menu item — 'Edit profile, sign in required' — rather than the item appearing available and then bouncing to an OTP screen (A18)."
+  },
+  "accountGroupAccount": "Account",
+  "@accountGroupAccount": {},
+  "accountEditProfile": "Edit profile",
+  "@accountEditProfile": {},
+  "accountSavedLocations": "Saved locations",
+  "@accountSavedLocations": {},
+  "accountGroupPreferences": "Preferences",
+  "@accountGroupPreferences": {},
+  "accountNotificationSettings": "Notification settings",
+  "@accountNotificationSettings": {},
+  "accountAppSettings": "App settings",
+  "@accountAppSettings": {},
+  "accountGroupSupport": "Support",
+  "@accountGroupSupport": {},
+  "accountHelp": "Help & support",
+  "@accountHelp": {},
+  "accountContact": "Contact us",
+  "@accountContact": {},
+  "accountGroupAbout": "About",
+  "@accountGroupAbout": {},
+  "accountLegal": "Legal",
+  "@accountLegal": {},
+  "accountAbout": "About",
+  "@accountAbout": {},
+  "accountLogOut": "Log out",
+  "@accountLogOut": {},
+  "accountDeleteAccount": "Delete account",
+  "@accountDeleteAccount": {},
+
+  "editProfileUnsavedTitle": "Discard changes?",
+  "@editProfileUnsavedTitle": {},
+  "editProfileUnsavedBody": "Your edits haven't been saved yet.",
+  "@editProfileUnsavedBody": {},
+  "editProfileKeepEditing": "Keep editing",
+  "@editProfileKeepEditing": {},
+  "editProfileDiscard": "Discard",
+  "@editProfileDiscard": {},
+  "editProfileAvatarLabel": "Profile photo",
+  "@editProfileAvatarLabel": {},
+  "editProfileUploadAvatar": "Upload photo",
+  "@editProfileUploadAvatar": {},
+  "editProfileRemoveAvatar": "Remove photo",
+  "@editProfileRemoveAvatar": {},
+  "editProfileNameLabel": "Name",
+  "@editProfileNameLabel": {},
+  "editProfileNameInvalid": "Enter a valid name",
+  "@editProfileNameInvalid": {},
+  "editProfileEmailLabelOptional": "Email (optional)",
+  "@editProfileEmailLabelOptional": {
+    "description": "Marked optional in the label itself, not only by a visual cue (§5f.2)."
+  },
+  "editProfileEmailInvalid": "Enter a valid email address",
+  "@editProfileEmailInvalid": {},
+  "editProfilePhoneLabelReadOnly": "Phone (can't be changed)",
+  "@editProfilePhoneLabelReadOnly": {},
+  "editProfileSaveCta": "Save changes",
+  "@editProfileSaveCta": {},
+
+  "savedLocationsSearchHint": "Search for a locality or pincode",
+  "@savedLocationsSearchHint": {},
+  "savedLocationsCapReached": "You can save up to 10 locations",
+  "@savedLocationsCapReached": {},
+  "savedLocationsLabelPrompt": "Name this location",
+  "@savedLocationsLabelPrompt": {},
+  "savedLocationsLabelHint": "e.g. Home, Work",
+  "@savedLocationsLabelHint": {},
+  "savedLocationsSave": "Save",
+  "@savedLocationsSave": {},
+  "savedLocationsDeleteTitle": "Delete {name}?",
+  "@savedLocationsDeleteTitle": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "savedLocationsDelete": "Delete",
+  "@savedLocationsDelete": {},
+  "savedLocationsEmptyTitle": "Save places you search from",
+  "@savedLocationsEmptyTitle": {},
+  "savedLocationsAdd": "Add location",
+  "@savedLocationsAdd": {},
+  "savedLocationsDefaultSemantic": "{name}, default",
+  "@savedLocationsDefaultSemantic": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "savedLocationsDefaultBadge": "Default",
+  "@savedLocationsDefaultBadge": {},
+  "savedLocationsSetDefault": "Set as default",
+  "@savedLocationsSetDefault": {},
+
+  "notifSettingsOrderUpdates": "Order updates",
+  "@notifSettingsOrderUpdates": {},
+  "notifSettingsOrderUpdatesLabel": "Confirmations, pickup reminders, refunds",
+  "@notifSettingsOrderUpdatesLabel": {},
+  "notifSettingsDiscovery": "Discovery",
+  "@notifSettingsDiscovery": {},
+  "notifSettingsOther": "Other",
+  "@notifSettingsOther": {},
+
+  "appSettingsTheme": "Theme",
+  "@appSettingsTheme": {},
+  "appSettingsThemeSystem": "System",
+  "@appSettingsThemeSystem": {},
+  "appSettingsThemeLight": "Light",
+  "@appSettingsThemeLight": {},
+  "appSettingsThemeDark": "Dark",
+  "@appSettingsThemeDark": {},
+  "appSettingsDataSaver": "Data saver",
+  "@appSettingsDataSaver": {},
+  "appSettingsDataSaverBody": "Use lower-quality images to save data.",
+  "@appSettingsDataSaverBody": {},
+  "appSettingsClearCache": "Clear cache",
+  "@appSettingsClearCache": {},
+
+  "helpCategoryReservations": "Reservations",
+  "@helpCategoryReservations": {},
+  "helpCategoryPickup": "Pickup",
+  "@helpCategoryPickup": {},
+  "helpCategoryPaymentsRefunds": "Payments & refunds",
+  "@helpCategoryPaymentsRefunds": {},
+  "helpCategoryAccount": "Account",
+  "@helpCategoryAccount": {},
+  "helpCategoryFoodSafety": "Food safety",
+  "@helpCategoryFoodSafety": {},
+  "helpNoCacheBody": "We couldn't load help topics right now.",
+  "@helpNoCacheBody": {
+    "description": "No cache → Contact us is surfaced as the primary path — the single worst screen to dead-end on (§5f.6)."
+  },
+  "helpSearchHint": "Search help topics",
+  "@helpSearchHint": {},
+
+  "faqWasHelpful": "Was this helpful?",
+  "@faqWasHelpful": {},
+  "faqHelpfulYes": "Yes",
+  "@faqHelpfulYes": {},
+  "faqHelpfulNo": "No",
+  "@faqHelpfulNo": {},
+
+  "contactCategoryOther": "Other",
+  "@contactCategoryOther": {},
+  "contactSubmitted": "Thanks — we've got your message",
+  "@contactSubmitted": {},
+  "contactChannels": "Get in touch",
+  "@contactChannels": {},
+  "contactWhatsappBody": "WhatsApp us for the fastest response.",
+  "@contactWhatsappBody": {},
+  "contactSlaBody": "We usually respond within 24 hours.",
+  "@contactSlaBody": {},
+  "contactGrievanceOfficer": "Grievance officer",
+  "@contactGrievanceOfficer": {
+    "description": "Consumer Protection (E-commerce) Rules 2020 mandated disclosure (A19)."
+  },
+  "contactFormTitle": "Send us a message",
+  "@contactFormTitle": {},
+  "contactMessageLabel": "How can we help?",
+  "@contactMessageLabel": {},
+  "contactSubmitCta": "Send message",
+  "@contactSubmitCta": {},
+
+  "legalVersionLine": "Version {version} · updated {date}",
+  "@legalVersionLine": {
+    "placeholders": {
+      "version": { "type": "String" },
+      "date": { "type": "String" }
+    }
+  },
+
+  "aboutVersionSemantic": "Version {version}, build {build}",
+  "@aboutVersionSemantic": {
+    "placeholders": {
+      "version": { "type": "String" },
+      "build": { "type": "String" }
+    }
+  },
+  "aboutBody": "Surplus Marketplace connects you with discounted surprise bags from shops near you, at the end of their day.",
+  "@aboutBody": {},
+  "aboutLicenses": "Open-source licences",
+  "@aboutLicenses": {},
+  "aboutRateApp": "Rate this app",
+  "@aboutRateApp": {},
+  "aboutRateAppUnavailable": "Not available yet — check back after launch.",
+  "@aboutRateAppUnavailable": {},
+
+  "@_COMMENT_DELETION": {},
+
+  "deletionBlockedTitle": "Finish these first",
+  "@deletionBlockedTitle": {},
+  "deletionBlockedActiveOrder": "You have a reservation to collect",
+  "@deletionBlockedActiveOrder": {},
+  "deletionBlockedPendingRefund": "We still owe you a refund",
+  "@deletionBlockedPendingRefund": {},
+  "deletionBlockedResolve": "Resolve",
+  "@deletionBlockedResolve": {},
+  "deletionRetainedNotice": "We'll delete your name, phone number, saved places and saved shops. We have to keep your order and payment records for the period required by law — these are separated from your identity. Details are in our Privacy Policy.",
+  "@deletionRetainedNotice": {
+    "description": "A20. Appears in the semantic tree BEFORE the confirm action, so it cannot be skipped."
+  },
+  "deletionGracePeriod": "If you sign in again within 30 days, your account comes back.",
+  "@deletionGracePeriod": {},
+  "deletionConfirmCta": "Delete my account permanently",
+  "@deletionConfirmCta": {},
+  "deletionOtpTitle": "Verify it's you",
+  "@deletionOtpTitle": {
+    "description": "Confirmation is by OTP, not by typing a magic word — re-verification proves possession of the number, which is what actually protects a user whose unlocked phone is in someone else's hands (§5f.11)."
+  },
+  "deletionOtpBody": "Enter the code we sent to confirm you want to delete your account.",
+  "@deletionOtpBody": {},
+  "deletionDoneTitle": "Your account has been deleted",
+  "@deletionDoneTitle": {},
+
+  "logoutTitle": "Sign out?",
+  "@logoutTitle": {},
+  "logoutBody": "Your orders and reservations aren't affected.",
+  "@logoutBody": {},
+  "logoutConfirm": "Sign out",
+  "@logoutConfirm": {},
+
+  "@_COMMENT_SHARED": {},
+
+  "loadingSlow": "Taking longer than usual",
+  "@loadingSlow": {},
+  "staleAsOf": "as of {time}",
+  "@staleAsOf": {
+    "placeholders": { "time": { "type": "String" } }
+  },
+  "offlineBanner": "You're offline",
+  "@offlineBanner": {},
+  "offlineActionBlocked": "You're offline. This needs a connection.",
+  "@offlineActionBlocked": {},
+  "notFoundTitle": "We couldn't find this",
+  "@notFoundTitle": {},
+  "notFoundBody": "It may have been removed.",
+  "@notFoundBody": {},
+  "undo": "Undo",
+  "@undo": {},
+  "close": "Close",
+  "@close": {},
+  "cancel": "Cancel",
+  "@cancel": {},
+  "back": "Back",
+  "@back": {},
+  "continueCta": "Continue",
+  "@continueCta": {}
+}

@@ -1,0 +1,58 @@
+include: package:very_good_analysis/analysis_options.yaml
+
+analyzer:
+  plugins:
+    - custom_lint
+
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "lib/core/l10n/generated/**"
+
+  errors:
+    # Architectural violations are build failures, not suggestions (§8.7).
+    invalid_annotation_target: ignore # freezed + json_serializable interplay
+    missing_required_param: error
+    missing_return: error
+
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+
+linter:
+  rules:
+    # Immutability — the brief requires immutable models throughout.
+    prefer_final_locals: true
+    prefer_const_constructors: true
+    prefer_const_declarations: true
+    avoid_setters_without_getters: true
+
+    # Readability over cleverness.
+    always_declare_return_types: true
+    prefer_single_quotes: true
+    require_trailing_commas: true
+
+    # very_good_analysis enables public_member_api_docs; kept on for core and
+    # design_system, relaxed for feature presentation code in the per-directory
+    # overrides once features land.
+    public_member_api_docs: true
+
+custom_lint:
+  rules:
+    # ------------------------------------------------------------------------
+    # The six rules from Phase 8 §8.7. These require a companion lint package
+    # (tools/lints/) which is NOT yet implemented — see Phase 9 §9.5 deferred
+    # work. Listing them here is intentional: the intended enforcement is
+    # recorded in the repo rather than living only in a design document.
+    #
+    #   - no_primitive_token_outside_theme    §6.1  brand-swap mechanism
+    #   - no_hardcoded_style                  §C8   no colour/spacing literals
+    #   - presentation_must_not_import_data   §8.1  fake<->HTTP swap
+    #   - no_cross_feature_deep_import        §8.3.1 barrels only
+    #   - no_money_arithmetic                 R1    the rule most likely broken
+    #   - no_raw_string_in_widget             §C8   l10n
+    # ------------------------------------------------------------------------
+    - avoid_manual_providers_as_generated_provider_dependency
+    - missing_provider_scope
+    - provider_dependencies

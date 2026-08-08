@@ -1,0 +1,11 @@
+arb-dir: lib/core/l10n
+template-arb-file: app_en.arb
+output-dir: lib/core/l10n/generated
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+nullable-getter: false
+
+# Fails generation if a locale is missing a key that the template defines.
+# English is the only shipping locale in V1 (assumption A12), so this costs
+# nothing now and prevents silent gaps the moment a second locale lands.
+untranslated-messages-file: l10n_untranslated.txt

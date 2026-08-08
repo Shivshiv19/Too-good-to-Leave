@@ -1,0 +1,53 @@
+# Dart / Flutter
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+pubspec.lock
+
+# Generated
+*.g.dart
+*.freezed.dart
+*.gr.dart
+lib/core/l10n/generated/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Platform build output
+android/.gradle/
+android/.kotlin/
+android/app/debug/
+android/app/profile/
+android/app/release/
+android/local.properties
+android/key.properties
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework/
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/ephemeral/
+
+# Secrets — never committed. Config comes from --dart-define (Phase 8 §8.6).
+*.keystore
+*.jks
+.env
+.env.*
+google-services.json
+GoogleService-Info.plist
+dart_defines.json
+
+# Test output
+coverage/
+failures/
+
+# OS
+.DS_Store
+Thumbs.db
