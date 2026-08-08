@@ -4,6 +4,7 @@ import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/elevation.dart';
 import 'package:too_good_to_leave_shop/screens/account_screen.dart';
+import 'package:too_good_to_leave_shop/screens/analytics_screen.dart';
 import 'package:too_good_to_leave_shop/screens/bag_list_screen.dart';
 import 'package:too_good_to_leave_shop/screens/order_list_screen.dart';
 import 'package:too_good_to_leave_shop/screens/payments_screen.dart';
@@ -35,6 +36,7 @@ class _ShopShellScreenState extends State<ShopShellScreen> {
           BagListScreen(repository: widget.repository),
           OrderListScreen(repository: widget.repository),
           PaymentsScreen(repository: widget.repository),
+          AnalyticsScreen(repository: widget.repository),
           AccountScreen(repository: widget.repository),
         ],
       ),
@@ -91,6 +93,11 @@ class _ShopShellScreenState extends State<ShopShellScreen> {
                     icon: Icon(Icons.account_balance_wallet_outlined),
                     selectedIcon: Icon(Icons.account_balance_wallet),
                     label: 'Payments',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.insights_outlined),
+                    selectedIcon: Icon(Icons.insights),
+                    label: 'Insights',
                   ),
                   NavigationDestination(
                     icon: Icon(Icons.storefront_outlined),

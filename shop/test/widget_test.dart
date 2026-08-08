@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:too_good_to_leave_shop/core/domain/money.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
+import 'package:too_good_to_leave_shop/domain/impact_estimate.dart';
 import 'package:too_good_to_leave_shop/domain/payout.dart';
 import 'package:too_good_to_leave_shop/domain/shop_bag.dart';
 import 'package:too_good_to_leave_shop/domain/shop_category.dart';
@@ -310,6 +311,23 @@ void main() {
 
       expect(second, isNull);
       expect(repo.getPayouts(), hasLength(1));
+    });
+  });
+
+  group('impact estimate', () {
+    test('zero collected bags means zero impact, not a divide-by-zero', () {
+      expect(ImpactEstimate.mealsSaved(0), 0);
+      expect(ImpactEstimate.kgSaved(0), 0);
+      expect(ImpactEstimate.co2eKgAvoided(0), 0);
+    });
+
+    test('scales linearly with collected bag count', () {
+      expect(ImpactEstimate.mealsSaved(10), 10);
+      expect(ImpactEstimate.kgSaved(10), 10 * ImpactEstimate.kgPerBag);
+      expect(
+        ImpactEstimate.co2eKgAvoided(10),
+        10 * ImpactEstimate.kgPerBag * ImpactEstimate.co2eKgPerKgFood,
+      );
     });
   });
 }
