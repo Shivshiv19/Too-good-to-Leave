@@ -7,7 +7,30 @@ import 'package:too_good_to_leave_shop/screens/registration_screen.dart';
 import 'package:too_good_to_leave_shop/screens/shop_shell_screen.dart';
 
 void main() {
-  runApp(ShopApp(repository: ShopRepository()));
+  runApp(const ShopAppLoader());
+}
+
+/// Awaits [ShopRepository.load] (reads `shared_preferences`, which is
+/// itself async) before the real app can render — a shop's registration
+/// and listings must survive a browser refresh, so this can't just start
+/// from an empty in-memory repository the way earlier iterations did.
+class ShopAppLoader extends StatelessWidget {
+  const ShopAppLoader({super.key});
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<ShopRepository>(
+    future: ShopRepository.load(),
+    builder: (context, snapshot) {
+      final repository = snapshot.data;
+      if (repository == null) {
+        return const MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: Scaffold(body: Center(child: CircularProgressIndicator())),
+        );
+      }
+      return ShopApp(repository: repository);
+    },
+  );
 }
 
 class ShopApp extends StatelessWidget {

@@ -66,7 +66,7 @@ class _BagEditScreenState extends State<BagEditScreen> {
     setState(() => isStart ? _startTime = picked : _endTime = picked);
   }
 
-  void _save() {
+  Future<void> _save() async {
     final title = _titleController.text.trim();
     final price = int.tryParse(_priceController.text.trim()) ?? 0;
     final quantity = int.tryParse(_quantityController.text.trim()) ?? 0;
@@ -87,7 +87,7 @@ class _BagEditScreenState extends State<BagEditScreen> {
     final pickupWindow = PickupWindow(startAt: start, endAt: end);
     final existing = widget.existing;
     if (existing == null) {
-      widget.repository.createBag(
+      await widget.repository.createBag(
         title: title,
         description: _descriptionController.text.trim(),
         envelope: _envelope,
@@ -96,7 +96,7 @@ class _BagEditScreenState extends State<BagEditScreen> {
         pickupWindow: pickupWindow,
       );
     } else {
-      widget.repository.updateBag(
+      await widget.repository.updateBag(
         existing.copyWith(
           title: title,
           description: _descriptionController.text.trim(),
@@ -108,13 +108,13 @@ class _BagEditScreenState extends State<BagEditScreen> {
         ),
       );
     }
-    Navigator.of(context).pop();
+    if (mounted) Navigator.of(context).pop();
   }
 
-  void _delete() {
+  Future<void> _delete() async {
     if (widget.existing == null) return;
-    widget.repository.deleteBag(widget.existing!.id);
-    Navigator.of(context).pop();
+    await widget.repository.deleteBag(widget.existing!.id);
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override

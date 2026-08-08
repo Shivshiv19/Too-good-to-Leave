@@ -68,7 +68,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     if (picked != null) setState(() => _fssaiExpiry = picked);
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_fssaiExpiry == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -77,7 +77,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       return;
     }
 
-    widget.repository.register(
+    await widget.repository.register(
       ShopProfile(
         businessName: _businessName.text.trim(),
         ownerName: _ownerName.text.trim(),

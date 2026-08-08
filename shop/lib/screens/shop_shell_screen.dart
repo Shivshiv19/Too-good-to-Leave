@@ -3,13 +3,14 @@ import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/elevation.dart';
+import 'package:too_good_to_leave_shop/screens/account_screen.dart';
 import 'package:too_good_to_leave_shop/screens/bag_list_screen.dart';
 import 'package:too_good_to_leave_shop/screens/order_list_screen.dart';
 
-/// The shop app's two-tab shell — Bags and Orders. A floating pill nav,
-/// matching the customer app's rebrand (`app_shell_screen.dart` there),
-/// kept intentionally simple here (`IndexedStack` + `setState`, no router)
-/// since a two-tab standalone tool doesn't need deep-linking.
+/// The shop app's tab shell. A floating pill nav, matching the customer
+/// app's rebrand (`app_shell_screen.dart` there), kept intentionally simple
+/// here (`IndexedStack` + `setState`, no router) since this standalone tool
+/// doesn't need deep-linking.
 class ShopShellScreen extends StatefulWidget {
   const ShopShellScreen({required this.repository, super.key});
 
@@ -32,6 +33,7 @@ class _ShopShellScreenState extends State<ShopShellScreen> {
         children: [
           BagListScreen(repository: widget.repository),
           OrderListScreen(repository: widget.repository),
+          AccountScreen(repository: widget.repository),
         ],
       ),
       bottomNavigationBar: Padding(
@@ -82,6 +84,11 @@ class _ShopShellScreenState extends State<ShopShellScreen> {
                     icon: Icon(Icons.receipt_long_outlined),
                     selectedIcon: Icon(Icons.receipt_long),
                     label: 'Orders',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.storefront_outlined),
+                    selectedIcon: Icon(Icons.storefront),
+                    label: 'Account',
                   ),
                 ],
               ),

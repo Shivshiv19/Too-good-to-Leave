@@ -35,16 +35,18 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     super.dispose();
   }
 
-  void _confirm() {
+  Future<void> _confirm() async {
     setState(() => _error = null);
     try {
-      widget.repository.confirmPickupByCode(
+      await widget.repository.confirmPickupByCode(
         orderId: widget.order.id,
         code: _codeController.text,
       );
-      setState(() => _status = ShopOrderStatus.collected);
+      if (mounted) setState(() => _status = ShopOrderStatus.collected);
     } on PickupCodeMismatchException {
-      setState(() => _error = "That code doesn't match this order.");
+      if (mounted) {
+        setState(() => _error = "That code doesn't match this order.");
+      }
     }
   }
 

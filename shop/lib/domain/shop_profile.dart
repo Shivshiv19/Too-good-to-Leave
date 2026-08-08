@@ -10,6 +10,16 @@ final class FssaiLicense {
   final DateTime expiresAt;
 
   bool get isExpired => expiresAt.isBefore(DateTime.now());
+
+  Map<String, dynamic> toJson() => {
+    'licenseNumber': licenseNumber,
+    'expiresAt': expiresAt.toIso8601String(),
+  };
+
+  factory FssaiLicense.fromJson(Map<String, dynamic> json) => FssaiLicense(
+    licenseNumber: json['licenseNumber'] as String,
+    expiresAt: DateTime.parse(json['expiresAt'] as String),
+  );
 }
 
 /// Payout destination. UPI is optional — a bank account is the minimum a
@@ -26,6 +36,20 @@ final class BankDetails {
   final String accountNumber;
   final String ifscCode;
   final String? upiId;
+
+  Map<String, dynamic> toJson() => {
+    'accountHolderName': accountHolderName,
+    'accountNumber': accountNumber,
+    'ifscCode': ifscCode,
+    'upiId': upiId,
+  };
+
+  factory BankDetails.fromJson(Map<String, dynamic> json) => BankDetails(
+    accountHolderName: json['accountHolderName'] as String,
+    accountNumber: json['accountNumber'] as String,
+    ifscCode: json['ifscCode'] as String,
+    upiId: json['upiId'] as String?,
+  );
 }
 
 /// Where a registration stands.
@@ -72,19 +96,58 @@ final class ShopProfile {
   final String? rejectionReason;
 
   ShopProfile copyWith({
+    String? businessName,
+    String? ownerName,
+    String? phone,
+    String? email,
+    ShopCategory? category,
+    String? addressLine,
+    String? locality,
+    FssaiLicense? fssai,
+    BankDetails? bankDetails,
     ShopApprovalStatus? status,
     String? rejectionReason,
   }) => ShopProfile(
-    businessName: businessName,
-    ownerName: ownerName,
-    phone: phone,
-    email: email,
-    category: category,
-    addressLine: addressLine,
-    locality: locality,
-    fssai: fssai,
-    bankDetails: bankDetails,
+    businessName: businessName ?? this.businessName,
+    ownerName: ownerName ?? this.ownerName,
+    phone: phone ?? this.phone,
+    email: email ?? this.email,
+    category: category ?? this.category,
+    addressLine: addressLine ?? this.addressLine,
+    locality: locality ?? this.locality,
+    fssai: fssai ?? this.fssai,
+    bankDetails: bankDetails ?? this.bankDetails,
     status: status ?? this.status,
     rejectionReason: rejectionReason ?? this.rejectionReason,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'businessName': businessName,
+    'ownerName': ownerName,
+    'phone': phone,
+    'email': email,
+    'category': category.name,
+    'addressLine': addressLine,
+    'locality': locality,
+    'fssai': fssai.toJson(),
+    'bankDetails': bankDetails.toJson(),
+    'status': status.name,
+    'rejectionReason': rejectionReason,
+  };
+
+  factory ShopProfile.fromJson(Map<String, dynamic> json) => ShopProfile(
+    businessName: json['businessName'] as String,
+    ownerName: json['ownerName'] as String,
+    phone: json['phone'] as String,
+    email: json['email'] as String,
+    category: ShopCategory.values.byName(json['category'] as String),
+    addressLine: json['addressLine'] as String,
+    locality: json['locality'] as String,
+    fssai: FssaiLicense.fromJson(json['fssai'] as Map<String, dynamic>),
+    bankDetails: BankDetails.fromJson(
+      json['bankDetails'] as Map<String, dynamic>,
+    ),
+    status: ShopApprovalStatus.values.byName(json['status'] as String),
+    rejectionReason: json['rejectionReason'] as String?,
   );
 }

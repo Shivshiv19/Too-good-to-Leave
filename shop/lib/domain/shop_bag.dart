@@ -2,6 +2,31 @@ import 'package:too_good_to_leave_shop/core/domain/dietary_envelope.dart';
 import 'package:too_good_to_leave_shop/core/domain/money.dart';
 import 'package:too_good_to_leave_shop/core/domain/pickup_window.dart';
 
+// `Money`/`PickupWindow` are copied verbatim from the customer app's
+// `core/domain` (kept identical so the two apps' wire shapes never drift),
+// so their (de)serialization lives here at the shop-specific call site
+// rather than as app-specific additions to those shared files.
+Map<String, dynamic> _moneyToJson(Money money) => {
+  'amountInPaise': money.amountInPaise,
+  'currencyCode': money.currency.code,
+};
+
+Money _moneyFromJson(Map<String, dynamic> json) => Money(
+  json['amountInPaise'] as int,
+  currency: Currency.fromCode(json['currencyCode'] as String),
+);
+
+Map<String, dynamic> _pickupWindowToJson(PickupWindow window) => {
+  'startAt': window.startAt.toIso8601String(),
+  'endAt': window.endAt.toIso8601String(),
+};
+
+PickupWindow _pickupWindowFromJson(Map<String, dynamic> json) =>
+    PickupWindow(
+      startAt: DateTime.parse(json['startAt'] as String),
+      endAt: DateTime.parse(json['endAt'] as String),
+    );
+
 /// Whether a listing is visible to customers.
 enum BagStatus {
   /// Being edited, not yet visible.
@@ -58,5 +83,29 @@ final class ShopBag {
     quantityAvailable: quantityAvailable ?? this.quantityAvailable,
     pickupWindow: pickupWindow ?? this.pickupWindow,
     status: status ?? this.status,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'description': description,
+    'envelope': envelope.wireValue,
+    'price': _moneyToJson(price),
+    'quantityAvailable': quantityAvailable,
+    'pickupWindow': _pickupWindowToJson(pickupWindow),
+    'status': status.name,
+  };
+
+  factory ShopBag.fromJson(Map<String, dynamic> json) => ShopBag(
+    id: json['id'] as String,
+    title: json['title'] as String,
+    description: json['description'] as String,
+    envelope: DietaryEnvelope.fromWire(json['envelope'] as String),
+    price: _moneyFromJson(json['price'] as Map<String, dynamic>),
+    quantityAvailable: json['quantityAvailable'] as int,
+    pickupWindow: _pickupWindowFromJson(
+      json['pickupWindow'] as Map<String, dynamic>,
+    ),
+    status: BagStatus.values.byName(json['status'] as String),
   );
 }
