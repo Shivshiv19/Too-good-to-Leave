@@ -4,7 +4,9 @@ import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/design_system/components/app_button.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/screens/edit_profile_screen.dart';
+import 'package:too_good_to_leave_shop/screens/help_screen.dart';
 import 'package:too_good_to_leave_shop/screens/notifications_screen.dart';
+import 'package:too_good_to_leave_shop/screens/settings_screen.dart';
 
 class AccountScreen extends StatelessWidget {
   const AccountScreen({required this.repository, super.key});
@@ -105,6 +107,24 @@ class AccountScreen extends StatelessWidget {
                     builder: (_) =>
                         NotificationsScreen(repository: repository),
                   ),
+                ),
+              ),
+              const SizedBox(height: Space.x2),
+              _NavRow(
+                icon: Icons.schedule,
+                label: 'Store hours',
+                onTap: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute(
+                    builder: (_) => SettingsScreen(repository: repository),
+                  ),
+                ),
+              ),
+              const SizedBox(height: Space.x2),
+              _NavRow(
+                icon: Icons.help_outline,
+                label: 'Help & support',
+                onTap: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute(builder: (_) => const HelpScreen()),
                 ),
               ),
               const SizedBox(height: Space.x6),

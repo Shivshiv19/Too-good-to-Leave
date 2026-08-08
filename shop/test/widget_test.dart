@@ -11,6 +11,7 @@ import 'package:too_good_to_leave_shop/domain/shop_bag.dart';
 import 'package:too_good_to_leave_shop/domain/shop_category.dart';
 import 'package:too_good_to_leave_shop/domain/shop_order.dart';
 import 'package:too_good_to_leave_shop/domain/shop_profile.dart';
+import 'package:too_good_to_leave_shop/domain/store_hours.dart';
 import 'package:too_good_to_leave_shop/main.dart';
 
 ShopProfile _testProfile() => ShopProfile(
@@ -112,9 +113,11 @@ void main() {
     expect(find.text('Test Bakery'), findsOneWidget);
     expect(find.text('Test Owner'), findsOneWidget);
 
-    // The Notifications row pushed "Log out" below the fold in a test's
-    // default viewport — scroll it into view before tapping.
-    await tester.ensureVisible(find.text('Log out'));
+    // The Account screen's list has grown past the test viewport's fold —
+    // scroll straight to the bottom rather than use ensureVisible, which
+    // needs its target to resolve to exactly one widget and gets confused
+    // now that the screen has more on it.
+    await tester.drag(find.byType(ListView), const Offset(0, -2000));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Log out'));
     await tester.pumpAndSettle();
@@ -389,6 +392,46 @@ void main() {
 
       expect(reloaded.getNotifications(), hasLength(1));
       expect(reloaded.getNotifications().first.message, contains('cancelled'));
+    });
+
+    test('store hours survive a fresh load()', () async {
+      final first = await ShopRepository.load();
+      final updated = first.storeHours.withDay(
+        6,
+        first.storeHours.days[6].copyWith(isOpen: true, openHour: 10),
+      );
+
+      await first.updateStoreHours(updated);
+
+      final reloaded = await ShopRepository.load();
+      expect(reloaded.storeHours.days[6].isOpen, true);
+      expect(reloaded.storeHours.days[6].openHour, 10);
+      // Untouched days are unaffected.
+      expect(reloaded.storeHours.days[0].isOpen, true);
+    });
+  });
+
+  group('store hours', () {
+    test('defaults to open Monday-Saturday, closed Sunday', () {
+      final defaults = StoreHours.defaults();
+
+      expect(defaults.days, hasLength(7));
+      expect(defaults.days.take(6).every((d) => d.isOpen), true);
+      expect(defaults.days.last.isOpen, false);
+    });
+
+    test('withDay only changes the targeted day', () {
+      final hours = StoreHours.defaults();
+
+      final updated = hours.withDay(
+        2,
+        hours.days[2].copyWith(isOpen: false),
+      );
+
+      expect(updated.days[2].isOpen, false);
+      for (var i = 0; i < updated.days.length; i++) {
+        if (i != 2) expect(updated.days[i].isOpen, hours.days[i].isOpen);
+      }
     });
   });
 }

@@ -12,6 +12,7 @@ import 'package:too_good_to_leave_shop/domain/shop_bag.dart';
 import 'package:too_good_to_leave_shop/domain/shop_notification.dart';
 import 'package:too_good_to_leave_shop/domain/shop_order.dart';
 import 'package:too_good_to_leave_shop/domain/shop_profile.dart';
+import 'package:too_good_to_leave_shop/domain/store_hours.dart';
 
 /// Thrown when a fallback code doesn't match the order it's checked against.
 class PickupCodeMismatchException implements Exception {
@@ -23,6 +24,7 @@ const _bagsKey = 'shop_bags';
 const _ordersKey = 'shop_orders';
 const _payoutsKey = 'shop_payouts';
 const _notificationsKey = 'shop_notifications';
+const _storeHoursKey = 'shop_store_hours';
 
 /// Shop-side data — registration, bags, orders, and (as later areas land)
 /// payments/analytics/notifications/settings. Standalone: nothing here is
@@ -59,6 +61,7 @@ class ShopRepository extends ChangeNotifier {
     final ordersJson = prefs.getString(_ordersKey);
     final payoutsJson = prefs.getString(_payoutsKey);
     final notificationsJson = prefs.getString(_notificationsKey);
+    final storeHoursJson = prefs.getString(_storeHoursKey);
 
     if (profileJson == null && bagsJson == null) {
       // First-ever launch on this browser — nothing persisted yet.
@@ -100,6 +103,11 @@ class ShopRepository extends ChangeNotifier {
             .map(ShopNotification.fromJson),
       );
     }
+    if (storeHoursJson != null) {
+      repo._storeHours = StoreHours.fromJson(
+        jsonDecode(storeHoursJson) as Map<String, dynamic>,
+      );
+    }
     return repo;
   }
 
@@ -110,6 +118,7 @@ class ShopRepository extends ChangeNotifier {
   final List<ShopOrder> _orders = [];
   final List<PayoutRecord> _payouts = [];
   final List<ShopNotification> _notifications = [];
+  StoreHours _storeHours = StoreHours.defaults();
   int _nextBagId = 1;
   int _nextPayoutId = 1;
   int _nextNotificationId = 1;
@@ -159,6 +168,7 @@ class ShopRepository extends ChangeNotifier {
       _notificationsKey,
       jsonEncode(_notifications.map((n) => n.toJson()).toList()),
     );
+    await prefs.setString(_storeHoursKey, jsonEncode(_storeHours.toJson()));
   }
 
   void _seedOrdersAndBags() {
@@ -538,6 +548,18 @@ class ShopRepository extends ChangeNotifier {
     for (var i = 0; i < _notifications.length; i++) {
       _notifications[i] = _notifications[i].copyWith(read: true);
     }
+    notifyListeners();
+    await _persist();
+  }
+
+  // ---------------------------------------------------------------------
+  // Store hours
+  // ---------------------------------------------------------------------
+
+  StoreHours get storeHours => _storeHours;
+
+  Future<void> updateStoreHours(StoreHours hours) async {
+    _storeHours = hours;
     notifyListeners();
     await _persist();
   }
