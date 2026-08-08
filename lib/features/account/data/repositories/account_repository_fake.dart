@@ -367,7 +367,7 @@ final _legalDocuments = <LegalDocId, LegalDocument>{
     lastUpdated: DateTime(2026, 1, 1),
     bodyMarkdown:
         '# Terms of Service\n\n'
-        'By using Surplus Marketplace you agree to these terms.\n\n'
+        'By using Too Good To Leave you agree to these terms.\n\n'
         '## Reservations\n\n'
         'A reservation is a binding commitment to collect a bag within its '
         'pickup window.',

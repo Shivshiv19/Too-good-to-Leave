@@ -1504,7 +1504,7 @@
       "build": { "type": "String" }
     }
   },
-  "aboutBody": "Surplus Marketplace connects you with discounted surprise bags from shops near you, at the end of their day.",
+  "aboutBody": "Too Good To Leave connects you with discounted surprise bags from shops near you, at the end of their day.",
   "@aboutBody": {},
   "aboutLicenses": "Open-source licences",
   "@aboutLicenses": {},

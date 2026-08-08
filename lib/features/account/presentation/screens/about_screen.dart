@@ -42,7 +42,7 @@ class _AboutScreenState extends State<AboutScreen> {
         child: ListView(
           padding: const EdgeInsets.all(Space.x4),
           children: [
-            Text('Surplus Marketplace', style: context.type.display),
+            Text('Too Good To Leave', style: context.type.display),
             if (info != null)
               Semantics(
                 label: l10n.aboutVersionSemantic(
@@ -66,7 +66,7 @@ class _AboutScreenState extends State<AboutScreen> {
               trailing: const Icon(Icons.chevron_right),
               onTap: () => showLicensePage(
                 context: context,
-                applicationName: 'Surplus Marketplace',
+                applicationName: 'Too Good To Leave',
                 applicationVersion: info?.version,
               ),
             ),

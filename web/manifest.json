@@ -1,11 +1,11 @@
 {
-    "name": "Surplus Marketplace",
-    "short_name": "Surplus Marketplace",
+    "name": "Too Good To Leave",
+    "short_name": "Too Good To Leave",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "Surplus Marketplace — reserve surplus food from nearby stores and restaurants before it's gone.",
+    "description": "Too Good To Leave — reserve surplus food from nearby stores and restaurants before it's gone.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

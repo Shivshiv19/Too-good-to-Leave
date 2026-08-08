@@ -1,4 +1,4 @@
-# Surplus Marketplace — Customer App
+# Too Good To Leave — Customer App
 
 A surplus-food marketplace for India. Businesses list food that would otherwise be discarded;
 customers reserve and prepay, then collect during a stated pickup window.

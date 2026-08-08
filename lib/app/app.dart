@@ -17,7 +17,7 @@ class App extends ConsumerWidget {
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeControllerProvider);
     return MaterialApp.router(
-      title: 'Surplus Marketplace',
+      title: 'Too Good To Leave',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
