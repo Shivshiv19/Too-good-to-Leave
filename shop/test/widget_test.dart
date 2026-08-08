@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
+import 'package:too_good_to_leave_shop/domain/shop_bag.dart';
 import 'package:too_good_to_leave_shop/domain/shop_category.dart';
 import 'package:too_good_to_leave_shop/domain/shop_profile.dart';
 import 'package:too_good_to_leave_shop/main.dart';
@@ -149,6 +152,63 @@ void main() {
 
       final reloaded = await ShopRepository.load();
       expect(reloaded.profile, isNull);
+    });
+
+    test('a bag photo survives a fresh load()', () async {
+      final first = await ShopRepository.load();
+      final photo = Uint8List.fromList([1, 2, 3, 4, 5]);
+      final bag = await first.createBag(
+        title: 'Photo Bag',
+        description: 'Has a photo.',
+        envelope: first.getBags().first.envelope,
+        price: first.getBags().first.price,
+        quantityAvailable: 1,
+        pickupWindow: first.getBags().first.pickupWindow,
+        photoBytes: photo,
+      );
+
+      final reloaded = await ShopRepository.load();
+      final reloadedBag = reloaded.getBags().firstWhere(
+        (b) => b.id == bag.id,
+      );
+      expect(reloadedBag.photoBytes, photo);
+    });
+  });
+
+  group('listings', () {
+    test('duplicateBag copies details into a new draft shifted a day', () async {
+      final repo = ShopRepository();
+      final source = repo.getBags().first;
+
+      final copy = await repo.duplicateBag(source.id);
+
+      expect(copy.id, isNot(source.id));
+      expect(copy.title, source.title);
+      expect(copy.price, source.price);
+      expect(
+        copy.pickupWindow.startAt.difference(source.pickupWindow.startAt),
+        const Duration(days: 1),
+      );
+    });
+
+    test('toggleAvailability flips live and paused, but not draft', () async {
+      final repo = ShopRepository();
+      final live = repo.getBags().firstWhere((b) => b.status == BagStatus.live);
+      final draft = repo
+          .getBags()
+          .firstWhere((b) => b.status == BagStatus.draft);
+
+      await repo.toggleAvailability(live.id);
+      expect(
+        repo.getBags().firstWhere((b) => b.id == live.id).status,
+        BagStatus.paused,
+      );
+
+      await repo.toggleAvailability(draft.id);
+      expect(
+        repo.getBags().firstWhere((b) => b.id == draft.id).status,
+        BagStatus.draft,
+      );
     });
   });
 }

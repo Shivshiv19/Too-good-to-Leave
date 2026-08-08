@@ -71,7 +71,7 @@ class ShopRepository extends ChangeNotifier {
             .cast<Map<String, dynamic>>()
             .map(ShopBag.fromJson),
       );
-      repo._nextBagId = repo._bags.length + 1;
+      repo._recomputeNextBagId();
     }
     if (ordersJson != null) {
       repo._orders.addAll(
@@ -89,6 +89,19 @@ class ShopRepository extends ChangeNotifier {
   final List<ShopBag> _bags = [];
   final List<ShopOrder> _orders = [];
   int _nextBagId = 1;
+
+  /// Derives the next id from the highest `bag_N` suffix actually present,
+  /// not just `_bags.length` — a count would collide again the moment any
+  /// bag has ever been deleted (3 bags left after a deletion doesn't mean
+  /// the highest id used was 3).
+  void _recomputeNextBagId() {
+    var highest = 0;
+    for (final bag in _bags) {
+      final suffix = int.tryParse(bag.id.replaceFirst('bag_', ''));
+      if (suffix != null && suffix > highest) highest = suffix;
+    }
+    _nextBagId = highest + 1;
+  }
 
   Future<void> _persist() async {
     final prefs = await SharedPreferences.getInstance();
@@ -150,6 +163,12 @@ class ShopRepository extends ChangeNotifier {
         status: BagStatus.draft,
       ),
     ]);
+    // Seeded IDs are hardcoded above, not generated through createBag() —
+    // without this, the next createBag() call reuses `bag_1` and silently
+    // collides with the seeded bag of that id (two bags, same id, in the
+    // same list — lookups by id then find whichever comes first, not
+    // necessarily the one just created).
+    _recomputeNextBagId();
 
     _orders.addAll([
       ShopOrder(
@@ -242,6 +261,8 @@ class ShopRepository extends ChangeNotifier {
     required Money price,
     required int quantityAvailable,
     required PickupWindow pickupWindow,
+    Uint8List? photoBytes,
+    bool repeatsDaily = false,
   }) async {
     final bag = ShopBag(
       id: 'bag_${_nextBagId++}',
@@ -251,6 +272,8 @@ class ShopRepository extends ChangeNotifier {
       price: price,
       quantityAvailable: quantityAvailable,
       pickupWindow: pickupWindow,
+      photoBytes: photoBytes,
+      repeatsDaily: repeatsDaily,
     );
     _bags.add(bag);
     notifyListeners();
@@ -267,6 +290,50 @@ class ShopRepository extends ChangeNotifier {
 
   Future<void> deleteBag(String id) async {
     _bags.removeWhere((b) => b.id == id);
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Copies a bag's details into a new draft — the standalone stand-in for
+  /// both "reuse yesterday's template" and "repost for tomorrow," since a
+  /// real recurring auto-publish needs a backend scheduler this app doesn't
+  /// have.
+  Future<ShopBag> duplicateBag(String id) async {
+    final source = _bags.firstWhere((b) => b.id == id);
+    final now = _clock.now();
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    final shift = tomorrow.difference(
+      DateTime(
+        source.pickupWindow.startAt.year,
+        source.pickupWindow.startAt.month,
+        source.pickupWindow.startAt.day,
+      ),
+    );
+    return createBag(
+      title: source.title,
+      description: source.description,
+      envelope: source.envelope,
+      price: source.price,
+      quantityAvailable: source.quantityAvailable,
+      pickupWindow: PickupWindow(
+        startAt: source.pickupWindow.startAt.add(shift),
+        endAt: source.pickupWindow.endAt.add(shift),
+      ),
+      photoBytes: source.photoBytes,
+      repeatsDaily: source.repeatsDaily,
+    );
+  }
+
+  /// Quick live/paused flip from the bag list, without opening the full
+  /// editor — the counter-facing "we just ran out" action.
+  Future<void> toggleAvailability(String id) async {
+    final index = _bags.indexWhere((b) => b.id == id);
+    if (index == -1) return;
+    final bag = _bags[index];
+    if (bag.status == BagStatus.draft) return;
+    _bags[index] = bag.copyWith(
+      status: bag.status == BagStatus.live ? BagStatus.paused : BagStatus.live,
+    );
     notifyListeners();
     await _persist();
   }

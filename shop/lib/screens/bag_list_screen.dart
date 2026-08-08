@@ -51,6 +51,9 @@ class BagListScreen extends StatelessWidget {
                     return _BagCard(
                       bag: bag,
                       onTap: () => _openEditor(context, bag),
+                      onToggleAvailability: () =>
+                          repository.toggleAvailability(bag.id),
+                      onDuplicate: () => repository.duplicateBag(bag.id),
                     );
                   },
                 ),
@@ -68,10 +71,17 @@ class BagListScreen extends StatelessWidget {
 }
 
 class _BagCard extends StatelessWidget {
-  const _BagCard({required this.bag, required this.onTap});
+  const _BagCard({
+    required this.bag,
+    required this.onTap,
+    required this.onToggleAvailability,
+    required this.onDuplicate,
+  });
 
   final ShopBag bag;
   final VoidCallback onTap;
+  final VoidCallback onToggleAvailability;
+  final VoidCallback onDuplicate;
 
   @override
   Widget build(BuildContext context) {
@@ -85,41 +95,123 @@ class _BagCard extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(Space.x4),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _BagThumbnail(bag: bag),
+                  const SizedBox(width: Space.x3),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(bag.title, style: context.type.title),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                bag.title,
+                                style: context.type.title,
+                              ),
+                            ),
+                            _StatusChip(status: bag.status),
+                          ],
                         ),
-                        _StatusChip(status: bag.status),
+                        const SizedBox(height: Space.x1),
+                        Text(
+                          bag.description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.type.body.copyWith(
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: Space.x2),
+                        Row(
+                          children: [
+                            Text(
+                              '${Fmt.money(bag.price)} · ${bag.quantityAvailable} left',
+                              style: context.type.label,
+                            ),
+                            if (bag.repeatsDaily) ...[
+                              const SizedBox(width: Space.x2),
+                              Icon(
+                                Icons.repeat,
+                                size: 14,
+                                color: colors.textTertiary,
+                              ),
+                            ],
+                          ],
+                        ),
                       ],
                     ),
-                    const SizedBox(height: Space.x1),
+                  ),
+                ],
+              ),
+              const Divider(height: Space.x6),
+              Row(
+                children: [
+                  if (bag.status != BagStatus.draft) ...[
                     Text(
-                      bag.description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.type.body.copyWith(
+                      bag.status == BagStatus.live ? 'Live' : 'Paused',
+                      style: context.type.caption.copyWith(
                         color: colors.textSecondary,
                       ),
                     ),
-                    const SizedBox(height: Space.x2),
-                    Text(
-                      '${Fmt.money(bag.price)} · ${bag.quantityAvailable} left',
-                      style: context.type.label,
+                    Switch(
+                      value: bag.status == BagStatus.live,
+                      onChanged: (_) => onToggleAvailability(),
                     ),
                   ],
-                ),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: onDuplicate,
+                    icon: const Icon(Icons.copy_outlined, size: 18),
+                    label: const Text('Duplicate for tomorrow'),
+                  ),
+                ],
               ),
-              Icon(Icons.chevron_right, color: colors.textTertiary),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _BagThumbnail extends StatelessWidget {
+  const _BagThumbnail({required this.bag});
+
+  final ShopBag bag;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final photoBytes = bag.photoBytes;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(Radii.sm),
+      child: SizedBox(
+        width: 64,
+        height: 64,
+        child: photoBytes != null
+            ? Image.memory(photoBytes, fit: BoxFit.cover)
+            : DecoratedBox(
+                decoration: BoxDecoration(
+                  color: colors.surfaceSunken,
+                  border: Border.all(color: colors.borderSubtle),
+                ),
+                child: Center(
+                  child: Text(
+                    'photo',
+                    style: context.type.caption.copyWith(
+                      color: colors.textTertiary,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ),
+              ),
       ),
     );
   }

@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/core/domain/dietary_envelope.dart';
 import 'package:too_good_to_leave_shop/core/domain/money.dart';
@@ -42,6 +45,18 @@ class _BagEditScreenState extends State<BagEditScreen> {
   late TimeOfDay _endTime = widget.existing != null
       ? TimeOfDay.fromDateTime(widget.existing!.pickupWindow.endAt)
       : const TimeOfDay(hour: 20, minute: 0);
+  late Uint8List? _photoBytes = widget.existing?.photoBytes;
+  late bool _repeatsDaily = widget.existing?.repeatsDaily ?? false;
+
+  Future<void> _pickPhoto() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 800,
+    );
+    if (picked == null) return;
+    final bytes = await picked.readAsBytes();
+    setState(() => _photoBytes = bytes);
+  }
 
   @override
   void dispose() {
@@ -94,6 +109,8 @@ class _BagEditScreenState extends State<BagEditScreen> {
         price: Money.rupees(price),
         quantityAvailable: quantity,
         pickupWindow: pickupWindow,
+        photoBytes: _photoBytes,
+        repeatsDaily: _repeatsDaily,
       );
     } else {
       await widget.repository.updateBag(
@@ -105,6 +122,8 @@ class _BagEditScreenState extends State<BagEditScreen> {
           quantityAvailable: quantity,
           pickupWindow: pickupWindow,
           status: _status,
+          photoBytes: _photoBytes,
+          repeatsDaily: _repeatsDaily,
         ),
       );
     }
@@ -138,6 +157,8 @@ class _BagEditScreenState extends State<BagEditScreen> {
       body: ListView(
         padding: const EdgeInsets.all(Space.x4),
         children: [
+          _PhotoPicker(photoBytes: _photoBytes, onPick: _pickPhoto),
+          const SizedBox(height: Space.x4),
           TextField(
             controller: _titleController,
             decoration: const InputDecoration(labelText: 'Title'),
@@ -204,6 +225,17 @@ class _BagEditScreenState extends State<BagEditScreen> {
               ),
             ],
           ),
+          const SizedBox(height: Space.x4),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Repeats daily'),
+            subtitle: const Text(
+              'Reminds you to duplicate this bag for tomorrow — not '
+              'automatic, this build has no scheduler.',
+            ),
+            value: _repeatsDaily,
+            onChanged: (v) => setState(() => _repeatsDaily = v),
+          ),
           if (isEditing) ...[
             const SizedBox(height: Space.x4),
             SegmentedButton<BagStatus>(
@@ -222,6 +254,57 @@ class _BagEditScreenState extends State<BagEditScreen> {
           const SizedBox(height: Space.x8),
           AppButton(label: 'Save bag', onPressed: _save),
         ],
+      ),
+    );
+  }
+}
+
+class _PhotoPicker extends StatelessWidget {
+  const _PhotoPicker({required this.photoBytes, required this.onPick});
+
+  final Uint8List? photoBytes;
+  final VoidCallback onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return InkWell(
+      onTap: onPick,
+      borderRadius: BorderRadius.circular(Radii.card),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(Radii.card),
+        child: SizedBox(
+          height: 140,
+          width: double.infinity,
+          child: photoBytes != null
+              ? Image.memory(photoBytes!, fit: BoxFit.cover)
+              : DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: colors.surfaceSunken,
+                    border: Border.all(color: colors.borderSubtle),
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.add_photo_alternate_outlined,
+                          color: colors.textTertiary,
+                        ),
+                        const SizedBox(height: Space.x1),
+                        Text(
+                          'bag photo, top-down, natural light',
+                          style: context.type.caption.copyWith(
+                            color: colors.textTertiary,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+        ),
       ),
     );
   }

@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:too_good_to_leave_shop/core/domain/dietary_envelope.dart';
 import 'package:too_good_to_leave_shop/core/domain/money.dart';
 import 'package:too_good_to_leave_shop/core/domain/pickup_window.dart';
@@ -55,6 +58,8 @@ final class ShopBag {
     required this.quantityAvailable,
     required this.pickupWindow,
     this.status = BagStatus.draft,
+    this.photoBytes,
+    this.repeatsDaily = false,
   });
 
   final String id;
@@ -66,6 +71,16 @@ final class ShopBag {
   final PickupWindow pickupWindow;
   final BagStatus status;
 
+  /// `null` renders the design system's own placeholder convention — a
+  /// striped block with a caption — rather than a broken-image icon.
+  final Uint8List? photoBytes;
+
+  /// Informational only in this standalone build — there's no backend
+  /// scheduler to actually auto-republish a bag every day, so this is a
+  /// badge the shop sets as a reminder to duplicate today's listing
+  /// tomorrow, not an automation that fires on its own.
+  final bool repeatsDaily;
+
   ShopBag copyWith({
     String? title,
     String? description,
@@ -74,6 +89,8 @@ final class ShopBag {
     int? quantityAvailable,
     PickupWindow? pickupWindow,
     BagStatus? status,
+    Uint8List? photoBytes,
+    bool? repeatsDaily,
   }) => ShopBag(
     id: id,
     title: title ?? this.title,
@@ -83,6 +100,8 @@ final class ShopBag {
     quantityAvailable: quantityAvailable ?? this.quantityAvailable,
     pickupWindow: pickupWindow ?? this.pickupWindow,
     status: status ?? this.status,
+    photoBytes: photoBytes ?? this.photoBytes,
+    repeatsDaily: repeatsDaily ?? this.repeatsDaily,
   );
 
   Map<String, dynamic> toJson() => {
@@ -94,6 +113,8 @@ final class ShopBag {
     'quantityAvailable': quantityAvailable,
     'pickupWindow': _pickupWindowToJson(pickupWindow),
     'status': status.name,
+    'photoBytes': photoBytes == null ? null : base64Encode(photoBytes!),
+    'repeatsDaily': repeatsDaily,
   };
 
   factory ShopBag.fromJson(Map<String, dynamic> json) => ShopBag(
@@ -107,5 +128,9 @@ final class ShopBag {
       json['pickupWindow'] as Map<String, dynamic>,
     ),
     status: BagStatus.values.byName(json['status'] as String),
+    photoBytes: json['photoBytes'] == null
+        ? null
+        : base64Decode(json['photoBytes'] as String),
+    repeatsDaily: json['repeatsDaily'] as bool? ?? false,
   );
 }
