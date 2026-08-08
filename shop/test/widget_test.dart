@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/domain/shop_bag.dart';
 import 'package:too_good_to_leave_shop/domain/shop_category.dart';
+import 'package:too_good_to_leave_shop/domain/shop_order.dart';
 import 'package:too_good_to_leave_shop/domain/shop_profile.dart';
 import 'package:too_good_to_leave_shop/main.dart';
 
@@ -208,6 +209,64 @@ void main() {
       expect(
         repo.getBags().firstWhere((b) => b.id == draft.id).status,
         BagStatus.draft,
+      );
+    });
+  });
+
+  group('order lifecycle', () {
+    test('markNoShow moves a reserved order to expired', () async {
+      final repo = ShopRepository();
+      final reserved = repo
+          .getOrders()
+          .firstWhere((o) => o.status == ShopOrderStatus.reserved);
+
+      await repo.markNoShow(reserved.id);
+
+      expect(
+        repo.getOrders().firstWhere((o) => o.id == reserved.id).status,
+        ShopOrderStatus.expired,
+      );
+    });
+
+    test('markNoShow does not touch an already-collected order', () async {
+      final repo = ShopRepository();
+      final collected = repo
+          .getOrders()
+          .firstWhere((o) => o.status == ShopOrderStatus.collected);
+
+      await repo.markNoShow(collected.id);
+
+      expect(
+        repo.getOrders().firstWhere((o) => o.id == collected.id).status,
+        ShopOrderStatus.collected,
+      );
+    });
+
+    test('cancelOrder moves a reserved order to cancelled', () async {
+      final repo = ShopRepository();
+      final reserved = repo
+          .getOrders()
+          .firstWhere((o) => o.status == ShopOrderStatus.reserved);
+
+      await repo.cancelOrder(reserved.id);
+
+      expect(
+        repo.getOrders().firstWhere((o) => o.id == reserved.id).status,
+        ShopOrderStatus.cancelled,
+      );
+    });
+
+    test('cancelOrder does not touch an already-collected order', () async {
+      final repo = ShopRepository();
+      final collected = repo
+          .getOrders()
+          .firstWhere((o) => o.status == ShopOrderStatus.collected);
+
+      await repo.cancelOrder(collected.id);
+
+      expect(
+        repo.getOrders().firstWhere((o) => o.id == collected.id).status,
+        ShopOrderStatus.collected,
       );
     });
   });

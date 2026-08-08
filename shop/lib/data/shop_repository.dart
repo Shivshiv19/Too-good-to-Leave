@@ -342,6 +342,11 @@ class ShopRepository extends ChangeNotifier {
   // Orders
   // ---------------------------------------------------------------------
 
+  /// Exposed so screens compute "time until pickup" against the same clock
+  /// the repository itself uses, rather than each reaching for
+  /// `DateTime.now()` independently.
+  Clock get clock => _clock;
+
   List<ShopOrder> getOrders() => List.unmodifiable(_orders);
 
   /// Confirms a pickup by fallback code (manual entry) — the counter path
@@ -361,6 +366,38 @@ class ShopRepository extends ChangeNotifier {
       throw const PickupCodeMismatchException();
     }
     _orders[index] = order.copyWith(status: ShopOrderStatus.collected);
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Records a pickup window that closed without collection. Deliberately a
+  /// shop-initiated action rather than something that flips automatically
+  /// the instant a window closes — there's no background process in this
+  /// standalone build to notice that on its own, and a human confirming
+  /// "yes, they really didn't come" is the honest shape of that decision
+  /// even in a real system.
+  Future<void> markNoShow(String orderId) async {
+    final index = _orders.indexWhere((o) => o.id == orderId);
+    if (index == -1) return;
+    if (_orders[index].status != ShopOrderStatus.reserved) return;
+    _orders[index] = _orders[index].copyWith(status: ShopOrderStatus.expired);
+    notifyListeners();
+    await _persist();
+  }
+
+  /// Shop-initiated cancellation (ran out of stock, unexpected closure,
+  /// etc.) — only ever on a still-[ShopOrderStatus.reserved] order. Marks
+  /// the order cancelled; actually returning the customer's money needs a
+  /// real payment processor this standalone build doesn't have, so this
+  /// records the shop's side of the decision rather than performing a
+  /// refund it can't actually execute.
+  Future<void> cancelOrder(String orderId) async {
+    final index = _orders.indexWhere((o) => o.id == orderId);
+    if (index == -1) return;
+    if (_orders[index].status != ShopOrderStatus.reserved) return;
+    _orders[index] = _orders[index].copyWith(
+      status: ShopOrderStatus.cancelled,
+    );
     notifyListeners();
     await _persist();
   }

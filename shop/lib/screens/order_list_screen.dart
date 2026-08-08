@@ -25,7 +25,40 @@ class OrderListScreen extends StatelessWidget {
     return ListenableBuilder(
       listenable: repository,
       builder: (context, _) {
+        final now = repository.clock.now();
         final orders = repository.getOrders();
+
+        // Currently collectable or starting soon — what the counter should
+        // be getting ready right now.
+        final needsPrep =
+            orders
+                .where(
+                  (o) =>
+                      o.status == ShopOrderStatus.reserved &&
+                      !now.isAfter(o.pickupWindow.endAt) &&
+                      o.pickupWindow.startAt.difference(now) <=
+                          const Duration(hours: 2),
+                )
+                .toList()
+              ..sort(
+                (a, b) =>
+                    a.pickupWindow.startAt.compareTo(b.pickupWindow.startAt),
+              );
+
+        // Reserved, but the window closed without a pickup confirmation —
+        // candidates for marking a no-show.
+        final overdue = orders
+            .where(
+              (o) =>
+                  o.status == ShopOrderStatus.reserved &&
+                  now.isAfter(o.pickupWindow.endAt),
+            )
+            .toList();
+
+        final rest = orders
+            .where((o) => !needsPrep.contains(o) && !overdue.contains(o))
+            .toList();
+
         return Scaffold(
           backgroundColor: colors.surfaceBase,
           appBar: AppBar(
@@ -41,22 +74,69 @@ class OrderListScreen extends StatelessWidget {
                     ),
                   ),
                 )
-              : ListView.separated(
+              : ListView(
                   padding: const EdgeInsets.all(Space.x4),
-                  itemCount: orders.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: Space.x3),
-                  itemBuilder: (context, index) {
-                    final order = orders[index];
-                    return _OrderCard(
-                      order: order,
-                      onTap: () => _openOrder(context, order),
-                    );
-                  },
+                  children: [
+                    if (needsPrep.isNotEmpty) ...[
+                      _SectionHeader('Needs prep now'),
+                      ...needsPrep.map(
+                        (o) => Padding(
+                          padding: const EdgeInsets.only(bottom: Space.x3),
+                          child: _OrderCard(
+                            order: o,
+                            onTap: () => _openOrder(context, o),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: Space.x3),
+                    ],
+                    if (overdue.isNotEmpty) ...[
+                      _SectionHeader('Overdue — no-show?'),
+                      ...overdue.map(
+                        (o) => Padding(
+                          padding: const EdgeInsets.only(bottom: Space.x3),
+                          child: _OrderCard(
+                            order: o,
+                            onTap: () => _openOrder(context, o),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: Space.x3),
+                    ],
+                    if (rest.isNotEmpty) ...[
+                      if (needsPrep.isNotEmpty || overdue.isNotEmpty)
+                        _SectionHeader('All orders'),
+                      ...rest.map(
+                        (o) => Padding(
+                          padding: const EdgeInsets.only(bottom: Space.x3),
+                          child: _OrderCard(
+                            order: o,
+                            onTap: () => _openOrder(context, o),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
         );
       },
     );
   }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: Space.x2),
+    child: Text(
+      text,
+      style: context.type.label.copyWith(color: context.colors.textSecondary),
+    ),
+  );
 }
 
 class _OrderCard extends StatelessWidget {
