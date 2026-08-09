@@ -20,9 +20,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Pinned to match what's actually been built and tested locally all
+      # along — "stable channel" on a GitHub-hosted runner can resolve to
+      # an older release than this, and the project's fl_chart dependency
+      # (and possibly other recent additions) may need this SDK version's
+      # dependency resolution to succeed.
       - uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: 3.44.8
 
       # The customer app needs a real MapTiler key to boot at all (see
       # lib/bootstrap.dart's own startup guard) — supplied as a repo
