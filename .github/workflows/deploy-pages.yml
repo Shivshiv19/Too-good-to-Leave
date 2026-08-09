@@ -59,7 +59,8 @@ jobs:
       - name: Build customer app (site root)
         run: |
           flutter pub get
-          flutter build web --release --base-href /Too-good-to-Leave/ \
+          free -h
+          flutter build web --release -v --base-href /Too-good-to-Leave/ \
             --dart-define-from-file=dart_defines.json
 
       - name: Build shop app (/shop/ subpath)
