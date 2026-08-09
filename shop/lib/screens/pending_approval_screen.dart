@@ -25,7 +25,8 @@ class PendingApprovalScreen extends StatelessWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(Space.x6),
-          child: Center(
+          child: Align(
+            alignment: Alignment.centerLeft,
             child: ConstrainedBox(
               constraints: const BoxConstraints(
                 maxWidth: Breakpoints.formMaxWidth,

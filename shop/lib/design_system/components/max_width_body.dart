@@ -1,10 +1,10 @@
 import 'package:flutter/widgets.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/breakpoints.dart';
 
-/// Caps content width and centers it on wide screens — otherwise a page
-/// built for a phone stretches edge-to-edge on a desktop monitor, which is
-/// the exact "looks like a mobile app in a browser tab" problem this
-/// wrapper exists to fix. Below the cap (including the whole mobile
+/// Caps content width and left-aligns it on wide screens — otherwise a
+/// page built for a phone stretches edge-to-edge on a desktop monitor,
+/// which is the exact "looks like a mobile app in a browser tab" problem
+/// this wrapper exists to fix. Below the cap (including the whole mobile
 /// breakpoint) this is a no-op — the child just fills the available width
 /// as it always did.
 class MaxWidthBody extends StatelessWidget {
@@ -23,7 +23,7 @@ class MaxWidthBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Align(
-    alignment: Alignment.topCenter,
+    alignment: Alignment.topLeft,
     child: ConstrainedBox(
       constraints: BoxConstraints(maxWidth: maxWidth),
       child: child,
