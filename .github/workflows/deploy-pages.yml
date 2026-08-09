@@ -31,7 +31,7 @@ jobs:
       - name: Add swap space
         run: |
           free -h
-          sudo fallocate -l 6G /swapfile-ci
+          sudo fallocate -l 12G /swapfile-ci
           sudo chmod 600 /swapfile-ci
           sudo mkswap /swapfile-ci
           sudo swapon /swapfile-ci
@@ -60,8 +60,17 @@ jobs:
         run: |
           flutter pub get
           free -h
-          flutter build web --release -v --base-href /Too-good-to-Leave/ \
+          # Log memory every 3s in the background so a kill shows up as
+          # hard evidence instead of a guess — killed automatically once
+          # the build step ends, one way or another.
+          ( while true; do date; free -h; sleep 3; done ) &
+          MONITOR_PID=$!
+          flutter build web --release -O2 \
+            --base-href /Too-good-to-Leave/ \
             --dart-define-from-file=dart_defines.json
+          BUILD_EXIT=$?
+          kill "$MONITOR_PID" 2>/dev/null || true
+          exit $BUILD_EXIT
 
       - name: Build shop app (/shop/ subpath)
         working-directory: shop
