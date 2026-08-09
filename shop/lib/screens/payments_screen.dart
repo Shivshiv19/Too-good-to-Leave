@@ -7,6 +7,7 @@ import 'package:too_good_to_leave_shop/core/utils/formatters.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/design_system/components/app_button.dart';
 import 'package:too_good_to_leave_shop/design_system/components/side_panel.dart';
+import 'package:too_good_to_leave_shop/design_system/foundations/breakpoints.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/domain/payout.dart';
 import 'package:too_good_to_leave_shop/domain/shop_order.dart';
@@ -118,102 +119,10 @@ class PaymentsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Wrap(
-                  spacing: Space.x3,
-                  runSpacing: Space.x3,
-                  children: [
-                    SizedBox(
-                      width: 340,
-                      child: Container(
-                        padding: const EdgeInsets.all(Space.x4),
-                        decoration: BoxDecoration(
-                          color: colors.actionPrimaryBg,
-                          borderRadius: BorderRadius.circular(Radii.card),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Available for payout',
-                              style: context.type.label.copyWith(
-                                color: colors.textOnAction.withValues(
-                                  alpha: 0.8,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: Space.x1),
-                            Text(
-                              Fmt.money(repository.pendingPayoutAmount),
-                              style: context.type.display.copyWith(
-                                color: colors.textOnAction,
-                              ),
-                            ),
-                            const SizedBox(height: Space.x1),
-                            Text(
-                              'All-time earned: ${Fmt.money(repository.totalEarnedAllTime)}',
-                              style: context.type.caption.copyWith(
-                                color: colors.textOnAction.withValues(
-                                  alpha: 0.8,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: Space.x4),
-                            SizedBox(
-                              width: 220,
-                              child: AppButton(
-                                label: 'Request payout',
-                                variant: AppButtonVariant.secondary,
-                                onPressed: () => _requestPayout(context),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      width: 340,
-                      child: Container(
-                        padding: const EdgeInsets.all(Space.x4),
-                        decoration: BoxDecoration(
-                          color: colors.surfaceRaised,
-                          borderRadius: BorderRadius.circular(Radii.card),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.event_repeat,
-                                  color: colors.actionPrimaryBg,
-                                ),
-                                const SizedBox(width: Space.x2),
-                                Text(
-                                  'Next scheduled payout',
-                                  style: context.type.label,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: Space.x2),
-                            Text(
-                              '${nextPayout.day}/${nextPayout.month}/${nextPayout.year}',
-                              style: context.type.headline,
-                            ),
-                            const SizedBox(height: Space.x1),
-                            Text(
-                              'Payouts run weekly, every Monday, for orders '
-                              "collected the week before. This is a demo "
-                              "schedule — no money actually moves in this "
-                              'build.',
-                              style: context.type.caption.copyWith(
-                                color: colors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                _PayoutHeroCards(
+                  repository: repository,
+                  nextPayout: nextPayout,
+                  onRequestPayout: () => _requestPayout(context),
                 ),
 
                 const SizedBox(height: Space.x6),
@@ -330,6 +239,192 @@ class PaymentsScreen extends StatelessWidget {
       },
     );
   }
+}
+
+/// The two hero cards atop Payments — side by side with matched heights on
+/// desktop widths (an [IntrinsicHeight] `Row`, since [Wrap] doesn't equalise
+/// heights across a run), stacked full-width below the breakpoint where
+/// there's no room for two 340px-minimum cards side by side.
+class _PayoutHeroCards extends StatelessWidget {
+  const _PayoutHeroCards({
+    required this.repository,
+    required this.nextPayout,
+    required this.onRequestPayout,
+  });
+
+  final ShopRepository repository;
+  final DateTime nextPayout;
+  final VoidCallback onRequestPayout;
+
+  @override
+  Widget build(BuildContext context) {
+    final available = _AvailableForPayoutCard(
+      repository: repository,
+      onRequestPayout: onRequestPayout,
+    );
+    final next = _NextScheduledPayoutCard(nextPayout: nextPayout);
+
+    if (!context.isDesktopWidth) {
+      return Column(
+        children: [available, const SizedBox(height: Space.x3), next],
+      );
+    }
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: available),
+          const SizedBox(width: Space.x3),
+          Expanded(child: next),
+        ],
+      ),
+    );
+  }
+}
+
+class _AvailableForPayoutCard extends StatelessWidget {
+  const _AvailableForPayoutCard({
+    required this.repository,
+    required this.onRequestPayout,
+  });
+
+  final ShopRepository repository;
+  final VoidCallback onRequestPayout;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(Space.x4),
+      decoration: BoxDecoration(
+        color: colors.actionPrimaryBg,
+        borderRadius: BorderRadius.circular(Radii.card),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Available for payout',
+                style: context.type.label.copyWith(
+                  color: colors.textOnAction.withValues(alpha: 0.8),
+                ),
+              ),
+              const SizedBox(height: Space.x1),
+              Text(
+                Fmt.money(repository.pendingPayoutAmount),
+                style: context.type.display.copyWith(
+                  color: colors.textOnAction,
+                ),
+              ),
+              const SizedBox(height: Space.x1),
+              Text(
+                'All-time earned: ${Fmt.money(repository.totalEarnedAllTime)}',
+                style: context.type.caption.copyWith(
+                  color: colors.textOnAction.withValues(alpha: 0.8),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: Space.x4),
+          SizedBox(
+            width: 220,
+            child: _WhiteOutlinedButton(
+              label: 'Request payout',
+              onPressed: onRequestPayout,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NextScheduledPayoutCard extends StatelessWidget {
+  const _NextScheduledPayoutCard({required this.nextPayout});
+
+  final DateTime nextPayout;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(Space.x4),
+      decoration: BoxDecoration(
+        color: colors.surfaceRaised,
+        borderRadius: BorderRadius.circular(Radii.card),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.event_repeat, color: colors.actionPrimaryBg),
+              const SizedBox(width: Space.x2),
+              Text('Next scheduled payout', style: context.type.label),
+            ],
+          ),
+          const SizedBox(height: Space.x2),
+          Text(
+            '${nextPayout.day}/${nextPayout.month}/${nextPayout.year}',
+            style: context.type.headline,
+          ),
+          const SizedBox(height: Space.x1),
+          Text(
+            'Payouts run weekly, every Monday, for orders collected the '
+            'week before. This is a demo schedule — no money actually '
+            'moves in this build.',
+            style: context.type.caption.copyWith(color: colors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A pill button with a white border and white label — the shop's regular
+/// [AppButtonVariant.secondary] renders in the brand green, which vanishes
+/// against this card's brand-green fill. This is the "on a coloured
+/// surface" counterpart AppButton itself doesn't have a variant for.
+class _WhiteOutlinedButton extends StatelessWidget {
+  const _WhiteOutlinedButton({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.transparent,
+    shape: RoundedRectangleBorder(
+      side: const BorderSide(color: Colors.white, width: 1.5),
+      borderRadius: BorderRadius.circular(Radii.full),
+    ),
+    child: InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(Radii.full),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: Layout.minTouchTarget),
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(
+          horizontal: Space.x5,
+          vertical: Space.x3,
+        ),
+        child: Text(
+          label,
+          style: context.type.label.copyWith(color: Colors.white),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    ),
+  );
 }
 
 class _CommissionTrendChart extends StatelessWidget {

@@ -10,25 +10,77 @@ import 'package:too_good_to_leave_shop/domain/impact_estimate.dart';
 import 'package:too_good_to_leave_shop/domain/payout.dart';
 import 'package:too_good_to_leave_shop/domain/shop_order.dart';
 
-/// Trend charts look back this many days.
-const _trendDays = 14;
+enum _DateRangeMode {
+  daily('Daily'),
+  weekly('Weekly'),
+  monthly('Monthly'),
+  custom('Custom');
 
-class AnalyticsScreen extends StatelessWidget {
+  const _DateRangeMode(this.label);
+  final String label;
+}
+
+class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({required this.repository, super.key});
 
   final ShopRepository repository;
 
   @override
+  State<AnalyticsScreen> createState() => _AnalyticsScreenState();
+}
+
+class _AnalyticsScreenState extends State<AnalyticsScreen> {
+  _DateRangeMode _mode = _DateRangeMode.weekly;
+  DateTimeRange? _customRange;
+
+  Future<void> _pickCustomRange(DateTime today) async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(today.year - 2),
+      lastDate: today,
+      initialDateRange:
+          _customRange ??
+          DateTimeRange(start: today.subtract(const Duration(days: 6)), end: today),
+    );
+    if (picked == null) return;
+    setState(() {
+      _customRange = picked;
+      _mode = _DateRangeMode.custom;
+    });
+  }
+
+  List<DateTime> _selectedDays(DateTime today) => switch (_mode) {
+    _DateRangeMode.daily => lastNDays(today, 1),
+    _DateRangeMode.weekly => lastNDays(today, 7),
+    _DateRangeMode.monthly => lastNDays(today, 30),
+    _DateRangeMode.custom => _customRange == null
+        ? lastNDays(today, 7)
+        : daysInRange(_customRange!.start, _customRange!.end),
+  };
+
+  String _periodLabel(List<DateTime> days) {
+    if (days.length == 1) return 'on ${_fmtDate(days.first)}';
+    return 'from ${_fmtDate(days.first)} to ${_fmtDate(days.last)}';
+  }
+
+  String _fmtDate(DateTime d) => '${d.day}/${d.month}/${d.year}';
+
+  @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final repository = widget.repository;
 
     return ListenableBuilder(
       listenable: repository,
       builder: (context, _) {
-        final orders = repository.getOrders();
-        final bags = repository.getBags();
         final today = dateOnly(repository.clock.now());
-        final days = lastNDays(today, _trendDays);
+        final days = _selectedDays(today);
+        final daySet = days.toSet();
+        final orders = repository
+            .getOrders()
+            .where((o) => daySet.contains(dateOnly(o.pickupWindow.startAt)))
+            .toList();
+        final bags = repository.getBags();
 
         final collected = orders
             .where((o) => o.status == ShopOrderStatus.collected)
@@ -91,12 +143,32 @@ class AnalyticsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Wrap(
+                  spacing: Space.x2,
+                  runSpacing: Space.x2,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    for (final mode in _DateRangeMode.values)
+                      _DateRangeChip(
+                        label: mode == _DateRangeMode.custom &&
+                                _customRange != null
+                            ? '${_fmtDate(_customRange!.start)} – '
+                                  '${_fmtDate(_customRange!.end)}'
+                            : mode.label,
+                        selected: _mode == mode,
+                        onSelected: () => mode == _DateRangeMode.custom
+                            ? _pickCustomRange(today)
+                            : setState(() => _mode = mode),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: Space.x6),
                 Text('Your impact', style: context.type.title),
                 const SizedBox(height: Space.x1),
                 Text(
                   'Estimated from ${collected.length} collected bag'
-                  '${collected.length == 1 ? '' : 's'} — see the info '
-                  'note below for how these are calculated.',
+                  '${collected.length == 1 ? '' : 's'} ${_periodLabel(days)} '
+                  '— see the info note below for how these are calculated.',
                   style: context.type.caption.copyWith(
                     color: colors.textSecondary,
                   ),
@@ -200,7 +272,7 @@ class AnalyticsScreen extends StatelessWidget {
                       width: 560,
                       child: _ChartCard(
                         title: 'Revenue trend',
-                        subtitle: 'Net revenue by pickup day, last $_trendDays days',
+                        subtitle: 'Net revenue by pickup day, ${_periodLabel(days)}',
                         child: _RevenueTrendChart(
                           days: days,
                           revenueByDay: revenueByDay,
@@ -211,7 +283,7 @@ class AnalyticsScreen extends StatelessWidget {
                       width: 560,
                       child: _ChartCard(
                         title: 'Orders per day',
-                        subtitle: 'All orders by pickup day, last $_trendDays days',
+                        subtitle: 'All orders by pickup day, ${_periodLabel(days)}',
                         child: _OrdersPerDayChart(
                           days: days,
                           ordersByDay: ordersByDay,
@@ -238,6 +310,44 @@ class AnalyticsScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _DateRangeChip extends StatelessWidget {
+  const _DateRangeChip({
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return Material(
+      color: selected ? colors.actionPrimaryBg : colors.surfaceRaised,
+      borderRadius: BorderRadius.circular(Radii.sm),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(Radii.sm),
+        onTap: onSelected,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: Space.x3,
+            vertical: Space.x2,
+          ),
+          child: Text(
+            label,
+            style: context.type.label.copyWith(
+              color: selected ? colors.actionPrimaryFg : colors.textPrimary,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
