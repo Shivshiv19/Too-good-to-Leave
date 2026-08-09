@@ -25,12 +25,17 @@ jobs:
       # OOM-killed mid-compile ("Compiling... 45.6s" then exit code 1,
       # with the actual dart2js error never printed — that's the OOM
       # signature, not a real compile error). Swap gives it headroom.
+      # `/swapfile` already exists and is active on the runner image
+      # itself ("Text file busy" fallocate-ing over live swap) — add a
+      # second one at a different path instead of colliding with it.
       - name: Add swap space
         run: |
-          sudo fallocate -l 6G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
+          free -h
+          sudo fallocate -l 6G /swapfile-ci
+          sudo chmod 600 /swapfile-ci
+          sudo mkswap /swapfile-ci
+          sudo swapon /swapfile-ci
+          free -h
 
       # Pinned to match what's actually been built and tested locally all
       # along — "stable channel" on a GitHub-hosted runner can resolve to
