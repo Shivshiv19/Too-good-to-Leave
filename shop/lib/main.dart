@@ -44,6 +44,11 @@ class ShopApp extends StatelessWidget {
     debugShowCheckedModeBanner: false,
     theme: AppTheme.light(),
     darkTheme: AppTheme.dark(),
+    // No in-app theme toggle exists for this seller dashboard (unlike the
+    // customer app's Account > App settings control) — following the
+    // system preference blindly means a merchant on a dark-mode OS never
+    // sees the light palette this app is designed and verified against.
+    themeMode: ThemeMode.light,
     home: ListenableBuilder(
       listenable: repository,
       builder: (context, _) {
