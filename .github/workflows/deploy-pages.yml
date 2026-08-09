@@ -42,6 +42,16 @@ jobs:
       - name: Build customer app (site root)
         run: |
           flutter pub get
+          # *.g.dart / *.freezed.dart (Riverpod providers, json_serializable
+          # fromJson/toJson) are gitignored — they exist locally only
+          # because build_runner has been run on this machine before.
+          # A clean CI checkout has none of them, which is the actual
+          # cause of every prior failure here ("Method not found:
+          # _$RefundSlaDtoFromJson", "getter 'xProvider' isn't defined",
+          # etc.) — nothing to do with memory or wasm, that was chasing
+          # the wrong signal from a build failure with no visible error
+          # text until -v + --no-wasm-dry-run finally surfaced it.
+          dart run build_runner build --delete-conflicting-outputs
           # --no-wasm-dry-run skips an extra, unneeded dart2wasm
           # compatibility compile — every local build has needed only the
           # real JS compile, this dry run is dead weight for a target we
