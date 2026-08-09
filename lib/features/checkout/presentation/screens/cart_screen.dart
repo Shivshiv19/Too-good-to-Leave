@@ -13,6 +13,7 @@ import 'package:surplus_marketplace/design_system/components/app_button.dart';
 import 'package:surplus_marketplace/design_system/components/dietary_mark_chip.dart';
 import 'package:surplus_marketplace/design_system/components/hold_countdown_banner.dart';
 import 'package:surplus_marketplace/design_system/components/price_breakdown_list.dart';
+import 'package:surplus_marketplace/design_system/components/quantity_stepper.dart';
 import 'package:surplus_marketplace/design_system/foundations/dimens.dart';
 import 'package:surplus_marketplace/features/catalog/domain/entities/offer.dart';
 import 'package:surplus_marketplace/features/catalog/presentation/providers/catalog_providers.dart';
@@ -214,7 +215,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   Widget _buildActive(BuildContext context, AppLocalizations l10n) {
     final hold = _hold!;
     final bag = _bag!;
-    final atCap = _quantity >= bag.remainingAllowanceForCustomer;
 
     return ListView(
       padding: const EdgeInsets.all(Space.x4),
@@ -238,24 +238,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(Fmt.money(bag.price), style: context.type.body),
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.remove_circle_outline),
-                  tooltip: l10n.cartQuantityDecrease,
-                  onPressed: _quantity > 1
-                      ? () => _onQuantityChanged(_quantity - 1)
-                      : null,
-                ),
-                Text('$_quantity', style: context.type.title),
-                IconButton(
-                  icon: const Icon(Icons.add_circle_outline),
-                  tooltip: l10n.cartQuantityIncrease,
-                  onPressed: atCap
-                      ? null
-                      : () => _onQuantityChanged(_quantity + 1),
-                ),
-              ],
+            QuantityStepper(
+              value: _quantity,
+              onChanged: _onQuantityChanged,
+              max: bag.remainingAllowanceForCustomer,
+              decreaseLabel: l10n.cartQuantityDecrease,
+              increaseLabel: l10n.cartQuantityIncrease,
             ),
           ],
         ),

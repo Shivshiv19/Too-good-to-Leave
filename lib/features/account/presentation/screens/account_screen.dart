@@ -5,6 +5,7 @@ import 'package:surplus_marketplace/app/router/routes.dart';
 import 'package:surplus_marketplace/app/theme/app_theme.dart';
 import 'package:surplus_marketplace/core/l10n/generated/app_localizations.dart';
 import 'package:surplus_marketplace/core/utils/formatters.dart';
+import 'package:surplus_marketplace/design_system/components/account_hero_header.dart';
 import 'package:surplus_marketplace/design_system/components/profile_header.dart';
 import 'package:surplus_marketplace/design_system/components/settings_list.dart';
 import 'package:surplus_marketplace/design_system/foundations/dimens.dart';
@@ -73,20 +74,24 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
         child: !_loaded
             ? const Center(child: CircularProgressIndicator())
             : ListView(
+                padding: EdgeInsets.zero,
                 children: [
                   authenticated
-                      ? ProfileHeader(
+                      ? AccountHeroHeader(
                           name: _customer!.name ?? '',
-                          maskedPhone: Fmt.maskedPhone(_customer!.phoneE164),
+                          subtitle: Fmt.maskedPhone(_customer!.phoneE164),
                           avatarUrl: _customer!.avatarUrl,
                           onTap: () => const AccountProfileRoute().go(context),
                         )
-                      : ProfileHeader.anonymous(
-                          signInLabel: l10n.accountSignIn,
-                          signInBody: l10n.accountSignInBody,
-                          onSignIn: () => const PhoneEntryRoute(
-                            redirectTo: '/account',
-                          ).go(context),
+                      : Padding(
+                          padding: const EdgeInsets.all(Space.x4),
+                          child: ProfileHeader.anonymous(
+                            signInLabel: l10n.accountSignIn,
+                            signInBody: l10n.accountSignInBody,
+                            onSignIn: () => const PhoneEntryRoute(
+                              redirectTo: '/account',
+                            ).go(context),
+                          ),
                         ),
                   const SizedBox(height: Space.x4),
                   SettingsGroup(

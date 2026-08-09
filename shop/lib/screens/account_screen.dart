@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/design_system/components/app_button.dart';
+import 'package:too_good_to_leave_shop/design_system/components/business_hero_header.dart';
 import 'package:too_good_to_leave_shop/design_system/components/max_width_body.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/breakpoints.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
@@ -54,96 +55,102 @@ class AccountScreen extends StatelessWidget {
             title: Text('Account', style: context.type.title),
           ),
           body: SingleChildScrollView(
-            padding: const EdgeInsets.all(Space.x4),
-            child: MaxWidthBody(
-              maxWidth: Breakpoints.formMaxWidth,
-              child: Column(
-                children: [
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(Space.x4),
-                    decoration: BoxDecoration(
-                      color: colors.surfaceRaised,
-                      borderRadius: BorderRadius.circular(Radii.card),
-                    ),
+            child: Column(
+              children: [
+                BusinessHeroHeader(
+                  businessName: profile.businessName,
+                  categoryLabel: profile.category.label,
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(Space.x4),
+                  child: MaxWidthBody(
+                    maxWidth: Breakpoints.formMaxWidth,
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          profile.businessName,
-                          style: context.type.headline,
-                        ),
-                        const SizedBox(height: Space.x1),
-                        Text(
-                          profile.category.label,
-                          style: context.type.body.copyWith(
-                            color: colors.textSecondary,
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(Space.x4),
+                          decoration: BoxDecoration(
+                            color: colors.surfaceRaised,
+                            borderRadius: BorderRadius.circular(Radii.card),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _InfoRow(
+                                label: 'Owner',
+                                value: profile.ownerName,
+                              ),
+                              _InfoRow(label: 'Phone', value: profile.phone),
+                              _InfoRow(label: 'Email', value: profile.email),
+                              _InfoRow(
+                                label: 'Address',
+                                value:
+                                    '${profile.addressLine}, ${profile.locality}',
+                              ),
+                              _InfoRow(
+                                label: 'FSSAI licence',
+                                value: profile.fssai.licenseNumber,
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: Space.x4),
-                        _InfoRow(label: 'Owner', value: profile.ownerName),
-                        _InfoRow(label: 'Phone', value: profile.phone),
-                        _InfoRow(label: 'Email', value: profile.email),
-                        _InfoRow(
-                          label: 'Address',
-                          value: '${profile.addressLine}, ${profile.locality}',
+                        AppButton(
+                          label: 'Edit business details',
+                          variant: AppButtonVariant.secondary,
+                          onPressed: () => Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  EditProfileScreen(repository: repository),
+                            ),
+                          ),
                         ),
-                        _InfoRow(
-                          label: 'FSSAI licence',
-                          value: profile.fssai.licenseNumber,
+                        const SizedBox(height: Space.x6),
+                        _NavRow(
+                          icon: Icons.notifications_outlined,
+                          label: 'Notifications',
+                          badgeCount: repository.unreadNotificationCount,
+                          onTap: () => Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) => NotificationsScreen(
+                                repository: repository,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: Space.x2),
+                        _NavRow(
+                          icon: Icons.schedule,
+                          label: 'Store hours',
+                          onTap: () => Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  SettingsScreen(repository: repository),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: Space.x2),
+                        _NavRow(
+                          icon: Icons.help_outline,
+                          label: 'Help & support',
+                          onTap: () => Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) => const HelpScreen(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: Space.x6),
+                        AppButton(
+                          label: 'Log out',
+                          variant: AppButtonVariant.destructive,
+                          onPressed: () => _confirmLogOut(context),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: Space.x4),
-                  AppButton(
-                    label: 'Edit business details',
-                    variant: AppButtonVariant.secondary,
-                    onPressed: () => Navigator.of(context).push<void>(
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            EditProfileScreen(repository: repository),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: Space.x6),
-                  _NavRow(
-                    icon: Icons.notifications_outlined,
-                    label: 'Notifications',
-                    badgeCount: repository.unreadNotificationCount,
-                    onTap: () => Navigator.of(context).push<void>(
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            NotificationsScreen(repository: repository),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: Space.x2),
-                  _NavRow(
-                    icon: Icons.schedule,
-                    label: 'Store hours',
-                    onTap: () => Navigator.of(context).push<void>(
-                      MaterialPageRoute(
-                        builder: (_) => SettingsScreen(repository: repository),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: Space.x2),
-                  _NavRow(
-                    icon: Icons.help_outline,
-                    label: 'Help & support',
-                    onTap: () => Navigator.of(context).push<void>(
-                      MaterialPageRoute(builder: (_) => const HelpScreen()),
-                    ),
-                  ),
-                  const SizedBox(height: Space.x6),
-                  AppButton(
-                    label: 'Log out',
-                    variant: AppButtonVariant.destructive,
-                    onPressed: () => _confirmLogOut(context),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );

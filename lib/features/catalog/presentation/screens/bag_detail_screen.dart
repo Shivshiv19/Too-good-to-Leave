@@ -11,6 +11,9 @@ import 'package:surplus_marketplace/core/utils/formatters.dart';
 import 'package:surplus_marketplace/design_system/components/app_button.dart';
 import 'package:surplus_marketplace/design_system/components/countdown_text.dart';
 import 'package:surplus_marketplace/design_system/components/dietary_mark_chip.dart';
+import 'package:surplus_marketplace/design_system/components/floating_icon_button.dart';
+import 'package:surplus_marketplace/design_system/components/icon_badge.dart';
+import 'package:surplus_marketplace/design_system/components/quantity_stepper.dart';
 import 'package:surplus_marketplace/design_system/foundations/dimens.dart';
 import 'package:surplus_marketplace/features/catalog/domain/entities/bag_status.dart';
 import 'package:surplus_marketplace/features/catalog/domain/entities/merchant.dart';
@@ -148,16 +151,10 @@ class _BagDetailScreenState extends ConsumerState<BagDetailScreen> {
                     Positioned(
                       left: Space.x2,
                       top: Space.x2,
-                      child: Material(
-                        color: Colors.black45,
-                        shape: const CircleBorder(),
-                        child: IconButton(
-                          icon: const Icon(
-                            Icons.arrow_back,
-                            color: Colors.white,
-                          ),
-                          onPressed: () => Navigator.of(context).maybePop(),
-                        ),
+                      child: FloatingIconButton(
+                        icon: Icons.arrow_back,
+                        semanticLabel: l10n.back,
+                        onPressed: () => Navigator.of(context).maybePop(),
                       ),
                     ),
                   ],
@@ -262,12 +259,8 @@ class _BagDetailScreenState extends ConsumerState<BagDetailScreen> {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            Icons.schedule,
-                            size: 20,
-                            color: colors.textSecondary,
-                          ),
-                          const SizedBox(width: Space.x2),
+                          const IconBadge(icon: Icons.schedule),
+                          const SizedBox(width: Space.x3),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -291,12 +284,8 @@ class _BagDetailScreenState extends ConsumerState<BagDetailScreen> {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            Icons.place_outlined,
-                            size: 20,
-                            color: colors.textSecondary,
-                          ),
-                          const SizedBox(width: Space.x2),
+                          const IconBadge(icon: Icons.place_outlined),
+                          const SizedBox(width: Space.x3),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -446,7 +435,6 @@ class _StickyReserveBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final atCap = quantity >= _cap;
     return Container(
       padding: EdgeInsets.only(
         left: Space.x4,
@@ -460,29 +448,14 @@ class _StickyReserveBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Semantics(
-            label: l10n.bagDetailQuantityLabel,
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.remove_circle_outline),
-                  tooltip: l10n.cartQuantityDecrease,
-                  onPressed: quantity > 1
-                      ? () => onQuantityChanged(quantity - 1)
-                      : null,
-                ),
-                Text('$quantity', style: context.type.title),
-                IconButton(
-                  icon: const Icon(Icons.add_circle_outline),
-                  tooltip: l10n.cartQuantityIncrease,
-                  onPressed: atCap
-                      ? null
-                      : () => onQuantityChanged(quantity + 1),
-                ),
-              ],
-            ),
+          QuantityStepper(
+            value: quantity,
+            onChanged: onQuantityChanged,
+            max: _cap,
+            decreaseLabel: l10n.cartQuantityDecrease,
+            increaseLabel: l10n.cartQuantityIncrease,
           ),
-          const SizedBox(width: Space.x2),
+          const SizedBox(width: Space.x3),
           Expanded(
             // Per-bag price only, never scaled by [quantity] here (R1 —
             // money arithmetic, including a simple quantity multiply, is

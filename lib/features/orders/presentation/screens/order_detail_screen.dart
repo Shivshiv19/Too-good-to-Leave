@@ -13,6 +13,7 @@ import 'package:surplus_marketplace/design_system/components/dietary_mark_chip.d
 import 'package:surplus_marketplace/design_system/components/legal_disclosure_block.dart';
 import 'package:surplus_marketplace/design_system/components/order_status_chip.dart';
 import 'package:surplus_marketplace/design_system/components/price_breakdown_list.dart';
+import 'package:surplus_marketplace/design_system/components/refund_timeline.dart';
 import 'package:surplus_marketplace/design_system/foundations/dimens.dart';
 import 'package:surplus_marketplace/features/checkout/checkout.dart';
 import 'package:surplus_marketplace/features/orders/orders.dart';
@@ -23,6 +24,35 @@ import 'package:surplus_marketplace/features/orders/presentation/utils/order_sta
 import 'package:surplus_marketplace/features/orders/presentation/utils/payment_method_label.dart';
 
 enum _Phase { loading, loaded, notFound, error }
+
+/// Whether [status] belongs to the linear reserve → ready → collect
+/// progression the stepper below can represent. Terminal/failure branches
+/// (cancelled, expired, payment failed) don't fit a straight line and stay
+/// on [_StatusBanner]/[OrderStatusChip] alone.
+bool _isHappyPathStatus(OrderStatus status) =>
+    status == OrderStatus.confirmed ||
+    status == OrderStatus.readyForPickup ||
+    status == OrderStatus.collected;
+
+List<RefundTimelineStep> _orderProgressSteps(
+  OrderStatus status,
+  AppLocalizations l10n,
+) {
+  final readyDone =
+      status == OrderStatus.readyForPickup || status == OrderStatus.collected;
+  final collectedDone = status == OrderStatus.collected;
+  return [
+    RefundTimelineStep(label: l10n.orderStatusConfirmed, completed: true),
+    RefundTimelineStep(
+      label: l10n.orderStatusReadyForPickup,
+      completed: readyDone,
+    ),
+    RefundTimelineStep(
+      label: l10n.pickupCollectedTitle,
+      completed: collectedDone,
+    ),
+  ];
+}
 
 /// §4.2 `/orders/:orderId`, §5d.2 — the receipt, and the single source of
 /// truth for one order.
@@ -144,6 +174,13 @@ class _Detail extends ConsumerWidget {
       padding: const EdgeInsets.all(Space.x4),
       children: [
         _StatusBanner(order: order, l10n: l10n),
+        if (_isHappyPathStatus(order.status)) ...[
+          const SizedBox(height: Space.x4),
+          RefundTimeline(
+            steps: _orderProgressSteps(order.status, l10n),
+            semanticLabelFor: (step, index) => step.label,
+          ),
+        ],
         const SizedBox(height: Space.x4),
         Text(order.orderCode, style: context.type.title),
         const SizedBox(height: Space.x4),

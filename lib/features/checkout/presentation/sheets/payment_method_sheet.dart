@@ -35,7 +35,7 @@ class PaymentMethodSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (final (method, label, available) in methods)
+            for (final (method, label, available) in methods) ...[
               _MethodRow(
                 label: label,
                 recommended: method == PaymentMethod.upi,
@@ -47,6 +47,8 @@ class PaymentMethodSheet extends StatelessWidget {
                     ? () => Navigator.of(context).pop(method)
                     : null,
               ),
+              const SizedBox(height: Space.x2),
+            ],
           ],
         ),
       ),
@@ -74,58 +76,79 @@ class _MethodRow extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    inMutuallyExclusiveGroup: true,
-    checked: selected,
-    enabled: available,
-    label: available ? label : '$label, ${l10n.checkoutMethodUnavailable}',
-    excludeSemantics: true,
-    child: Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: Layout.minTouchTarget),
-          padding: const EdgeInsets.symmetric(vertical: Space.x2),
-          child: Row(
-            children: [
-              Icon(
-                selected
-                    ? Icons.radio_button_checked
-                    : Icons.radio_button_unchecked,
-                color: available
-                    ? (selected
-                          ? colors.actionSecondaryFg
-                          : colors.borderStrong)
-                    : colors.borderSubtle,
-              ),
-              const SizedBox(width: Space.x3),
-              Text(
-                label,
-                style: context.type.body.copyWith(
-                  color: available ? colors.textPrimary : colors.textTertiary,
+  Widget build(BuildContext context) {
+    final borderColor = selected
+        ? colors.actionSecondaryBorder
+        : Colors.transparent;
+
+    return Semantics(
+      inMutuallyExclusiveGroup: true,
+      checked: selected,
+      enabled: available,
+      label: available ? label : '$label, ${l10n.checkoutMethodUnavailable}',
+      excludeSemantics: true,
+      child: Material(
+        color: colors.surfaceRaised,
+        borderRadius: BorderRadius.circular(Radii.card),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(Radii.card),
+          child: Container(
+            constraints: const BoxConstraints(
+              minHeight: Layout.minTouchTarget,
+            ),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Space.x4,
+              vertical: Space.x3,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(Radii.card),
+              border: Border.all(color: borderColor, width: 2),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  selected
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  color: available
+                      ? (selected
+                            ? colors.actionSecondaryFg
+                            : colors.borderStrong)
+                      : colors.borderSubtle,
                 ),
-              ),
-              const SizedBox(width: Space.x2),
-              if (recommended && available)
-                Text(
-                  l10n.checkoutMethodRecommended,
-                  style: context.type.caption.copyWith(
-                    color: colors.success.fg,
-                    fontWeight: FontWeight.w600,
-                  ),
-                )
-              else if (!available)
-                Text(
-                  l10n.checkoutMethodUnavailable,
-                  style: context.type.caption.copyWith(
-                    color: colors.textTertiary,
+                const SizedBox(width: Space.x3),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: context.type.body.copyWith(
+                      color: available
+                          ? colors.textPrimary
+                          : colors.textTertiary,
+                    ),
                   ),
                 ),
-            ],
+                const SizedBox(width: Space.x2),
+                if (recommended && available)
+                  Text(
+                    l10n.checkoutMethodRecommended,
+                    style: context.type.caption.copyWith(
+                      color: colors.success.fg,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  )
+                else if (!available)
+                  Text(
+                    l10n.checkoutMethodUnavailable,
+                    style: context.type.caption.copyWith(
+                      color: colors.textTertiary,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

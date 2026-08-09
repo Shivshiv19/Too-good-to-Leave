@@ -174,7 +174,16 @@ class _OnboardingPageContent extends StatelessWidget {
         children: [
           // Decorative — the real content is the headline/body below.
           ExcludeSemantics(
-            child: Icon(page.icon, size: 96, color: colors.actionSecondaryFg),
+            child: Container(
+              width: 200,
+              height: 200,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.actionPrimaryBg.withValues(alpha: 0.12),
+              ),
+              alignment: Alignment.center,
+              child: Icon(page.icon, size: 96, color: colors.actionPrimaryBg),
+            ),
           ),
           const SizedBox(height: Space.x8),
           Text(
