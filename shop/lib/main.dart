@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/domain/shop_profile.dart';
@@ -6,7 +7,13 @@ import 'package:too_good_to_leave_shop/screens/pending_approval_screen.dart';
 import 'package:too_good_to_leave_shop/screens/registration_screen.dart';
 import 'package:too_good_to_leave_shop/screens/shop_shell_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // `Fmt`'s date formatters (core/utils/formatters.dart) use `intl`'s
+  // locale-aware DateFormat, which throws LocaleDataException until its
+  // locale data has been loaded — unlike NumberFormat, which works without
+  // this. Must happen before any screen that formats a date/time runs.
+  await initializeDateFormatting('en_IN');
   runApp(const ShopAppLoader());
 }
 

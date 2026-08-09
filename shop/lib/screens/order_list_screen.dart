@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
+import 'package:too_good_to_leave_shop/design_system/components/side_panel.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/domain/shop_order.dart';
 import 'package:too_good_to_leave_shop/screens/order_detail_screen.dart';
@@ -26,11 +27,9 @@ class _OrderListScreenState extends State<OrderListScreen> {
   }
 
   void _openOrder(BuildContext context, ShopOrder order) {
-    Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        builder: (_) =>
-            OrderDetailScreen(repository: widget.repository, order: order),
-      ),
+    openDetail<void>(
+      context,
+      (_) => OrderDetailScreen(repository: widget.repository, order: order),
     );
   }
 

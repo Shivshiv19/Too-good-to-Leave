@@ -6,9 +6,11 @@ import 'package:too_good_to_leave_shop/core/utils/day_bucket.dart';
 import 'package:too_good_to_leave_shop/core/utils/formatters.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/design_system/components/app_button.dart';
+import 'package:too_good_to_leave_shop/design_system/components/side_panel.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/domain/payout.dart';
 import 'package:too_good_to_leave_shop/domain/shop_order.dart';
+import 'package:too_good_to_leave_shop/screens/order_detail_screen.dart';
 
 /// Trend chart look-back window, matching the Insights tab.
 const _trendDays = 14;
@@ -246,7 +248,16 @@ class PaymentsScreen extends StatelessWidget {
                       for (final order in collectedOrders)
                         SizedBox(
                           width: 340,
-                          child: _EarningsCard(order: order),
+                          child: _EarningsCard(
+                            order: order,
+                            onTap: () => openDetail<void>(
+                              context,
+                              (_) => _EarningsDetailPanel(
+                                repository: repository,
+                                order: order,
+                              ),
+                            ),
+                          ),
                         ),
                     ],
                   ),
@@ -297,7 +308,19 @@ class PaymentsScreen extends StatelessWidget {
                     runSpacing: Space.x3,
                     children: [
                       for (final p in payouts.reversed)
-                        SizedBox(width: 340, child: _PayoutCard(payout: p)),
+                        SizedBox(
+                          width: 340,
+                          child: _PayoutCard(
+                            payout: p,
+                            onTap: () => openDetail<void>(
+                              context,
+                              (_) => _PayoutDetailPanel(
+                                repository: repository,
+                                payout: p,
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
               ],
@@ -393,8 +416,111 @@ class _CommissionTrendChart extends StatelessWidget {
 }
 
 class _EarningsCard extends StatelessWidget {
-  const _EarningsCard({required this.order});
+  const _EarningsCard({required this.order, required this.onTap});
 
+  final ShopOrder order;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final breakdown = EarningsBreakdown(gross: order.price);
+
+    return Material(
+      color: colors.surfaceRaised,
+      borderRadius: BorderRadius.circular(Radii.card),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(Radii.card),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(Space.x4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(order.bagTitle, style: context.type.label),
+              const SizedBox(height: Space.x2),
+              _AmountRow(label: 'Gross', value: Fmt.money(breakdown.gross)),
+              _AmountRow(
+                label:
+                    'Platform commission (${(commissionRate * 100).round()}%)',
+                value: '−${Fmt.money(breakdown.commission)}',
+                muted: true,
+              ),
+              _AmountRow(
+                label:
+                    '  incl. GST on commission (${(gstOnCommissionRate * 100).round()}%)',
+                value: Fmt.money(breakdown.gstOnCommission),
+                muted: true,
+              ),
+              const Divider(),
+              _AmountRow(
+                label: 'Net earned',
+                value: Fmt.money(breakdown.net),
+                emphasize: true,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PayoutCard extends StatelessWidget {
+  const _PayoutCard({required this.payout, required this.onTap});
+
+  final PayoutRecord payout;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final date = payout.requestedAt;
+
+    return Material(
+      color: colors.surfaceRaised,
+      borderRadius: BorderRadius.circular(Radii.card),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(Radii.card),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(Space.x4),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${date.day}/${date.month}/${date.year}',
+                      style: context.type.body,
+                    ),
+                    Text(
+                      '${payout.orderIds.length} order'
+                      '${payout.orderIds.length == 1 ? '' : 's'}',
+                      style: context.type.caption.copyWith(
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(Fmt.money(payout.amount), style: context.type.label),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Side-panel detail view for a single collected order's earnings — the
+/// same breakdown [_EarningsCard] shows inline, with room for a link back
+/// to the order itself.
+class _EarningsDetailPanel extends StatelessWidget {
+  const _EarningsDetailPanel({required this.repository, required this.order});
+
+  final ShopRepository repository;
   final ShopOrder order;
 
   @override
@@ -402,79 +528,188 @@ class _EarningsCard extends StatelessWidget {
     final colors = context.colors;
     final breakdown = EarningsBreakdown(gross: order.price);
 
-    return Container(
-      padding: const EdgeInsets.all(Space.x4),
-      decoration: BoxDecoration(
-        color: colors.surfaceRaised,
-        borderRadius: BorderRadius.circular(Radii.card),
+    return Scaffold(
+      backgroundColor: colors.surfaceBase,
+      appBar: AppBar(
+        backgroundColor: colors.surfaceBase,
+        title: Text(order.bagTitle, style: context.type.title),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(order.bagTitle, style: context.type.label),
-          const SizedBox(height: Space.x2),
-          _AmountRow(label: 'Gross', value: Fmt.money(breakdown.gross)),
-          _AmountRow(
-            label: 'Platform commission (${(commissionRate * 100).round()}%)',
-            value: '−${Fmt.money(breakdown.commission)}',
-            muted: true,
-          ),
-          _AmountRow(
-            label:
-                '  incl. GST on commission (${(gstOnCommissionRate * 100).round()}%)',
-            value: Fmt.money(breakdown.gstOnCommission),
-            muted: true,
-          ),
-          const Divider(),
-          _AmountRow(
-            label: 'Net earned',
-            value: Fmt.money(breakdown.net),
-            emphasize: true,
-          ),
-        ],
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(Space.x4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'For ${order.customerName}',
+              style: context.type.body.copyWith(color: colors.textSecondary),
+            ),
+            const SizedBox(height: Space.x1),
+            Text(
+              Fmt.pickupWindow(order.pickupWindow, repository.clock),
+              style: context.type.caption.copyWith(
+                color: colors.textTertiary,
+              ),
+            ),
+            const SizedBox(height: Space.x6),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(Space.x4),
+              decoration: BoxDecoration(
+                color: colors.surfaceRaised,
+                borderRadius: BorderRadius.circular(Radii.card),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _AmountRow(label: 'Gross', value: Fmt.money(breakdown.gross)),
+                  _AmountRow(
+                    label:
+                        'Platform commission (${(commissionRate * 100).round()}%)',
+                    value: '−${Fmt.money(breakdown.commission)}',
+                    muted: true,
+                  ),
+                  _AmountRow(
+                    label:
+                        '  incl. GST on commission (${(gstOnCommissionRate * 100).round()}%)',
+                    value: Fmt.money(breakdown.gstOnCommission),
+                    muted: true,
+                  ),
+                  const Divider(),
+                  _AmountRow(
+                    label: 'Net earned',
+                    value: Fmt.money(breakdown.net),
+                    emphasize: true,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: Space.x6),
+            AppButton(
+              label: 'View order',
+              variant: AppButtonVariant.secondary,
+              onPressed: () => openDetail<void>(
+                context,
+                (_) => OrderDetailScreen(repository: repository, order: order),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _PayoutCard extends StatelessWidget {
-  const _PayoutCard({required this.payout});
+/// Side-panel detail view for a payout — the collected orders it covers,
+/// each with its own gross/commission/net.
+class _PayoutDetailPanel extends StatelessWidget {
+  const _PayoutDetailPanel({required this.repository, required this.payout});
 
+  final ShopRepository repository;
   final PayoutRecord payout;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final date = payout.requestedAt;
+    final ordersById = {for (final o in repository.getOrders()) o.id: o};
 
-    return Container(
-      padding: const EdgeInsets.all(Space.x4),
-      decoration: BoxDecoration(
-        color: colors.surfaceRaised,
-        borderRadius: BorderRadius.circular(Radii.card),
+    return Scaffold(
+      backgroundColor: colors.surfaceBase,
+      appBar: AppBar(
+        backgroundColor: colors.surfaceBase,
+        title: Text(
+          '${date.day}/${date.month}/${date.year} payout',
+          style: context.type.title,
+        ),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${date.day}/${date.month}/${date.year}',
-                  style: context.type.body,
-                ),
-                Text(
-                  '${payout.orderIds.length} order'
-                  '${payout.orderIds.length == 1 ? '' : 's'}',
-                  style: context.type.caption.copyWith(
-                    color: colors.textSecondary,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(Space.x4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(Space.x4),
+              decoration: BoxDecoration(
+                color: colors.actionPrimaryBg,
+                borderRadius: BorderRadius.circular(Radii.card),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Paid out',
+                    style: context.type.label.copyWith(
+                      color: colors.textOnAction.withValues(alpha: 0.8),
+                    ),
+                  ),
+                  const SizedBox(height: Space.x1),
+                  Text(
+                    Fmt.money(payout.amount),
+                    style: context.type.display.copyWith(
+                      color: colors.textOnAction,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: Space.x6),
+            Text(
+              'Orders included (${payout.orderIds.length})',
+              style: context.type.title,
+            ),
+            const SizedBox(height: Space.x3),
+            for (final id in payout.orderIds)
+              if (ordersById[id] case final order?)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: Space.x2),
+                  child: Material(
+                    color: colors.surfaceRaised,
+                    borderRadius: BorderRadius.circular(Radii.card),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(Radii.card),
+                      onTap: () => openDetail<void>(
+                        context,
+                        (_) => OrderDetailScreen(
+                          repository: repository,
+                          order: order,
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(Space.x4),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    order.bagTitle,
+                                    style: context.type.body,
+                                  ),
+                                  Text(
+                                    'For ${order.customerName}',
+                                    style: context.type.caption.copyWith(
+                                      color: colors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              Fmt.money(
+                                EarningsBreakdown(gross: order.price).net,
+                              ),
+                              style: context.type.label,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ],
-            ),
-          ),
-          Text(Fmt.money(payout.amount), style: context.type.label),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/design_system/components/app_button.dart';
 import 'package:too_good_to_leave_shop/design_system/components/business_hero_header.dart';
 import 'package:too_good_to_leave_shop/design_system/components/max_width_body.dart';
+import 'package:too_good_to_leave_shop/design_system/components/side_panel.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/breakpoints.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/screens/edit_profile_screen.dart';
@@ -99,11 +100,9 @@ class AccountScreen extends StatelessWidget {
                         AppButton(
                           label: 'Edit business details',
                           variant: AppButtonVariant.secondary,
-                          onPressed: () => Navigator.of(context).push<void>(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  EditProfileScreen(repository: repository),
-                            ),
+                          onPressed: () => openDetail<void>(
+                            context,
+                            (_) => EditProfileScreen(repository: repository),
                           ),
                         ),
                         const SizedBox(height: Space.x6),
@@ -111,34 +110,26 @@ class AccountScreen extends StatelessWidget {
                           icon: Icons.notifications_outlined,
                           label: 'Notifications',
                           badgeCount: repository.unreadNotificationCount,
-                          onTap: () => Navigator.of(context).push<void>(
-                            MaterialPageRoute(
-                              builder: (_) => NotificationsScreen(
-                                repository: repository,
-                              ),
-                            ),
+                          onTap: () => openDetail<void>(
+                            context,
+                            (_) => NotificationsScreen(repository: repository),
                           ),
                         ),
                         const SizedBox(height: Space.x2),
                         _NavRow(
                           icon: Icons.schedule,
                           label: 'Store hours',
-                          onTap: () => Navigator.of(context).push<void>(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  SettingsScreen(repository: repository),
-                            ),
+                          onTap: () => openDetail<void>(
+                            context,
+                            (_) => SettingsScreen(repository: repository),
                           ),
                         ),
                         const SizedBox(height: Space.x2),
                         _NavRow(
                           icon: Icons.help_outline,
                           label: 'Help & support',
-                          onTap: () => Navigator.of(context).push<void>(
-                            MaterialPageRoute(
-                              builder: (_) => const HelpScreen(),
-                            ),
-                          ),
+                          onTap: () =>
+                              openDetail<void>(context, (_) => const HelpScreen()),
                         ),
                         const SizedBox(height: Space.x6),
                         AppButton(

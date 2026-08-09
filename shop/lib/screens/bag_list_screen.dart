@@ -3,6 +3,7 @@ import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/core/utils/formatters.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/design_system/components/app_button.dart';
+import 'package:too_good_to_leave_shop/design_system/components/side_panel.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/domain/shop_bag.dart';
 import 'package:too_good_to_leave_shop/screens/bag_edit_screen.dart';
@@ -23,11 +24,9 @@ class _BagListScreenState extends State<BagListScreen> {
   String? _tagFilter;
 
   void _openEditor(BuildContext context, [ShopBag? bag]) {
-    Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        builder: (_) =>
-            BagEditScreen(repository: widget.repository, existing: bag),
-      ),
+    openDetail<void>(
+      context,
+      (_) => BagEditScreen(repository: widget.repository, existing: bag),
     );
   }
 
