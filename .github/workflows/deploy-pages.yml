@@ -20,23 +20,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # dart2js is memory-hungry, and GitHub-hosted runners are RAM-
-      # constrained enough that a release web build can get silently
-      # OOM-killed mid-compile ("Compiling... 45.6s" then exit code 1,
-      # with the actual dart2js error never printed — that's the OOM
-      # signature, not a real compile error). Swap gives it headroom.
-      # `/swapfile` already exists and is active on the runner image
-      # itself ("Text file busy" fallocate-ing over live swap) — add a
-      # second one at a different path instead of colliding with it.
-      - name: Add swap space
-        run: |
-          free -h
-          sudo fallocate -l 12G /swapfile-ci
-          sudo chmod 600 /swapfile-ci
-          sudo mkswap /swapfile-ci
-          sudo swapon /swapfile-ci
-          free -h
-
       # Pinned to match what's actually been built and tested locally all
       # along — "stable channel" on a GitHub-hosted runner can resolve to
       # an older release than this, and the project's fl_chart dependency
@@ -59,24 +42,43 @@ jobs:
       - name: Build customer app (site root)
         run: |
           flutter pub get
-          free -h
-          # Log memory every 3s in the background so a kill shows up as
-          # hard evidence instead of a guess — killed automatically once
-          # the build step ends, one way or another.
-          ( while true; do date; free -h; sleep 3; done ) &
-          MONITOR_PID=$!
-          flutter build web --release -O2 \
+          # --no-wasm-dry-run skips an extra, unneeded dart2wasm
+          # compatibility compile — every local build has needed only the
+          # real JS compile, this dry run is dead weight for a target we
+          # aren't shipping wasm for anyway, and a good place for a
+          # Linux-only dart2wasm issue to hide behind the generic
+          # "Failed to compile" wrapper error every CI run has shown so
+          # far (14G free RAM+swap at failure ruled out memory).
+          # Full output goes to a file so the tail can self-print on
+          # failure without needing another manual round-trip.
+          set +e
+          flutter build web --release --no-wasm-dry-run -v \
             --base-href /Too-good-to-Leave/ \
-            --dart-define-from-file=dart_defines.json
-          BUILD_EXIT=$?
-          kill "$MONITOR_PID" 2>/dev/null || true
+            --dart-define-from-file=dart_defines.json 2>&1 | tee build_customer.log
+          BUILD_EXIT=${PIPESTATUS[0]}
+          set -e
+          if [ "$BUILD_EXIT" -ne 0 ]; then
+            echo "::group::Last 150 lines of build_customer.log"
+            tail -150 build_customer.log
+            echo "::endgroup::"
+          fi
           exit $BUILD_EXIT
 
       - name: Build shop app (/shop/ subpath)
         working-directory: shop
         run: |
           flutter pub get
-          flutter build web --release --base-href /Too-good-to-Leave/shop/
+          set +e
+          flutter build web --release --no-wasm-dry-run -v \
+            --base-href /Too-good-to-Leave/shop/ 2>&1 | tee build_shop.log
+          BUILD_EXIT=${PIPESTATUS[0]}
+          set -e
+          if [ "$BUILD_EXIT" -ne 0 ]; then
+            echo "::group::Last 150 lines of build_shop.log"
+            tail -150 build_shop.log
+            echo "::endgroup::"
+          fi
+          exit $BUILD_EXIT
 
       # Combine both builds into one site: customer app at the root, shop
       # app under /shop/ — two independently-routed Flutter web apps
