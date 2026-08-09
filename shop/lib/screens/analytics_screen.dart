@@ -1,12 +1,17 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/core/domain/money.dart';
+import 'package:too_good_to_leave_shop/core/utils/day_bucket.dart';
 import 'package:too_good_to_leave_shop/core/utils/formatters.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/domain/impact_estimate.dart';
 import 'package:too_good_to_leave_shop/domain/payout.dart';
 import 'package:too_good_to_leave_shop/domain/shop_order.dart';
+
+/// Trend charts look back this many days.
+const _trendDays = 14;
 
 class AnalyticsScreen extends StatelessWidget {
   const AnalyticsScreen({required this.repository, super.key});
@@ -22,6 +27,8 @@ class AnalyticsScreen extends StatelessWidget {
       builder: (context, _) {
         final orders = repository.getOrders();
         final bags = repository.getBags();
+        final today = dateOnly(repository.clock.now());
+        final days = lastNDays(today, _trendDays);
 
         final collected = orders
             .where((o) => o.status == ShopOrderStatus.collected)
@@ -51,6 +58,28 @@ class AnalyticsScreen extends StatelessWidget {
           revenue += EarningsBreakdown(gross: order.price).net;
         }
 
+        final revenueByDay = <DateTime, double>{
+          for (final d in days) d: 0,
+        };
+        for (final order in collected) {
+          final d = dateOnly(order.pickupWindow.startAt);
+          if (revenueByDay.containsKey(d)) {
+            revenueByDay[d] =
+                revenueByDay[d]! +
+                EarningsBreakdown(gross: order.price).net.amountInPaise / 100;
+          }
+        }
+
+        final ordersByDay = <DateTime, int>{
+          for (final d in days) d: 0,
+        };
+        for (final order in orders) {
+          final d = dateOnly(order.pickupWindow.startAt);
+          if (ordersByDay.containsKey(d)) {
+            ordersByDay[d] = ordersByDay[d]! + 1;
+          }
+        }
+
         return Scaffold(
           backgroundColor: colors.surfaceBase,
           appBar: AppBar(
@@ -62,137 +91,150 @@ class AnalyticsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                  Text('Your impact', style: context.type.title),
-                  const SizedBox(height: Space.x1),
+                Text('Your impact', style: context.type.title),
+                const SizedBox(height: Space.x1),
+                Text(
+                  'Estimated from ${collected.length} collected bag'
+                  '${collected.length == 1 ? '' : 's'} — see the info '
+                  'note below for how these are calculated.',
+                  style: context.type.caption.copyWith(
+                    color: colors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: Space.x3),
+                Wrap(
+                  spacing: Space.x3,
+                  runSpacing: Space.x3,
+                  children: [
+                    SizedBox(
+                      width: 220,
+                      child: _StatCard(
+                        icon: Icons.restaurant,
+                        label: 'Meals saved',
+                        value: '${ImpactEstimate.mealsSaved(collected.length)}',
+                      ),
+                    ),
+                    SizedBox(
+                      width: 220,
+                      child: _StatCard(
+                        icon: Icons.scale,
+                        label: 'Food saved',
+                        value:
+                            '${ImpactEstimate.kgSaved(collected.length).toStringAsFixed(1)} kg',
+                      ),
+                    ),
+                    SizedBox(
+                      width: 220,
+                      child: _StatCard(
+                        icon: Icons.eco,
+                        label: 'Estimated CO₂e avoided',
+                        value:
+                            '${ImpactEstimate.co2eKgAvoided(collected.length).toStringAsFixed(1)} kg',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: Space.x2),
+                Text(
+                  'Meals saved = one per collected bag. Food saved '
+                  'assumes ~${ImpactEstimate.kgPerBag} kg per bag; CO₂e '
+                  'assumes ~${ImpactEstimate.co2eKgPerKgFood} kg CO₂e '
+                  'avoided per kg of food. Both are illustrative '
+                  'estimates, not measured data.',
+                  style: context.type.caption.copyWith(
+                    color: colors.textTertiary,
+                  ),
+                ),
+
+                const SizedBox(height: Space.x8),
+                Text('Orders', style: context.type.title),
+                const SizedBox(height: Space.x3),
+                Wrap(
+                  spacing: Space.x3,
+                  runSpacing: Space.x3,
+                  children: [
+                    SizedBox(
+                      width: 220,
+                      child: _StatCard(
+                        icon: Icons.receipt_long,
+                        label: 'Total orders',
+                        value: '${orders.length}',
+                      ),
+                    ),
+                    SizedBox(
+                      width: 220,
+                      child: _StatCard(
+                        icon: Icons.payments_outlined,
+                        label: 'Net revenue',
+                        value: Fmt.money(revenue),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 220,
+                      child: _StatCard(
+                        icon: Icons.event_busy,
+                        label: 'No-show rate',
+                        value: concluded == 0
+                            ? '—'
+                            : '${(noShowRate * 100).round()}%',
+                      ),
+                    ),
+                    SizedBox(
+                      width: 220,
+                      child: _StatCard(
+                        icon: Icons.inventory_2_outlined,
+                        label: 'Live bags',
+                        value:
+                            '${bags.where((b) => b.status.name == 'live').length}',
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: Space.x8),
+                Wrap(
+                  spacing: Space.x3,
+                  runSpacing: Space.x3,
+                  children: [
+                    SizedBox(
+                      width: 560,
+                      child: _ChartCard(
+                        title: 'Revenue trend',
+                        subtitle: 'Net revenue by pickup day, last $_trendDays days',
+                        child: _RevenueTrendChart(
+                          days: days,
+                          revenueByDay: revenueByDay,
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 560,
+                      child: _ChartCard(
+                        title: 'Orders per day',
+                        subtitle: 'All orders by pickup day, last $_trendDays days',
+                        child: _OrdersPerDayChart(
+                          days: days,
+                          ordersByDay: ordersByDay,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: Space.x8),
+                Text('Best-selling bags', style: context.type.title),
+                const SizedBox(height: Space.x3),
+                if (ranked.isEmpty)
                   Text(
-                    'Estimated from ${collected.length} collected bag'
-                    '${collected.length == 1 ? '' : 's'} — see the info '
-                    'note below for how these are calculated.',
-                    style: context.type.caption.copyWith(
+                    'No orders yet.',
+                    style: context.type.body.copyWith(
                       color: colors.textSecondary,
                     ),
-                  ),
-                  const SizedBox(height: Space.x3),
-                  Wrap(
-                    spacing: Space.x3,
-                    runSpacing: Space.x3,
-                    children: [
-                      SizedBox(
-                        width: 220,
-                        child: _StatCard(
-                          icon: Icons.restaurant,
-                          label: 'Meals saved',
-                          value:
-                              '${ImpactEstimate.mealsSaved(collected.length)}',
-                        ),
-                      ),
-                      SizedBox(
-                        width: 220,
-                        child: _StatCard(
-                          icon: Icons.scale,
-                          label: 'Food saved',
-                          value:
-                              '${ImpactEstimate.kgSaved(collected.length).toStringAsFixed(1)} kg',
-                        ),
-                      ),
-                      SizedBox(
-                        width: 220,
-                        child: _StatCard(
-                          icon: Icons.eco,
-                          label: 'Estimated CO₂e avoided',
-                          value:
-                              '${ImpactEstimate.co2eKgAvoided(collected.length).toStringAsFixed(1)} kg',
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: Space.x2),
-                  Text(
-                    'Meals saved = one per collected bag. Food saved '
-                    'assumes ~${ImpactEstimate.kgPerBag} kg per bag; CO₂e '
-                    'assumes ~${ImpactEstimate.co2eKgPerKgFood} kg CO₂e '
-                    'avoided per kg of food. Both are illustrative '
-                    'estimates, not measured data.',
-                    style: context.type.caption.copyWith(
-                      color: colors.textTertiary,
-                    ),
-                  ),
-
-                  const SizedBox(height: Space.x8),
-                  Text('Orders', style: context.type.title),
-                  const SizedBox(height: Space.x3),
-                  Wrap(
-                    spacing: Space.x3,
-                    runSpacing: Space.x3,
-                    children: [
-                      SizedBox(
-                        width: 220,
-                        child: _StatCard(
-                          icon: Icons.receipt_long,
-                          label: 'Total orders',
-                          value: '${orders.length}',
-                        ),
-                      ),
-                      SizedBox(
-                        width: 220,
-                        child: _StatCard(
-                          icon: Icons.payments_outlined,
-                          label: 'Net revenue',
-                          value: Fmt.money(revenue),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 220,
-                        child: _StatCard(
-                          icon: Icons.event_busy,
-                          label: 'No-show rate',
-                          value: concluded == 0
-                              ? '—'
-                              : '${(noShowRate * 100).round()}%',
-                        ),
-                      ),
-                      SizedBox(
-                        width: 220,
-                        child: _StatCard(
-                          icon: Icons.inventory_2_outlined,
-                          label: 'Live bags',
-                          value:
-                              '${bags.where((b) => b.status.name == 'live').length}',
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: Space.x8),
-                  Text('Best-selling bags', style: context.type.title),
-                  const SizedBox(height: Space.x3),
-                  if (ranked.isEmpty)
-                    Text(
-                      'No orders yet.',
-                      style: context.type.body.copyWith(
-                        color: colors.textSecondary,
-                      ),
-                    )
-                  else
-                    ...ranked.map(
-                      (entry) => Padding(
-                        padding: const EdgeInsets.only(bottom: Space.x2),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(entry.key, style: context.type.body),
-                            ),
-                            Text(
-                              '${entry.value} order'
-                              '${entry.value == 1 ? '' : 's'}',
-                              style: context.type.label,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+                  )
+                else
+                  _BestSellersChart(ranked: ranked),
+              ],
+            ),
           ),
         );
       },
@@ -232,6 +274,264 @@ class _StatCard extends StatelessWidget {
             label,
             style: context.type.caption.copyWith(color: colors.textSecondary),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shared card chrome for a chart — title, subtitle, then the chart itself
+/// at a fixed height (fl_chart's widgets need a bounded height to lay out).
+class _ChartCard extends StatelessWidget {
+  const _ChartCard({
+    required this.title,
+    required this.subtitle,
+    required this.child,
+  });
+
+  final String title;
+  final String subtitle;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return Container(
+      padding: const EdgeInsets.all(Space.x4),
+      decoration: BoxDecoration(
+        color: colors.surfaceRaised,
+        borderRadius: BorderRadius.circular(Radii.card),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: context.type.title),
+          const SizedBox(height: Space.x1),
+          Text(
+            subtitle,
+            style: context.type.caption.copyWith(color: colors.textSecondary),
+          ),
+          const SizedBox(height: Space.x4),
+          SizedBox(height: 180, child: child),
+        ],
+      ),
+    );
+  }
+}
+
+class _RevenueTrendChart extends StatelessWidget {
+  const _RevenueTrendChart({required this.days, required this.revenueByDay});
+
+  final List<DateTime> days;
+  final Map<DateTime, double> revenueByDay;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final maxY = revenueByDay.values.fold<double>(
+      0,
+      (max, v) => v > max ? v : max,
+    );
+
+    return LineChart(
+      LineChartData(
+        minY: 0,
+        maxY: maxY <= 0 ? 1 : maxY * 1.2,
+        gridData: const FlGridData(show: false),
+        borderData: FlBorderData(show: false),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          leftTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: (days.length / 4).ceilToDouble(),
+              getTitlesWidget: (value, meta) {
+                final i = value.round();
+                if (i < 0 || i >= days.length) return const SizedBox.shrink();
+                final d = days[i];
+                return Padding(
+                  padding: const EdgeInsets.only(top: Space.x1),
+                  child: Text(
+                    '${d.day}/${d.month}',
+                    style: context.type.caption.copyWith(
+                      color: colors.textTertiary,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (_) => colors.surfaceOverlay,
+            getTooltipItems: (spots) => spots
+                .map(
+                  (s) => LineTooltipItem(
+                    '₹${s.y.toStringAsFixed(0)}',
+                    context.type.caption.copyWith(color: colors.textPrimary),
+                  ),
+                )
+                .toList(),
+          ),
+        ),
+        lineBarsData: [
+          LineChartBarData(
+            spots: [
+              for (var i = 0; i < days.length; i++)
+                FlSpot(i.toDouble(), revenueByDay[days[i]] ?? 0),
+            ],
+            isCurved: true,
+            color: colors.actionPrimaryBg,
+            barWidth: 2.5,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              color: colors.actionPrimaryBg.withValues(alpha: 0.12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OrdersPerDayChart extends StatelessWidget {
+  const _OrdersPerDayChart({required this.days, required this.ordersByDay});
+
+  final List<DateTime> days;
+  final Map<DateTime, int> ordersByDay;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final maxY = ordersByDay.values.fold<int>(0, (max, v) => v > max ? v : max);
+
+    return BarChart(
+      BarChartData(
+        minY: 0,
+        maxY: maxY <= 0 ? 1 : maxY.toDouble() + 1,
+        gridData: const FlGridData(show: false),
+        borderData: FlBorderData(show: false),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          leftTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: (days.length / 4).ceilToDouble(),
+              getTitlesWidget: (value, meta) {
+                final i = value.round();
+                if (i < 0 || i >= days.length) return const SizedBox.shrink();
+                final d = days[i];
+                return Padding(
+                  padding: const EdgeInsets.only(top: Space.x1),
+                  child: Text(
+                    '${d.day}/${d.month}',
+                    style: context.type.caption.copyWith(
+                      color: colors.textTertiary,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        barTouchData: BarTouchData(
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipColor: (_) => colors.surfaceOverlay,
+            getTooltipItem: (group, groupIndex, rod, rodIndex) =>
+                BarTooltipItem(
+                  '${rod.toY.round()} order${rod.toY.round() == 1 ? '' : 's'}',
+                  context.type.caption.copyWith(color: colors.textPrimary),
+                ),
+          ),
+        ),
+        barGroups: [
+          for (var i = 0; i < days.length; i++)
+            BarChartGroupData(
+              x: i,
+              barRods: [
+                BarChartRodData(
+                  toY: (ordersByDay[days[i]] ?? 0).toDouble(),
+                  color: colors.actionPrimaryBg,
+                  width: 12,
+                  borderRadius: BorderRadius.circular(Radii.sm / 3),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BestSellersChart extends StatelessWidget {
+  const _BestSellersChart({required this.ranked});
+
+  final List<MapEntry<String, int>> ranked;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final top = ranked.take(6).toList();
+    final maxCount = top.first.value;
+
+    return Container(
+      padding: const EdgeInsets.all(Space.x4),
+      decoration: BoxDecoration(
+        color: colors.surfaceRaised,
+        borderRadius: BorderRadius.circular(Radii.card),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final entry in top)
+            Padding(
+              padding: const EdgeInsets.only(bottom: Space.x3),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(entry.key, style: context.type.body),
+                      ),
+                      Text(
+                        '${entry.value} order${entry.value == 1 ? '' : 's'}',
+                        style: context.type.label,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: Space.x1),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(Radii.full),
+                    child: LinearProgressIndicator(
+                      value: entry.value / maxCount,
+                      minHeight: 8,
+                      backgroundColor: colors.surfaceSunken,
+                      valueColor: AlwaysStoppedAnimation(colors.actionPrimaryBg),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

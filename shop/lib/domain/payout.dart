@@ -6,6 +6,13 @@ import 'package:too_good_to_leave_shop/core/domain/money.dart';
 /// here rather than scattered literals, for the same reason.
 const commissionRate = 0.20;
 
+/// GST on the platform's commission fee — the standard Indian rate for
+/// marketplace/platform services. Informational only: it does not change
+/// [EarningsBreakdown.net] or any payout amount, since the fee (and the tax
+/// on it) is the platform's own revenue, not the shop's — this is purely
+/// what a statement itemises for a shop's own bookkeeping.
+const gstOnCommissionRate = 0.18;
+
 /// The commission and payout split for a single collected order's price.
 final class EarningsBreakdown {
   const EarningsBreakdown({required this.gross});
@@ -13,6 +20,12 @@ final class EarningsBreakdown {
   final Money gross;
 
   Money get commission => Money((gross.amountInPaise * commissionRate).round());
+
+  /// GST charged on [commission] — shown for transparency, already folded
+  /// into the commission the platform retains rather than billed
+  /// separately to the shop.
+  Money get gstOnCommission =>
+      Money((commission.amountInPaise * gstOnCommissionRate).round());
 
   Money get net => gross - commission;
 }

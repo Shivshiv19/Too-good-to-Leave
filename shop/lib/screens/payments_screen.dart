@@ -1,11 +1,33 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
+import 'package:too_good_to_leave_shop/core/utils/csv_download.dart';
+import 'package:too_good_to_leave_shop/core/utils/day_bucket.dart';
 import 'package:too_good_to_leave_shop/core/utils/formatters.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/design_system/components/app_button.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/domain/payout.dart';
 import 'package:too_good_to_leave_shop/domain/shop_order.dart';
+
+/// Trend chart look-back window, matching the Insights tab.
+const _trendDays = 14;
+
+/// Payout policy: weekly, every Monday, covering everything collected the
+/// week before. There's no real payment processor behind this (see
+/// `requestPayout`'s own doc) — this is a schedule label, not a promise
+/// money moves on that date.
+DateTime _nextPayoutDate(DateTime today) {
+  final diff = (DateTime.monday - today.weekday + 7) % 7;
+  return today.add(Duration(days: diff == 0 ? 7 : diff));
+}
+
+String _csvEscape(String field) {
+  if (field.contains(',') || field.contains('"') || field.contains('\n')) {
+    return '"${field.replaceAll('"', '""')}"';
+  }
+  return field;
+}
 
 class PaymentsScreen extends StatelessWidget {
   const PaymentsScreen({required this.repository, super.key});
@@ -26,6 +48,32 @@ class PaymentsScreen extends StatelessWidget {
     );
   }
 
+  void _downloadStatement(List<ShopOrder> collectedOrders) {
+    final buffer = StringBuffer()
+      ..writeln(
+        'Date,Bag,Customer,Gross,Commission,GST on commission,Net earned',
+      );
+    for (final order in collectedOrders) {
+      final breakdown = EarningsBreakdown(gross: order.price);
+      final d = order.pickupWindow.startAt;
+      buffer.writeln(
+        [
+          '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
+          order.bagTitle,
+          order.customerName,
+          breakdown.gross.wholeUnits,
+          breakdown.commission.wholeUnits,
+          breakdown.gstOnCommission.wholeUnits,
+          breakdown.net.wholeUnits,
+        ].map((v) => _csvEscape('$v')).join(','),
+      );
+    }
+    downloadCsv(
+      'earnings_statement_${DateTime.now().millisecondsSinceEpoch}.csv',
+      buffer.toString(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -38,6 +86,24 @@ class PaymentsScreen extends StatelessWidget {
             .where((o) => o.status == ShopOrderStatus.collected)
             .toList();
         final payouts = repository.getPayouts();
+        final today = dateOnly(repository.clock.now());
+        final nextPayout = _nextPayoutDate(today);
+        final days = lastNDays(today, _trendDays);
+
+        final commissionByDay = <DateTime, double>{
+          for (final d in days) d: 0,
+        };
+        for (final order in collectedOrders) {
+          final d = dateOnly(order.pickupWindow.startAt);
+          if (commissionByDay.containsKey(d)) {
+            commissionByDay[d] =
+                commissionByDay[d]! +
+                EarningsBreakdown(
+                      gross: order.price,
+                    ).commission.amountInPaise /
+                    100;
+          }
+        }
 
         return Scaffold(
           backgroundColor: colors.surfaceBase,
@@ -50,94 +116,278 @@ class PaymentsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Wrap(
+                  spacing: Space.x3,
+                  runSpacing: Space.x3,
+                  children: [
+                    SizedBox(
+                      width: 340,
+                      child: Container(
+                        padding: const EdgeInsets.all(Space.x4),
+                        decoration: BoxDecoration(
+                          color: colors.actionPrimaryBg,
+                          borderRadius: BorderRadius.circular(Radii.card),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Available for payout',
+                              style: context.type.label.copyWith(
+                                color: colors.textOnAction.withValues(
+                                  alpha: 0.8,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: Space.x1),
+                            Text(
+                              Fmt.money(repository.pendingPayoutAmount),
+                              style: context.type.display.copyWith(
+                                color: colors.textOnAction,
+                              ),
+                            ),
+                            const SizedBox(height: Space.x1),
+                            Text(
+                              'All-time earned: ${Fmt.money(repository.totalEarnedAllTime)}',
+                              style: context.type.caption.copyWith(
+                                color: colors.textOnAction.withValues(
+                                  alpha: 0.8,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: Space.x4),
+                            SizedBox(
+                              width: 220,
+                              child: AppButton(
+                                label: 'Request payout',
+                                variant: AppButtonVariant.secondary,
+                                onPressed: () => _requestPayout(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 340,
+                      child: Container(
+                        padding: const EdgeInsets.all(Space.x4),
+                        decoration: BoxDecoration(
+                          color: colors.surfaceRaised,
+                          borderRadius: BorderRadius.circular(Radii.card),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.event_repeat,
+                                  color: colors.actionPrimaryBg,
+                                ),
+                                const SizedBox(width: Space.x2),
+                                Text(
+                                  'Next scheduled payout',
+                                  style: context.type.label,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: Space.x2),
+                            Text(
+                              '${nextPayout.day}/${nextPayout.month}/${nextPayout.year}',
+                              style: context.type.headline,
+                            ),
+                            const SizedBox(height: Space.x1),
+                            Text(
+                              'Payouts run weekly, every Monday, for orders '
+                              "collected the week before. This is a demo "
+                              "schedule — no money actually moves in this "
+                              'build.',
+                              style: context.type.caption.copyWith(
+                                color: colors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: Space.x6),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text('Order earnings', style: context.type.title),
+                    ),
+                    if (collectedOrders.isNotEmpty)
+                      AppButton(
+                        label: 'Download statement (CSV)',
+                        variant: AppButtonVariant.tertiary,
+                        icon: Icons.download_outlined,
+                        expand: false,
+                        onPressed: () => _downloadStatement(collectedOrders),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: Space.x3),
+                if (collectedOrders.isEmpty)
+                  Text(
+                    'No collected orders yet.',
+                    style: context.type.body.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  )
+                else ...[
+                  Wrap(
+                    spacing: Space.x3,
+                    runSpacing: Space.x3,
+                    children: [
+                      for (final order in collectedOrders)
+                        SizedBox(
+                          width: 340,
+                          child: _EarningsCard(order: order),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: Space.x6),
                   Container(
-                    width: double.infinity,
                     padding: const EdgeInsets.all(Space.x4),
                     decoration: BoxDecoration(
-                      color: colors.actionPrimaryBg,
+                      color: colors.surfaceRaised,
                       borderRadius: BorderRadius.circular(Radii.card),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Available for payout',
-                          style: context.type.label.copyWith(
-                            color: colors.textOnAction.withValues(alpha: 0.8),
-                          ),
-                        ),
+                        Text('Commission trend', style: context.type.title),
                         const SizedBox(height: Space.x1),
                         Text(
-                          Fmt.money(repository.pendingPayoutAmount),
-                          style: context.type.display.copyWith(
-                            color: colors.textOnAction,
-                          ),
-                        ),
-                        const SizedBox(height: Space.x1),
-                        Text(
-                          'All-time earned: ${Fmt.money(repository.totalEarnedAllTime)}',
+                          'Platform commission by pickup day, last $_trendDays days',
                           style: context.type.caption.copyWith(
-                            color: colors.textOnAction.withValues(alpha: 0.8),
+                            color: colors.textSecondary,
                           ),
                         ),
                         const SizedBox(height: Space.x4),
                         SizedBox(
-                          width: 220,
-                          child: AppButton(
-                            label: 'Request payout',
-                            variant: AppButtonVariant.secondary,
-                            onPressed: () => _requestPayout(context),
+                          height: 180,
+                          child: _CommissionTrendChart(
+                            days: days,
+                            commissionByDay: commissionByDay,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: Space.x6),
-                  Text('Order earnings', style: context.type.title),
-                  const SizedBox(height: Space.x3),
-                  if (collectedOrders.isEmpty)
-                    Text(
-                      'No collected orders yet.',
-                      style: context.type.body.copyWith(
-                        color: colors.textSecondary,
-                      ),
-                    )
-                  else
-                    Wrap(
-                      spacing: Space.x3,
-                      runSpacing: Space.x3,
-                      children: [
-                        for (final order in collectedOrders)
-                          SizedBox(
-                            width: 340,
-                            child: _EarningsCard(order: order),
-                          ),
-                      ],
-                    ),
-                  const SizedBox(height: Space.x6),
-                  Text('Payout history', style: context.type.title),
-                  const SizedBox(height: Space.x3),
-                  if (payouts.isEmpty)
-                    Text(
-                      'No payouts requested yet.',
-                      style: context.type.body.copyWith(
-                        color: colors.textSecondary,
-                      ),
-                    )
-                  else
-                    Wrap(
-                      spacing: Space.x3,
-                      runSpacing: Space.x3,
-                      children: [
-                        for (final p in payouts.reversed)
-                          SizedBox(width: 340, child: _PayoutCard(payout: p)),
-                      ],
-                    ),
                 ],
-              ),
+
+                const SizedBox(height: Space.x6),
+                Text('Payout history', style: context.type.title),
+                const SizedBox(height: Space.x3),
+                if (payouts.isEmpty)
+                  Text(
+                    'No payouts requested yet.',
+                    style: context.type.body.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  )
+                else
+                  Wrap(
+                    spacing: Space.x3,
+                    runSpacing: Space.x3,
+                    children: [
+                      for (final p in payouts.reversed)
+                        SizedBox(width: 340, child: _PayoutCard(payout: p)),
+                    ],
+                  ),
+              ],
+            ),
           ),
         );
       },
+    );
+  }
+}
+
+class _CommissionTrendChart extends StatelessWidget {
+  const _CommissionTrendChart({
+    required this.days,
+    required this.commissionByDay,
+  });
+
+  final List<DateTime> days;
+  final Map<DateTime, double> commissionByDay;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final maxY = commissionByDay.values.fold<double>(
+      0,
+      (max, v) => v > max ? v : max,
+    );
+
+    return BarChart(
+      BarChartData(
+        minY: 0,
+        maxY: maxY <= 0 ? 1 : maxY * 1.2,
+        gridData: const FlGridData(show: false),
+        borderData: FlBorderData(show: false),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          leftTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: (days.length / 4).ceilToDouble(),
+              getTitlesWidget: (value, meta) {
+                final i = value.round();
+                if (i < 0 || i >= days.length) return const SizedBox.shrink();
+                final d = days[i];
+                return Padding(
+                  padding: const EdgeInsets.only(top: Space.x1),
+                  child: Text(
+                    '${d.day}/${d.month}',
+                    style: context.type.caption.copyWith(
+                      color: colors.textTertiary,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        barTouchData: BarTouchData(
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipColor: (_) => colors.surfaceOverlay,
+            getTooltipItem: (group, groupIndex, rod, rodIndex) =>
+                BarTooltipItem(
+                  '₹${rod.toY.toStringAsFixed(0)}',
+                  context.type.caption.copyWith(color: colors.textPrimary),
+                ),
+          ),
+        ),
+        barGroups: [
+          for (var i = 0; i < days.length; i++)
+            BarChartGroupData(
+              x: i,
+              barRods: [
+                BarChartRodData(
+                  toY: commissionByDay[days[i]] ?? 0,
+                  color: colors.attention.fg,
+                  width: 12,
+                  borderRadius: BorderRadius.circular(Radii.sm / 3),
+                ),
+              ],
+            ),
+        ],
+      ),
     );
   }
 }
@@ -167,6 +417,12 @@ class _EarningsCard extends StatelessWidget {
           _AmountRow(
             label: 'Platform commission (${(commissionRate * 100).round()}%)',
             value: '−${Fmt.money(breakdown.commission)}',
+            muted: true,
+          ),
+          _AmountRow(
+            label:
+                '  incl. GST on commission (${(gstOnCommissionRate * 100).round()}%)',
+            value: Fmt.money(breakdown.gstOnCommission),
             muted: true,
           ),
           const Divider(),

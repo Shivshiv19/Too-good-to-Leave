@@ -5,15 +5,31 @@ import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/domain/shop_order.dart';
 import 'package:too_good_to_leave_shop/screens/order_detail_screen.dart';
 
-class OrderListScreen extends StatelessWidget {
+class OrderListScreen extends StatefulWidget {
   const OrderListScreen({required this.repository, super.key});
 
   final ShopRepository repository;
 
+  @override
+  State<OrderListScreen> createState() => _OrderListScreenState();
+}
+
+class _OrderListScreenState extends State<OrderListScreen> {
+  final _searchController = TextEditingController();
+  String _query = '';
+  ShopOrderStatus? _statusFilter;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   void _openOrder(BuildContext context, ShopOrder order) {
     Navigator.of(context).push<void>(
       MaterialPageRoute(
-        builder: (_) => OrderDetailScreen(repository: repository, order: order),
+        builder: (_) =>
+            OrderDetailScreen(repository: widget.repository, order: order),
       ),
     );
   }
@@ -23,10 +39,30 @@ class OrderListScreen extends StatelessWidget {
     final colors = context.colors;
 
     return ListenableBuilder(
-      listenable: repository,
+      listenable: widget.repository,
       builder: (context, _) {
-        final now = repository.clock.now();
-        final orders = repository.getOrders();
+        final now = widget.repository.clock.now();
+        final allOrders = widget.repository.getOrders();
+
+        // Repeat-customer counts are computed against every order, not the
+        // filtered set — a customer's history doesn't change because a
+        // filter happens to hide some of their other orders right now.
+        final ordersByCustomer = <String, int>{};
+        for (final o in allOrders) {
+          ordersByCustomer[o.customerName] =
+              (ordersByCustomer[o.customerName] ?? 0) + 1;
+        }
+
+        final query = _query.trim().toLowerCase();
+        final orders = allOrders.where((o) {
+          final matchesStatus =
+              _statusFilter == null || o.status == _statusFilter;
+          final matchesQuery =
+              query.isEmpty ||
+              o.customerName.toLowerCase().contains(query) ||
+              o.bagTitle.toLowerCase().contains(query);
+          return matchesStatus && matchesQuery;
+        }).toList();
 
         // Currently collectable or starting soon — what the counter should
         // be getting ready right now.
@@ -59,13 +95,15 @@ class OrderListScreen extends StatelessWidget {
             .where((o) => !needsPrep.contains(o) && !overdue.contains(o))
             .toList();
 
+        final filtered = _statusFilter != null || query.isNotEmpty;
+
         return Scaffold(
           backgroundColor: colors.surfaceBase,
           appBar: AppBar(
             backgroundColor: colors.surfaceBase,
             title: Text('Orders', style: context.type.title),
           ),
-          body: orders.isEmpty
+          body: allOrders.isEmpty
               ? Center(
                   child: Text(
                     'No orders yet.',
@@ -79,35 +117,143 @@ class OrderListScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (needsPrep.isNotEmpty) ...[
-                        _SectionHeader('Needs prep now'),
-                        _OrderWrap(
-                          orders: needsPrep,
-                          onTap: (o) => _openOrder(context, o),
+                      TextField(
+                        controller: _searchController,
+                        onChanged: (v) => setState(() => _query = v),
+                        decoration: InputDecoration(
+                          hintText: 'Search by customer or bag',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: _query.isEmpty
+                              ? null
+                              : IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() => _query = '');
+                                  },
+                                ),
+                          isDense: true,
+                          filled: true,
+                          fillColor: colors.surfaceRaised,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(Radii.sm),
+                            borderSide: BorderSide.none,
+                          ),
                         ),
-                        const SizedBox(height: Space.x5),
-                      ],
-                      if (overdue.isNotEmpty) ...[
-                        _SectionHeader('Overdue — no-show?'),
+                      ),
+                      const SizedBox(height: Space.x3),
+                      Wrap(
+                        spacing: Space.x2,
+                        runSpacing: Space.x2,
+                        children: [
+                          _FilterChip(
+                            label: 'All',
+                            selected: _statusFilter == null,
+                            onSelected: () =>
+                                setState(() => _statusFilter = null),
+                          ),
+                          for (final status in ShopOrderStatus.values)
+                            _FilterChip(
+                              label: _statusLabel(status),
+                              selected: _statusFilter == status,
+                              onSelected: () =>
+                                  setState(() => _statusFilter = status),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: Space.x5),
+                      if (orders.isEmpty)
+                        Text(
+                          'No orders match this filter.',
+                          style: context.type.body.copyWith(
+                            color: colors.textSecondary,
+                          ),
+                        )
+                      else if (filtered)
                         _OrderWrap(
-                          orders: overdue,
+                          orders: orders,
+                          ordersByCustomer: ordersByCustomer,
                           onTap: (o) => _openOrder(context, o),
-                        ),
-                        const SizedBox(height: Space.x5),
-                      ],
-                      if (rest.isNotEmpty) ...[
-                        if (needsPrep.isNotEmpty || overdue.isNotEmpty)
-                          _SectionHeader('All orders'),
-                        _OrderWrap(
-                          orders: rest,
-                          onTap: (o) => _openOrder(context, o),
-                        ),
+                        )
+                      else ...[
+                        if (needsPrep.isNotEmpty) ...[
+                          _SectionHeader('Needs prep now'),
+                          _OrderWrap(
+                            orders: needsPrep,
+                            ordersByCustomer: ordersByCustomer,
+                            onTap: (o) => _openOrder(context, o),
+                          ),
+                          const SizedBox(height: Space.x5),
+                        ],
+                        if (overdue.isNotEmpty) ...[
+                          _SectionHeader('Overdue — no-show?'),
+                          _OrderWrap(
+                            orders: overdue,
+                            ordersByCustomer: ordersByCustomer,
+                            onTap: (o) => _openOrder(context, o),
+                          ),
+                          const SizedBox(height: Space.x5),
+                        ],
+                        if (rest.isNotEmpty) ...[
+                          if (needsPrep.isNotEmpty || overdue.isNotEmpty)
+                            _SectionHeader('All orders'),
+                          _OrderWrap(
+                            orders: rest,
+                            ordersByCustomer: ordersByCustomer,
+                            onTap: (o) => _openOrder(context, o),
+                          ),
+                        ],
                       ],
                     ],
                   ),
                 ),
         );
       },
+    );
+  }
+}
+
+String _statusLabel(ShopOrderStatus status) => switch (status) {
+  ShopOrderStatus.reserved => 'Reserved',
+  ShopOrderStatus.collected => 'Collected',
+  ShopOrderStatus.expired => 'Expired',
+  ShopOrderStatus.cancelled => 'Cancelled',
+};
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return Material(
+      color: selected ? colors.actionPrimaryBg : colors.surfaceRaised,
+      borderRadius: BorderRadius.circular(Radii.sm),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(Radii.sm),
+        onTap: onSelected,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: Space.x3,
+            vertical: Space.x2,
+          ),
+          child: Text(
+            label,
+            style: context.type.label.copyWith(
+              color: selected ? colors.actionPrimaryFg : colors.textPrimary,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -128,9 +274,14 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _OrderWrap extends StatelessWidget {
-  const _OrderWrap({required this.orders, required this.onTap});
+  const _OrderWrap({
+    required this.orders,
+    required this.ordersByCustomer,
+    required this.onTap,
+  });
 
   final List<ShopOrder> orders;
+  final Map<String, int> ordersByCustomer;
   final ValueChanged<ShopOrder> onTap;
 
   @override
@@ -141,16 +292,25 @@ class _OrderWrap extends StatelessWidget {
       for (final order in orders)
         SizedBox(
           width: 380,
-          child: _OrderCard(order: order, onTap: () => onTap(order)),
+          child: _OrderCard(
+            order: order,
+            isRepeatCustomer: (ordersByCustomer[order.customerName] ?? 0) > 1,
+            onTap: () => onTap(order),
+          ),
         ),
     ],
   );
 }
 
 class _OrderCard extends StatelessWidget {
-  const _OrderCard({required this.order, required this.onTap});
+  const _OrderCard({
+    required this.order,
+    required this.isRepeatCustomer,
+    required this.onTap,
+  });
 
   final ShopOrder order;
+  final bool isRepeatCustomer;
   final VoidCallback onTap;
 
   @override
@@ -173,11 +333,38 @@ class _OrderCard extends StatelessWidget {
                   children: [
                     Text(order.bagTitle, style: context.type.title),
                     const SizedBox(height: Space.x1),
-                    Text(
-                      'For ${order.customerName}',
-                      style: context.type.body.copyWith(
-                        color: colors.textSecondary,
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            'For ${order.customerName}',
+                            overflow: TextOverflow.ellipsis,
+                            style: context.type.body.copyWith(
+                              color: colors.textSecondary,
+                            ),
+                          ),
+                        ),
+                        if (isRepeatCustomer) ...[
+                          const SizedBox(width: Space.x2),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: Space.x2,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colors.info.bg,
+                              borderRadius: BorderRadius.circular(Radii.full),
+                            ),
+                            child: Text(
+                              'Repeat',
+                              style: context.type.caption.copyWith(
+                                color: colors.info.fg,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),

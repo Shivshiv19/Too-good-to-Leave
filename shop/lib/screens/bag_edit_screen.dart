@@ -49,6 +49,7 @@ class _BagEditScreenState extends State<BagEditScreen> {
       : const TimeOfDay(hour: 20, minute: 0);
   late Uint8List? _photoBytes = widget.existing?.photoBytes;
   late bool _repeatsDaily = widget.existing?.repeatsDaily ?? false;
+  late final Set<String> _tags = {...?widget.existing?.tags};
 
   Future<void> _pickPhoto() async {
     final picked = await ImagePicker().pickImage(
@@ -113,6 +114,7 @@ class _BagEditScreenState extends State<BagEditScreen> {
         pickupWindow: pickupWindow,
         photoBytes: _photoBytes,
         repeatsDaily: _repeatsDaily,
+        tags: _tags.toList(),
       );
     } else {
       await widget.repository.updateBag(
@@ -126,6 +128,7 @@ class _BagEditScreenState extends State<BagEditScreen> {
           status: _status,
           photoBytes: _photoBytes,
           repeatsDaily: _repeatsDaily,
+          tags: _tags.toList(),
         ),
       );
     }
@@ -227,6 +230,23 @@ class _BagEditScreenState extends State<BagEditScreen> {
                       onTap: () => _pickTime(isStart: false),
                     ),
                   ),
+                ],
+              ),
+              const SizedBox(height: Space.x4),
+              Text('Tags', style: context.type.label),
+              const SizedBox(height: Space.x2),
+              Wrap(
+                spacing: Space.x2,
+                runSpacing: Space.x2,
+                children: [
+                  for (final tag in bagTagOptions)
+                    FilterChip(
+                      label: Text(tag),
+                      selected: _tags.contains(tag),
+                      onSelected: (selected) => setState(
+                        () => selected ? _tags.add(tag) : _tags.remove(tag),
+                      ),
+                    ),
                 ],
               ),
               const SizedBox(height: Space.x4),

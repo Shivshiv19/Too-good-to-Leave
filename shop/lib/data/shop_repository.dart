@@ -318,6 +318,7 @@ class ShopRepository extends ChangeNotifier {
     required PickupWindow pickupWindow,
     Uint8List? photoBytes,
     bool repeatsDaily = false,
+    List<String> tags = const [],
   }) async {
     final bag = ShopBag(
       id: 'bag_${_nextBagId++}',
@@ -329,6 +330,7 @@ class ShopRepository extends ChangeNotifier {
       pickupWindow: pickupWindow,
       photoBytes: photoBytes,
       repeatsDaily: repeatsDaily,
+      tags: tags,
     );
     _bags.add(bag);
     notifyListeners();
@@ -376,7 +378,24 @@ class ShopRepository extends ChangeNotifier {
       ),
       photoBytes: source.photoBytes,
       repeatsDaily: source.repeatsDaily,
+      tags: source.tags,
     );
+  }
+
+  /// Duplicates every currently-live bag for tomorrow in one action — the
+  /// bulk version of the per-bag "Duplicate for tomorrow" button, for a
+  /// shop that re-lists most of its catalog daily rather than one bag at
+  /// a time.
+  Future<List<ShopBag>> duplicateAllLiveBagsForTomorrow() async {
+    final liveIds = _bags
+        .where((b) => b.status == BagStatus.live)
+        .map((b) => b.id)
+        .toList();
+    final created = <ShopBag>[];
+    for (final id in liveIds) {
+      created.add(await duplicateBag(id));
+    }
+    return created;
   }
 
   /// Quick live/paused flip from the bag list, without opening the full

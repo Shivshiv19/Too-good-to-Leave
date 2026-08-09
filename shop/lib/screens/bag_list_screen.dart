@@ -2,19 +2,46 @@ import 'package:flutter/material.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/core/utils/formatters.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
+import 'package:too_good_to_leave_shop/design_system/components/app_button.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/domain/shop_bag.dart';
 import 'package:too_good_to_leave_shop/screens/bag_edit_screen.dart';
 
-class BagListScreen extends StatelessWidget {
+/// A live bag at or below this stock level gets a low-stock badge.
+const _lowStockThreshold = 2;
+
+class BagListScreen extends StatefulWidget {
   const BagListScreen({required this.repository, super.key});
 
   final ShopRepository repository;
 
+  @override
+  State<BagListScreen> createState() => _BagListScreenState();
+}
+
+class _BagListScreenState extends State<BagListScreen> {
+  String? _tagFilter;
+
   void _openEditor(BuildContext context, [ShopBag? bag]) {
     Navigator.of(context).push<void>(
       MaterialPageRoute(
-        builder: (_) => BagEditScreen(repository: repository, existing: bag),
+        builder: (_) =>
+            BagEditScreen(repository: widget.repository, existing: bag),
+      ),
+    );
+  }
+
+  Future<void> _duplicateAllLive(BuildContext context) async {
+    final created = await widget.repository.duplicateAllLiveBagsForTomorrow();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          created.isEmpty
+              ? 'No live bags to duplicate.'
+              : 'Duplicated ${created.length} bag'
+                    '${created.length == 1 ? '' : 's'} for tomorrow.',
+        ),
       ),
     );
   }
@@ -24,16 +51,42 @@ class BagListScreen extends StatelessWidget {
     final colors = context.colors;
 
     return ListenableBuilder(
-      listenable: repository,
+      listenable: widget.repository,
       builder: (context, _) {
-        final bags = repository.getBags();
+        final allBags = widget.repository.getBags();
+        final bags = _tagFilter == null
+            ? allBags
+            : allBags.where((b) => b.tags.contains(_tagFilter)).toList();
+        final lowStockCount = allBags
+            .where(
+              (b) =>
+                  b.status == BagStatus.live &&
+                  b.quantityAvailable > 0 &&
+                  b.quantityAvailable <= _lowStockThreshold,
+            )
+            .length;
+        final hasLiveBags = allBags.any((b) => b.status == BagStatus.live);
+
         return Scaffold(
           backgroundColor: colors.surfaceBase,
           appBar: AppBar(
             backgroundColor: colors.surfaceBase,
             title: Text('Your bags', style: context.type.title),
+            actions: [
+              if (hasLiveBags)
+                Padding(
+                  padding: const EdgeInsets.only(right: Space.x3),
+                  child: AppButton(
+                    label: 'Duplicate all live for tomorrow',
+                    variant: AppButtonVariant.tertiary,
+                    icon: Icons.copy_all_outlined,
+                    expand: false,
+                    onPressed: () => _duplicateAllLive(context),
+                  ),
+                ),
+            ],
           ),
-          body: bags.isEmpty
+          body: allBags.isEmpty
               ? Center(
                   child: Text(
                     'No bags yet — add your first surprise bag.',
@@ -44,21 +97,85 @@ class BagListScreen extends StatelessWidget {
                 )
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(Space.x4),
-                  child: Wrap(
-                    spacing: Space.x3,
-                    runSpacing: Space.x3,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      for (final bag in bags)
-                        SizedBox(
-                          width: 400,
-                          child: _BagCard(
-                            bag: bag,
-                            onTap: () => _openEditor(context, bag),
-                            onToggleAvailability: () =>
-                                repository.toggleAvailability(bag.id),
-                            onDuplicate: () =>
-                                repository.duplicateBag(bag.id),
+                      if (lowStockCount > 0)
+                        Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: Space.x4),
+                          padding: const EdgeInsets.all(Space.x3),
+                          decoration: BoxDecoration(
+                            color: colors.attention.bg,
+                            borderRadius: BorderRadius.circular(Radii.sm),
                           ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.warning_amber,
+                                size: 18,
+                                color: colors.attention.fg,
+                              ),
+                              const SizedBox(width: Space.x2),
+                              Expanded(
+                                child: Text(
+                                  '$lowStockCount live bag'
+                                  '${lowStockCount == 1 ? ' is' : 's are'} '
+                                  'running low on stock ($_lowStockThreshold '
+                                  'or fewer left).',
+                                  style: context.type.body.copyWith(
+                                    color: colors.attention.fg,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      Wrap(
+                        spacing: Space.x2,
+                        runSpacing: Space.x2,
+                        children: [
+                          _TagChip(
+                            label: 'All',
+                            selected: _tagFilter == null,
+                            onSelected: () =>
+                                setState(() => _tagFilter = null),
+                          ),
+                          for (final tag in bagTagOptions)
+                            _TagChip(
+                              label: tag,
+                              selected: _tagFilter == tag,
+                              onSelected: () =>
+                                  setState(() => _tagFilter = tag),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: Space.x4),
+                      if (bags.isEmpty)
+                        Text(
+                          'No bags with this tag.',
+                          style: context.type.body.copyWith(
+                            color: colors.textSecondary,
+                          ),
+                        )
+                      else
+                        Wrap(
+                          spacing: Space.x3,
+                          runSpacing: Space.x3,
+                          children: [
+                            for (final bag in bags)
+                              SizedBox(
+                                width: 400,
+                                child: _BagCard(
+                                  bag: bag,
+                                  onTap: () => _openEditor(context, bag),
+                                  onToggleAvailability: () => widget.repository
+                                      .toggleAvailability(bag.id),
+                                  onDuplicate: () =>
+                                      widget.repository.duplicateBag(bag.id),
+                                ),
+                              ),
+                          ],
                         ),
                     ],
                   ),
@@ -76,6 +193,44 @@ class BagListScreen extends StatelessWidget {
   }
 }
 
+class _TagChip extends StatelessWidget {
+  const _TagChip({
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return Material(
+      color: selected ? colors.actionPrimaryBg : colors.surfaceRaised,
+      borderRadius: BorderRadius.circular(Radii.sm),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(Radii.sm),
+        onTap: onSelected,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: Space.x3,
+            vertical: Space.x2,
+          ),
+          child: Text(
+            label,
+            style: context.type.label.copyWith(
+              color: selected ? colors.actionPrimaryFg : colors.textPrimary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _BagCard extends StatelessWidget {
   const _BagCard({
     required this.bag,
@@ -88,6 +243,11 @@ class _BagCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onToggleAvailability;
   final VoidCallback onDuplicate;
+
+  bool get _isLowStock =>
+      bag.status == BagStatus.live &&
+      bag.quantityAvailable > 0 &&
+      bag.quantityAvailable <= _lowStockThreshold;
 
   @override
   Widget build(BuildContext context) {
@@ -131,22 +291,52 @@ class _BagCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: Space.x2),
-                        Row(
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: Space.x2,
+                          runSpacing: Space.x1,
                           children: [
                             Text(
                               '${Fmt.money(bag.price)} · ${bag.quantityAvailable} left',
                               style: context.type.label,
                             ),
-                            if (bag.repeatsDaily) ...[
-                              const SizedBox(width: Space.x2),
+                            if (bag.repeatsDaily)
                               Icon(
                                 Icons.repeat,
                                 size: 14,
                                 color: colors.textTertiary,
                               ),
-                            ],
+                            if (_isLowStock)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: Space.x2,
+                                  vertical: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: colors.attention.bg,
+                                  borderRadius: BorderRadius.circular(
+                                    Radii.full,
+                                  ),
+                                ),
+                                child: Text(
+                                  'Low stock',
+                                  style: context.type.caption.copyWith(
+                                    color: colors.attention.fg,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
+                        if (bag.tags.isNotEmpty) ...[
+                          const SizedBox(height: Space.x1),
+                          Text(
+                            bag.tags.join(' · '),
+                            style: context.type.caption.copyWith(
+                              color: colors.textTertiary,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

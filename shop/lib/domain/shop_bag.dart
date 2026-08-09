@@ -29,6 +29,18 @@ PickupWindow _pickupWindowFromJson(Map<String, dynamic> json) => PickupWindow(
   endAt: DateTime.parse(json['endAt'] as String),
 );
 
+/// Fixed vocabulary for [ShopBag.tags] — a small, shop-editable set of
+/// meal-time/category labels (distinct from the shop's own single
+/// [ShopCategory], which describes the business, not any one bag).
+const bagTagOptions = [
+  'Breakfast',
+  'Lunch',
+  'Dinner',
+  'Dessert',
+  'Snacks',
+  'Beverages',
+];
+
 /// Whether a listing is visible to customers.
 enum BagStatus {
   /// Being edited, not yet visible.
@@ -59,6 +71,7 @@ final class ShopBag {
     this.status = BagStatus.draft,
     this.photoBytes,
     this.repeatsDaily = false,
+    this.tags = const [],
   });
 
   final String id;
@@ -69,6 +82,10 @@ final class ShopBag {
   final int quantityAvailable;
   final PickupWindow pickupWindow;
   final BagStatus status;
+
+  /// Meal-time/category labels from [bagTagOptions] — lets a shop filter
+  /// its own catalog once it has more than a handful of bags.
+  final List<String> tags;
 
   /// `null` renders the design system's own placeholder convention — a
   /// striped block with a caption — rather than a broken-image icon.
@@ -90,6 +107,7 @@ final class ShopBag {
     BagStatus? status,
     Uint8List? photoBytes,
     bool? repeatsDaily,
+    List<String>? tags,
   }) => ShopBag(
     id: id,
     title: title ?? this.title,
@@ -101,6 +119,7 @@ final class ShopBag {
     status: status ?? this.status,
     photoBytes: photoBytes ?? this.photoBytes,
     repeatsDaily: repeatsDaily ?? this.repeatsDaily,
+    tags: tags ?? this.tags,
   );
 
   Map<String, dynamic> toJson() => {
@@ -114,6 +133,7 @@ final class ShopBag {
     'status': status.name,
     'photoBytes': photoBytes == null ? null : base64Encode(photoBytes!),
     'repeatsDaily': repeatsDaily,
+    'tags': tags,
   };
 
   factory ShopBag.fromJson(Map<String, dynamic> json) => ShopBag(
@@ -131,5 +151,6 @@ final class ShopBag {
         ? null
         : base64Decode(json['photoBytes'] as String),
     repeatsDaily: json['repeatsDaily'] as bool? ?? false,
+    tags: (json['tags'] as List<dynamic>?)?.cast<String>() ?? const [],
   );
 }
