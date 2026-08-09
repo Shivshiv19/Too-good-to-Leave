@@ -50,11 +50,7 @@ final class AppTypography extends ThemeExtension<AppTypography> {
   /// Not `const` — `GoogleFonts.*` resolves/loads the font at call time.
   factory AppTypography.standard() => AppTypography(
     display: _sora(fontSize: 32, height: 40 / 32, fontWeight: FontWeight.w700),
-    headline: _sora(
-      fontSize: 24,
-      height: 32 / 24,
-      fontWeight: FontWeight.w700,
-    ),
+    headline: _sora(fontSize: 24, height: 32 / 24, fontWeight: FontWeight.w700),
     title: _sora(fontSize: 20, height: 28 / 20, fontWeight: FontWeight.w600),
     titleSmall: _sora(
       fontSize: 18,
@@ -67,11 +63,7 @@ final class AppTypography extends ThemeExtension<AppTypography> {
       fontWeight: FontWeight.w400,
     ),
     body: _inter(fontSize: 14, height: 22 / 14, fontWeight: FontWeight.w400),
-    caption: _inter(
-      fontSize: 12,
-      height: 18 / 12,
-      fontWeight: FontWeight.w400,
-    ),
+    caption: _inter(fontSize: 12, height: 18 / 12, fontWeight: FontWeight.w400),
     label: _inter(fontSize: 14, height: 20 / 14, fontWeight: FontWeight.w600),
     priceLarge: _inter(
       fontSize: 28,

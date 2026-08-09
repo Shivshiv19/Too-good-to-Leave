@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/design_system/components/app_button.dart';
+import 'package:too_good_to_leave_shop/design_system/components/max_width_body.dart';
+import 'package:too_good_to_leave_shop/design_system/foundations/breakpoints.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/domain/shop_category.dart';
 import 'package:too_good_to_leave_shop/domain/shop_profile.dart';
@@ -110,122 +112,134 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         backgroundColor: colors.surfaceBase,
         title: const Text('Register your shop'),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(Space.x4),
-          children: [
-            _SectionHeader('Business details'),
-            TextFormField(
-              controller: _businessName,
-              decoration: const InputDecoration(labelText: 'Business name'),
-              validator: _required,
-            ),
-            const SizedBox(height: Space.x3),
-            TextFormField(
-              controller: _ownerName,
-              decoration: const InputDecoration(labelText: 'Owner name'),
-              validator: _required,
-            ),
-            const SizedBox(height: Space.x3),
-            TextFormField(
-              controller: _phone,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Phone number'),
-              validator: _required,
-            ),
-            const SizedBox(height: Space.x3),
-            TextFormField(
-              controller: _email,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: 'Email'),
-              validator: _required,
-            ),
-            const SizedBox(height: Space.x3),
-            DropdownButtonFormField<ShopCategory>(
-              initialValue: _category,
-              decoration: const InputDecoration(labelText: 'Category'),
-              items: ShopCategory.values
-                  .map(
-                    (c) => DropdownMenuItem(value: c, child: Text(c.label)),
-                  )
-                  .toList(),
-              onChanged: (v) => setState(() => _category = v ?? _category),
-            ),
-
-            _SectionHeader('Location'),
-            TextFormField(
-              controller: _addressLine,
-              decoration: const InputDecoration(labelText: 'Address'),
-              validator: _required,
-            ),
-            const SizedBox(height: Space.x3),
-            TextFormField(
-              controller: _locality,
-              decoration: const InputDecoration(labelText: 'Locality / area'),
-              validator: _required,
-            ),
-
-            _SectionHeader('FSSAI licence'),
-            Text(
-              'Mandatory for any food business in India — this appears on '
-              'your public profile.',
-              style: context.type.caption.copyWith(
-                color: colors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: Space.x3),
-            TextFormField(
-              controller: _fssaiNumber,
-              decoration: const InputDecoration(labelText: 'Licence number'),
-              validator: _required,
-            ),
-            const SizedBox(height: Space.x3),
-            InkWell(
-              onTap: _pickFssaiExpiry,
-              child: InputDecorator(
-                decoration: const InputDecoration(labelText: 'Expiry date'),
-                child: Text(
-                  _fssaiExpiry == null
-                      ? 'Select date'
-                      : '${_fssaiExpiry!.day}/${_fssaiExpiry!.month}/${_fssaiExpiry!.year}',
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(Space.x4),
+        child: MaxWidthBody(
+          maxWidth: Breakpoints.formMaxWidth,
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _SectionHeader('Business details'),
+                TextFormField(
+                  controller: _businessName,
+                  decoration: const InputDecoration(labelText: 'Business name'),
+                  validator: _required,
                 ),
-              ),
-            ),
+                const SizedBox(height: Space.x3),
+                TextFormField(
+                  controller: _ownerName,
+                  decoration: const InputDecoration(labelText: 'Owner name'),
+                  validator: _required,
+                ),
+                const SizedBox(height: Space.x3),
+                TextFormField(
+                  controller: _phone,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(labelText: 'Phone number'),
+                  validator: _required,
+                ),
+                const SizedBox(height: Space.x3),
+                TextFormField(
+                  controller: _email,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(labelText: 'Email'),
+                  validator: _required,
+                ),
+                const SizedBox(height: Space.x3),
+                DropdownButtonFormField<ShopCategory>(
+                  initialValue: _category,
+                  decoration: const InputDecoration(labelText: 'Category'),
+                  items: ShopCategory.values
+                      .map(
+                        (c) => DropdownMenuItem(value: c, child: Text(c.label)),
+                      )
+                      .toList(),
+                  onChanged: (v) => setState(() => _category = v ?? _category),
+                ),
 
-            _SectionHeader('Payout details'),
-            TextFormField(
-              controller: _accountHolderName,
-              decoration: const InputDecoration(
-                labelText: 'Account holder name',
-              ),
-              validator: _required,
-            ),
-            const SizedBox(height: Space.x3),
-            TextFormField(
-              controller: _accountNumber,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Account number'),
-              validator: _required,
-            ),
-            const SizedBox(height: Space.x3),
-            TextFormField(
-              controller: _ifscCode,
-              textCapitalization: TextCapitalization.characters,
-              decoration: const InputDecoration(labelText: 'IFSC code'),
-              validator: _required,
-            ),
-            const SizedBox(height: Space.x3),
-            TextFormField(
-              controller: _upiId,
-              decoration: const InputDecoration(
-                labelText: 'UPI ID (optional)',
-              ),
-            ),
+                _SectionHeader('Location'),
+                TextFormField(
+                  controller: _addressLine,
+                  decoration: const InputDecoration(labelText: 'Address'),
+                  validator: _required,
+                ),
+                const SizedBox(height: Space.x3),
+                TextFormField(
+                  controller: _locality,
+                  decoration: const InputDecoration(
+                    labelText: 'Locality / area',
+                  ),
+                  validator: _required,
+                ),
 
-            const SizedBox(height: Space.x8),
-            AppButton(label: 'Submit for review', onPressed: _submit),
-          ],
+                _SectionHeader('FSSAI licence'),
+                Text(
+                  'Mandatory for any food business in India — this appears on '
+                  'your public profile.',
+                  style: context.type.caption.copyWith(
+                    color: colors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: Space.x3),
+                TextFormField(
+                  controller: _fssaiNumber,
+                  decoration: const InputDecoration(
+                    labelText: 'Licence number',
+                  ),
+                  validator: _required,
+                ),
+                const SizedBox(height: Space.x3),
+                InkWell(
+                  onTap: _pickFssaiExpiry,
+                  child: InputDecorator(
+                    decoration: const InputDecoration(labelText: 'Expiry date'),
+                    child: Text(
+                      _fssaiExpiry == null
+                          ? 'Select date'
+                          : '${_fssaiExpiry!.day}/${_fssaiExpiry!.month}/${_fssaiExpiry!.year}',
+                    ),
+                  ),
+                ),
+
+                _SectionHeader('Payout details'),
+                TextFormField(
+                  controller: _accountHolderName,
+                  decoration: const InputDecoration(
+                    labelText: 'Account holder name',
+                  ),
+                  validator: _required,
+                ),
+                const SizedBox(height: Space.x3),
+                TextFormField(
+                  controller: _accountNumber,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Account number',
+                  ),
+                  validator: _required,
+                ),
+                const SizedBox(height: Space.x3),
+                TextFormField(
+                  controller: _ifscCode,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: const InputDecoration(labelText: 'IFSC code'),
+                  validator: _required,
+                ),
+                const SizedBox(height: Space.x3),
+                TextFormField(
+                  controller: _upiId,
+                  decoration: const InputDecoration(
+                    labelText: 'UPI ID (optional)',
+                  ),
+                ),
+
+                const SizedBox(height: Space.x8),
+                AppButton(label: 'Submit for review', onPressed: _submit),
+              ],
+            ),
+          ),
         ),
       ),
     );

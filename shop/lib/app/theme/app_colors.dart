@@ -35,15 +35,12 @@ final class FeedbackPalette {
   /// Container outline.
   final Color border;
 
-  static FeedbackPalette lerp(
-    FeedbackPalette a,
-    FeedbackPalette b,
-    double t,
-  ) => FeedbackPalette(
-    fg: Color.lerp(a.fg, b.fg, t)!,
-    bg: Color.lerp(a.bg, b.bg, t)!,
-    border: Color.lerp(a.border, b.border, t)!,
-  );
+  static FeedbackPalette lerp(FeedbackPalette a, FeedbackPalette b, double t) =>
+      FeedbackPalette(
+        fg: Color.lerp(a.fg, b.fg, t)!,
+        bg: Color.lerp(a.bg, b.bg, t)!,
+        border: Color.lerp(a.border, b.border, t)!,
+      );
 }
 
 /// # LAYER 2 — Semantic colour tokens

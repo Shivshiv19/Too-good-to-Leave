@@ -78,9 +78,7 @@ void main() {
   testWidgets('a verified shop launches to the bag list with seeded fixtures', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      ShopApp(repository: await _verifiedRepository()),
-    );
+    await tester.pumpWidget(ShopApp(repository: await _verifiedRepository()));
     await tester.pumpAndSettle();
 
     expect(find.text('Your bags'), findsOneWidget);
@@ -88,9 +86,7 @@ void main() {
   });
 
   testWidgets('Orders tab shows seeded orders', (tester) async {
-    await tester.pumpWidget(
-      ShopApp(repository: await _verifiedRepository()),
-    );
+    await tester.pumpWidget(ShopApp(repository: await _verifiedRepository()));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Orders'));
@@ -102,9 +98,7 @@ void main() {
 
   testWidgets('Account tab shows business details and logging out returns '
       'to registration', (tester) async {
-    await tester.pumpWidget(
-      ShopApp(repository: await _verifiedRepository()),
-    );
+    await tester.pumpWidget(ShopApp(repository: await _verifiedRepository()));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Account'));
@@ -117,7 +111,10 @@ void main() {
     // scroll straight to the bottom rather than use ensureVisible, which
     // needs its target to resolve to exactly one widget and gets confused
     // now that the screen has more on it.
-    await tester.drag(find.byType(ListView), const Offset(0, -2000));
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(0, -2000),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Log out'));
     await tester.pumpAndSettle();
@@ -160,15 +157,18 @@ void main() {
       );
     });
 
-    test('logOut clears persisted state so the next load starts fresh', () async {
-      final first = await ShopRepository.load();
-      await first.register(_testProfile());
+    test(
+      'logOut clears persisted state so the next load starts fresh',
+      () async {
+        final first = await ShopRepository.load();
+        await first.register(_testProfile());
 
-      await first.logOut();
+        await first.logOut();
 
-      final reloaded = await ShopRepository.load();
-      expect(reloaded.profile, isNull);
-    });
+        final reloaded = await ShopRepository.load();
+        expect(reloaded.profile, isNull);
+      },
+    );
 
     test('a bag photo survives a fresh load()', () async {
       final first = await ShopRepository.load();
@@ -184,35 +184,36 @@ void main() {
       );
 
       final reloaded = await ShopRepository.load();
-      final reloadedBag = reloaded.getBags().firstWhere(
-        (b) => b.id == bag.id,
-      );
+      final reloadedBag = reloaded.getBags().firstWhere((b) => b.id == bag.id);
       expect(reloadedBag.photoBytes, photo);
     });
   });
 
   group('listings', () {
-    test('duplicateBag copies details into a new draft shifted a day', () async {
-      final repo = ShopRepository();
-      final source = repo.getBags().first;
+    test(
+      'duplicateBag copies details into a new draft shifted a day',
+      () async {
+        final repo = ShopRepository();
+        final source = repo.getBags().first;
 
-      final copy = await repo.duplicateBag(source.id);
+        final copy = await repo.duplicateBag(source.id);
 
-      expect(copy.id, isNot(source.id));
-      expect(copy.title, source.title);
-      expect(copy.price, source.price);
-      expect(
-        copy.pickupWindow.startAt.difference(source.pickupWindow.startAt),
-        const Duration(days: 1),
-      );
-    });
+        expect(copy.id, isNot(source.id));
+        expect(copy.title, source.title);
+        expect(copy.price, source.price);
+        expect(
+          copy.pickupWindow.startAt.difference(source.pickupWindow.startAt),
+          const Duration(days: 1),
+        );
+      },
+    );
 
     test('toggleAvailability flips live and paused, but not draft', () async {
       final repo = ShopRepository();
       final live = repo.getBags().firstWhere((b) => b.status == BagStatus.live);
-      final draft = repo
-          .getBags()
-          .firstWhere((b) => b.status == BagStatus.draft);
+      final draft = repo.getBags().firstWhere(
+        (b) => b.status == BagStatus.draft,
+      );
 
       await repo.toggleAvailability(live.id);
       expect(
@@ -231,9 +232,9 @@ void main() {
   group('order lifecycle', () {
     test('markNoShow moves a reserved order to expired', () async {
       final repo = ShopRepository();
-      final reserved = repo
-          .getOrders()
-          .firstWhere((o) => o.status == ShopOrderStatus.reserved);
+      final reserved = repo.getOrders().firstWhere(
+        (o) => o.status == ShopOrderStatus.reserved,
+      );
 
       await repo.markNoShow(reserved.id);
 
@@ -245,9 +246,9 @@ void main() {
 
     test('markNoShow does not touch an already-collected order', () async {
       final repo = ShopRepository();
-      final collected = repo
-          .getOrders()
-          .firstWhere((o) => o.status == ShopOrderStatus.collected);
+      final collected = repo.getOrders().firstWhere(
+        (o) => o.status == ShopOrderStatus.collected,
+      );
 
       await repo.markNoShow(collected.id);
 
@@ -259,9 +260,9 @@ void main() {
 
     test('cancelOrder moves a reserved order to cancelled', () async {
       final repo = ShopRepository();
-      final reserved = repo
-          .getOrders()
-          .firstWhere((o) => o.status == ShopOrderStatus.reserved);
+      final reserved = repo.getOrders().firstWhere(
+        (o) => o.status == ShopOrderStatus.reserved,
+      );
 
       await repo.cancelOrder(reserved.id);
 
@@ -273,9 +274,9 @@ void main() {
 
     test('cancelOrder does not touch an already-collected order', () async {
       final repo = ShopRepository();
-      final collected = repo
-          .getOrders()
-          .firstWhere((o) => o.status == ShopOrderStatus.collected);
+      final collected = repo.getOrders().firstWhere(
+        (o) => o.status == ShopOrderStatus.collected,
+      );
 
       await repo.cancelOrder(collected.id);
 
@@ -290,9 +291,9 @@ void main() {
     test('totalEarnedAllTime and pendingPayoutAmount start equal, net of '
         'commission on the one seeded collected order', () {
       final repo = ShopRepository();
-      final collected = repo
-          .getOrders()
-          .firstWhere((o) => o.status == ShopOrderStatus.collected);
+      final collected = repo.getOrders().firstWhere(
+        (o) => o.status == ShopOrderStatus.collected,
+      );
       final expectedNet = EarningsBreakdown(gross: collected.price).net;
 
       expect(repo.totalEarnedAllTime, expectedNet);
@@ -349,9 +350,9 @@ void main() {
       final repo = ShopRepository();
       expect(repo.unreadNotificationCount, 0);
 
-      final reserved = repo
-          .getOrders()
-          .firstWhere((o) => o.status == ShopOrderStatus.reserved);
+      final reserved = repo.getOrders().firstWhere(
+        (o) => o.status == ShopOrderStatus.reserved,
+      );
       await repo.confirmPickupByCode(
         orderId: reserved.id,
         code: reserved.token.fallbackCode,
@@ -367,9 +368,9 @@ void main() {
 
     test('markAllNotificationsRead clears the unread count', () async {
       final repo = ShopRepository();
-      final reserved = repo
-          .getOrders()
-          .firstWhere((o) => o.status == ShopOrderStatus.reserved);
+      final reserved = repo.getOrders().firstWhere(
+        (o) => o.status == ShopOrderStatus.reserved,
+      );
       await repo.markNoShow(reserved.id);
       expect(repo.unreadNotificationCount, 1);
 
@@ -383,9 +384,9 @@ void main() {
   group('persistence', () {
     test('notifications survive a fresh load()', () async {
       final first = await ShopRepository.load();
-      final reserved = first
-          .getOrders()
-          .firstWhere((o) => o.status == ShopOrderStatus.reserved);
+      final reserved = first.getOrders().firstWhere(
+        (o) => o.status == ShopOrderStatus.reserved,
+      );
       await first.cancelOrder(reserved.id);
 
       final reloaded = await ShopRepository.load();
@@ -423,10 +424,7 @@ void main() {
     test('withDay only changes the targeted day', () {
       final hours = StoreHours.defaults();
 
-      final updated = hours.withDay(
-        2,
-        hours.days[2].copyWith(isOpen: false),
-      );
+      final updated = hours.withDay(2, hours.days[2].copyWith(isOpen: false));
 
       expect(updated.days[2].isOpen, false);
       for (var i = 0; i < updated.days.length; i++) {

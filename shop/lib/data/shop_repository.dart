@@ -76,24 +76,24 @@ class ShopRepository extends ChangeNotifier {
     }
     if (bagsJson != null) {
       repo._bags.addAll(
-        (jsonDecode(bagsJson) as List)
-            .cast<Map<String, dynamic>>()
-            .map(ShopBag.fromJson),
+        (jsonDecode(bagsJson) as List).cast<Map<String, dynamic>>().map(
+          ShopBag.fromJson,
+        ),
       );
       repo._recomputeNextBagId();
     }
     if (ordersJson != null) {
       repo._orders.addAll(
-        (jsonDecode(ordersJson) as List)
-            .cast<Map<String, dynamic>>()
-            .map(ShopOrder.fromJson),
+        (jsonDecode(ordersJson) as List).cast<Map<String, dynamic>>().map(
+          ShopOrder.fromJson,
+        ),
       );
     }
     if (payoutsJson != null) {
       repo._payouts.addAll(
-        (jsonDecode(payoutsJson) as List)
-            .cast<Map<String, dynamic>>()
-            .map(PayoutRecord.fromJson),
+        (jsonDecode(payoutsJson) as List).cast<Map<String, dynamic>>().map(
+          PayoutRecord.fromJson,
+        ),
       );
     }
     if (notificationsJson != null) {
@@ -536,9 +536,8 @@ class ShopRepository extends ChangeNotifier {
   // ---------------------------------------------------------------------
 
   /// Newest first — [_addNotification] inserts at index 0.
-  List<ShopNotification> getNotifications() => List.unmodifiable(
-    _notifications,
-  );
+  List<ShopNotification> getNotifications() =>
+      List.unmodifiable(_notifications);
 
   int get unreadNotificationCount =>
       _notifications.where((n) => !n.read).length;

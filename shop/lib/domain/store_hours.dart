@@ -1,6 +1,10 @@
 /// One weekday's operating hours.
 final class DayHours {
-  const DayHours({required this.isOpen, this.openHour = 9, this.closeHour = 21});
+  const DayHours({
+    required this.isOpen,
+    this.openHour = 9,
+    this.closeHour = 21,
+  });
 
   final bool isOpen;
 
@@ -11,12 +15,11 @@ final class DayHours {
   final int openHour;
   final int closeHour;
 
-  DayHours copyWith({bool? isOpen, int? openHour, int? closeHour}) =>
-      DayHours(
-        isOpen: isOpen ?? this.isOpen,
-        openHour: openHour ?? this.openHour,
-        closeHour: closeHour ?? this.closeHour,
-      );
+  DayHours copyWith({bool? isOpen, int? openHour, int? closeHour}) => DayHours(
+    isOpen: isOpen ?? this.isOpen,
+    openHour: openHour ?? this.openHour,
+    closeHour: closeHour ?? this.closeHour,
+  );
 
   Map<String, dynamic> toJson() => {
     'isOpen': isOpen,

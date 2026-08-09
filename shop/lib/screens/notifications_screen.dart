@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
+import 'package:too_good_to_leave_shop/design_system/components/max_width_body.dart';
+import 'package:too_good_to_leave_shop/design_system/foundations/breakpoints.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/domain/shop_notification.dart';
 
@@ -48,12 +50,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     ),
                   ),
                 )
-              : ListView.separated(
+              : SingleChildScrollView(
                   padding: const EdgeInsets.all(Space.x4),
-                  itemCount: notifications.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: Space.x3),
-                  itemBuilder: (context, index) =>
-                      _NotificationTile(notification: notifications[index]),
+                  child: MaxWidthBody(
+                    maxWidth: Breakpoints.formMaxWidth,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (final n in notifications)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: Space.x3),
+                            child: _NotificationTile(notification: n),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
         );
       },

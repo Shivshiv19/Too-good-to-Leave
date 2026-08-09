@@ -12,8 +12,7 @@ final class EarningsBreakdown {
 
   final Money gross;
 
-  Money get commission =>
-      Money((gross.amountInPaise * commissionRate).round());
+  Money get commission => Money((gross.amountInPaise * commissionRate).round());
 
   Money get net => gross - commission;
 }

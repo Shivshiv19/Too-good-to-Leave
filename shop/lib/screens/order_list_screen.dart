@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
+import 'package:too_good_to_leave_shop/design_system/components/max_width_body.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/domain/shop_order.dart';
 import 'package:too_good_to_leave_shop/screens/order_detail_screen.dart';
@@ -74,49 +75,39 @@ class OrderListScreen extends StatelessWidget {
                     ),
                   ),
                 )
-              : ListView(
+              : SingleChildScrollView(
                   padding: const EdgeInsets.all(Space.x4),
-                  children: [
-                    if (needsPrep.isNotEmpty) ...[
-                      _SectionHeader('Needs prep now'),
-                      ...needsPrep.map(
-                        (o) => Padding(
-                          padding: const EdgeInsets.only(bottom: Space.x3),
-                          child: _OrderCard(
-                            order: o,
-                            onTap: () => _openOrder(context, o),
+                  child: MaxWidthBody(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (needsPrep.isNotEmpty) ...[
+                          _SectionHeader('Needs prep now'),
+                          _OrderWrap(
+                            orders: needsPrep,
+                            onTap: (o) => _openOrder(context, o),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: Space.x3),
-                    ],
-                    if (overdue.isNotEmpty) ...[
-                      _SectionHeader('Overdue — no-show?'),
-                      ...overdue.map(
-                        (o) => Padding(
-                          padding: const EdgeInsets.only(bottom: Space.x3),
-                          child: _OrderCard(
-                            order: o,
-                            onTap: () => _openOrder(context, o),
+                          const SizedBox(height: Space.x5),
+                        ],
+                        if (overdue.isNotEmpty) ...[
+                          _SectionHeader('Overdue — no-show?'),
+                          _OrderWrap(
+                            orders: overdue,
+                            onTap: (o) => _openOrder(context, o),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: Space.x3),
-                    ],
-                    if (rest.isNotEmpty) ...[
-                      if (needsPrep.isNotEmpty || overdue.isNotEmpty)
-                        _SectionHeader('All orders'),
-                      ...rest.map(
-                        (o) => Padding(
-                          padding: const EdgeInsets.only(bottom: Space.x3),
-                          child: _OrderCard(
-                            order: o,
-                            onTap: () => _openOrder(context, o),
+                          const SizedBox(height: Space.x5),
+                        ],
+                        if (rest.isNotEmpty) ...[
+                          if (needsPrep.isNotEmpty || overdue.isNotEmpty)
+                            _SectionHeader('All orders'),
+                          _OrderWrap(
+                            orders: rest,
+                            onTap: (o) => _openOrder(context, o),
                           ),
-                        ),
-                      ),
-                    ],
-                  ],
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
         );
       },
@@ -136,6 +127,26 @@ class _SectionHeader extends StatelessWidget {
       text,
       style: context.type.label.copyWith(color: context.colors.textSecondary),
     ),
+  );
+}
+
+class _OrderWrap extends StatelessWidget {
+  const _OrderWrap({required this.orders, required this.onTap});
+
+  final List<ShopOrder> orders;
+  final ValueChanged<ShopOrder> onTap;
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+    spacing: Space.x3,
+    runSpacing: Space.x3,
+    children: [
+      for (final order in orders)
+        SizedBox(
+          width: 380,
+          child: _OrderCard(order: order, onTap: () => onTap(order)),
+        ),
+    ],
   );
 }
 

@@ -38,20 +38,16 @@ abstract final class AppTheme {
         onSurface: colors.textPrimary,
       ),
 
-      textTheme:
-          TextTheme(
-            displaySmall: type.display,
-            headlineMedium: type.headline,
-            titleLarge: type.title,
-            titleMedium: type.titleSmall,
-            bodyLarge: type.bodyLarge,
-            bodyMedium: type.body,
-            bodySmall: type.caption,
-            labelLarge: type.label,
-          ).apply(
-            bodyColor: colors.textPrimary,
-            displayColor: colors.textPrimary,
-          ),
+      textTheme: TextTheme(
+        displaySmall: type.display,
+        headlineMedium: type.headline,
+        titleLarge: type.title,
+        titleMedium: type.titleSmall,
+        bodyLarge: type.bodyLarge,
+        bodyMedium: type.body,
+        bodySmall: type.caption,
+        labelLarge: type.label,
+      ).apply(bodyColor: colors.textPrimary, displayColor: colors.textPrimary),
 
       // Material's default 36 dp is below our floor.
       materialTapTargetSize: MaterialTapTargetSize.padded,

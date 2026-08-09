@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
+import 'package:too_good_to_leave_shop/design_system/components/max_width_body.dart';
+import 'package:too_good_to_leave_shop/design_system/foundations/breakpoints.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 
 const _faqs = [
@@ -54,61 +56,67 @@ class HelpScreen extends StatelessWidget {
         backgroundColor: colors.surfaceBase,
         title: Text('Help & support', style: context.type.title),
       ),
-      body: ListView(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(Space.x4),
-        children: [
-          Text('Frequently asked', style: context.type.title),
-          const SizedBox(height: Space.x3),
-          ...(_faqs.map(
-            (faq) => Padding(
-              padding: const EdgeInsets.only(bottom: Space.x2),
-              child: _FaqTile(question: faq.$1, answer: faq.$2),
-            ),
-          )),
-          const SizedBox(height: Space.x6),
-          Text('Contact', style: context.type.title),
-          const SizedBox(height: Space.x3),
-          Container(
-            padding: const EdgeInsets.all(Space.x4),
-            decoration: BoxDecoration(
-              color: colors.surfaceRaised,
-              borderRadius: BorderRadius.circular(Radii.card),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Grievance officer',
-                  style: context.type.label.copyWith(
-                    color: colors.textSecondary,
-                  ),
+        child: MaxWidthBody(
+          maxWidth: Breakpoints.formMaxWidth,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Frequently asked', style: context.type.title),
+              const SizedBox(height: Space.x3),
+              ...(_faqs.map(
+                (faq) => Padding(
+                  padding: const EdgeInsets.only(bottom: Space.x2),
+                  child: _FaqTile(question: faq.$1, answer: faq.$2),
                 ),
-                const SizedBox(height: Space.x1),
-                Text(_grievanceOfficerName, style: context.type.body),
-                Text(
-                  _grievanceOfficerEmail,
-                  style: context.type.body.copyWith(
-                    color: colors.textSecondary,
-                  ),
+              )),
+              const SizedBox(height: Space.x6),
+              Text('Contact', style: context.type.title),
+              const SizedBox(height: Space.x3),
+              Container(
+                padding: const EdgeInsets.all(Space.x4),
+                decoration: BoxDecoration(
+                  color: colors.surfaceRaised,
+                  borderRadius: BorderRadius.circular(Radii.card),
                 ),
-                Text(
-                  _grievanceOfficerPhone,
-                  style: context.type.body.copyWith(
-                    color: colors.textSecondary,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Grievance officer',
+                      style: context.type.label.copyWith(
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: Space.x1),
+                    Text(_grievanceOfficerName, style: context.type.body),
+                    Text(
+                      _grievanceOfficerEmail,
+                      style: context.type.body.copyWith(
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                    Text(
+                      _grievanceOfficerPhone,
+                      style: context.type.body.copyWith(
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: Space.x2),
+                    Text(
+                      'Published per the Consumer Protection (E-commerce) '
+                      'Rules, 2020.',
+                      style: context.type.caption.copyWith(
+                        color: colors.textTertiary,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: Space.x2),
-                Text(
-                  'Published per the Consumer Protection (E-commerce) '
-                  'Rules, 2020.',
-                  style: context.type.caption.copyWith(
-                    color: colors.textTertiary,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

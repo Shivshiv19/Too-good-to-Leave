@@ -17,11 +17,10 @@ Map<String, dynamic> _pickupWindowToJson(PickupWindow window) => {
   'endAt': window.endAt.toIso8601String(),
 };
 
-PickupWindow _pickupWindowFromJson(Map<String, dynamic> json) =>
-    PickupWindow(
-      startAt: DateTime.parse(json['startAt'] as String),
-      endAt: DateTime.parse(json['endAt'] as String),
-    );
+PickupWindow _pickupWindowFromJson(Map<String, dynamic> json) => PickupWindow(
+  startAt: DateTime.parse(json['startAt'] as String),
+  endAt: DateTime.parse(json['endAt'] as String),
+);
 
 Map<String, dynamic> _tokenToJson(PickupToken token) => {
   'rotatingPayload': token.rotatingPayload,

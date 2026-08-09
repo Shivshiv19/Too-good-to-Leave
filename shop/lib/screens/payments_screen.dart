@@ -3,6 +3,7 @@ import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/core/utils/formatters.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/design_system/components/app_button.dart';
+import 'package:too_good_to_leave_shop/design_system/components/max_width_body.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/domain/payout.dart';
 import 'package:too_good_to_leave_shop/domain/shop_order.dart';
@@ -45,82 +46,98 @@ class PaymentsScreen extends StatelessWidget {
             backgroundColor: colors.surfaceBase,
             title: Text('Payments', style: context.type.title),
           ),
-          body: ListView(
+          body: SingleChildScrollView(
             padding: const EdgeInsets.all(Space.x4),
-            children: [
-              Container(
-                padding: const EdgeInsets.all(Space.x4),
-                decoration: BoxDecoration(
-                  color: colors.actionPrimaryBg,
-                  borderRadius: BorderRadius.circular(Radii.card),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+            child: MaxWidthBody(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(Space.x4),
+                    decoration: BoxDecoration(
+                      color: colors.actionPrimaryBg,
+                      borderRadius: BorderRadius.circular(Radii.card),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Available for payout',
+                          style: context.type.label.copyWith(
+                            color: colors.textOnAction.withValues(alpha: 0.8),
+                          ),
+                        ),
+                        const SizedBox(height: Space.x1),
+                        Text(
+                          Fmt.money(repository.pendingPayoutAmount),
+                          style: context.type.display.copyWith(
+                            color: colors.textOnAction,
+                          ),
+                        ),
+                        const SizedBox(height: Space.x1),
+                        Text(
+                          'All-time earned: ${Fmt.money(repository.totalEarnedAllTime)}',
+                          style: context.type.caption.copyWith(
+                            color: colors.textOnAction.withValues(alpha: 0.8),
+                          ),
+                        ),
+                        const SizedBox(height: Space.x4),
+                        SizedBox(
+                          width: 220,
+                          child: AppButton(
+                            label: 'Request payout',
+                            variant: AppButtonVariant.secondary,
+                            onPressed: () => _requestPayout(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: Space.x6),
+                  Text('Order earnings', style: context.type.title),
+                  const SizedBox(height: Space.x3),
+                  if (collectedOrders.isEmpty)
                     Text(
-                      'Available for payout',
-                      style: context.type.label.copyWith(
-                        color: colors.textOnAction.withValues(alpha: 0.8),
+                      'No collected orders yet.',
+                      style: context.type.body.copyWith(
+                        color: colors.textSecondary,
                       ),
+                    )
+                  else
+                    Wrap(
+                      spacing: Space.x3,
+                      runSpacing: Space.x3,
+                      children: [
+                        for (final order in collectedOrders)
+                          SizedBox(
+                            width: 340,
+                            child: _EarningsCard(order: order),
+                          ),
+                      ],
                     ),
-                    const SizedBox(height: Space.x1),
+                  const SizedBox(height: Space.x6),
+                  Text('Payout history', style: context.type.title),
+                  const SizedBox(height: Space.x3),
+                  if (payouts.isEmpty)
                     Text(
-                      Fmt.money(repository.pendingPayoutAmount),
-                      style: context.type.display.copyWith(
-                        color: colors.textOnAction,
+                      'No payouts requested yet.',
+                      style: context.type.body.copyWith(
+                        color: colors.textSecondary,
                       ),
+                    )
+                  else
+                    Wrap(
+                      spacing: Space.x3,
+                      runSpacing: Space.x3,
+                      children: [
+                        for (final p in payouts.reversed)
+                          SizedBox(width: 340, child: _PayoutCard(payout: p)),
+                      ],
                     ),
-                    const SizedBox(height: Space.x1),
-                    Text(
-                      'All-time earned: ${Fmt.money(repository.totalEarnedAllTime)}',
-                      style: context.type.caption.copyWith(
-                        color: colors.textOnAction.withValues(alpha: 0.8),
-                      ),
-                    ),
-                    const SizedBox(height: Space.x4),
-                    AppButton(
-                      label: 'Request payout',
-                      variant: AppButtonVariant.secondary,
-                      onPressed: () => _requestPayout(context),
-                    ),
-                  ],
-                ),
+                ],
               ),
-              const SizedBox(height: Space.x6),
-              Text('Order earnings', style: context.type.title),
-              const SizedBox(height: Space.x3),
-              if (collectedOrders.isEmpty)
-                Text(
-                  'No collected orders yet.',
-                  style: context.type.body.copyWith(
-                    color: colors.textSecondary,
-                  ),
-                )
-              else
-                ...collectedOrders.map(
-                  (order) => Padding(
-                    padding: const EdgeInsets.only(bottom: Space.x3),
-                    child: _EarningsCard(order: order),
-                  ),
-                ),
-              const SizedBox(height: Space.x6),
-              Text('Payout history', style: context.type.title),
-              const SizedBox(height: Space.x3),
-              if (payouts.isEmpty)
-                Text(
-                  'No payouts requested yet.',
-                  style: context.type.body.copyWith(
-                    color: colors.textSecondary,
-                  ),
-                )
-              else
-                ...payouts.reversed.map(
-                  (p) => Padding(
-                    padding: const EdgeInsets.only(bottom: Space.x3),
-                    child: _PayoutCard(payout: p),
-                  ),
-                ),
-            ],
+            ),
           ),
         );
       },
@@ -203,10 +220,7 @@ class _PayoutCard extends StatelessWidget {
               ],
             ),
           ),
-          Text(
-            Fmt.money(payout.amount),
-            style: context.type.label,
-          ),
+          Text(Fmt.money(payout.amount), style: context.type.label),
         ],
       ),
     );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/core/utils/formatters.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
+import 'package:too_good_to_leave_shop/design_system/components/max_width_body.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/domain/shop_bag.dart';
 import 'package:too_good_to_leave_shop/screens/bag_edit_screen.dart';
@@ -42,20 +43,28 @@ class BagListScreen extends StatelessWidget {
                     ),
                   ),
                 )
-              : ListView.separated(
+              : SingleChildScrollView(
                   padding: const EdgeInsets.all(Space.x4),
-                  itemCount: bags.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: Space.x3),
-                  itemBuilder: (context, index) {
-                    final bag = bags[index];
-                    return _BagCard(
-                      bag: bag,
-                      onTap: () => _openEditor(context, bag),
-                      onToggleAvailability: () =>
-                          repository.toggleAvailability(bag.id),
-                      onDuplicate: () => repository.duplicateBag(bag.id),
-                    );
-                  },
+                  child: MaxWidthBody(
+                    child: Wrap(
+                      spacing: Space.x3,
+                      runSpacing: Space.x3,
+                      children: [
+                        for (final bag in bags)
+                          SizedBox(
+                            width: 400,
+                            child: _BagCard(
+                              bag: bag,
+                              onTap: () => _openEditor(context, bag),
+                              onToggleAvailability: () =>
+                                  repository.toggleAvailability(bag.id),
+                              onDuplicate: () =>
+                                  repository.duplicateBag(bag.id),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () => _openEditor(context),
@@ -110,10 +119,7 @@ class _BagCard extends StatelessWidget {
                         Row(
                           children: [
                             Expanded(
-                              child: Text(
-                                bag.title,
-                                style: context.type.title,
-                              ),
+                              child: Text(bag.title, style: context.type.title),
                             ),
                             _StatusChip(status: bag.status),
                           ],
@@ -150,21 +156,28 @@ class _BagCard extends StatelessWidget {
                 ],
               ),
               const Divider(height: Space.x6),
-              Row(
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: Space.x2,
+                runSpacing: Space.x2,
                 children: [
-                  if (bag.status != BagStatus.draft) ...[
-                    Text(
-                      bag.status == BagStatus.live ? 'Live' : 'Paused',
-                      style: context.type.caption.copyWith(
-                        color: colors.textSecondary,
-                      ),
+                  if (bag.status != BagStatus.draft)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          bag.status == BagStatus.live ? 'Live' : 'Paused',
+                          style: context.type.caption.copyWith(
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                        Switch(
+                          value: bag.status == BagStatus.live,
+                          onChanged: (_) => onToggleAvailability(),
+                        ),
+                      ],
                     ),
-                    Switch(
-                      value: bag.status == BagStatus.live,
-                      onChanged: (_) => onToggleAvailability(),
-                    ),
-                  ],
-                  const Spacer(),
                   TextButton.icon(
                     onPressed: onDuplicate,
                     icon: const Icon(Icons.copy_outlined, size: 18),
