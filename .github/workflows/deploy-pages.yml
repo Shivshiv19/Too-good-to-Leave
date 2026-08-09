@@ -20,6 +20,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # dart2js is memory-hungry, and GitHub-hosted runners are RAM-
+      # constrained enough that a release web build can get silently
+      # OOM-killed mid-compile ("Compiling... 45.6s" then exit code 1,
+      # with the actual dart2js error never printed — that's the OOM
+      # signature, not a real compile error). Swap gives it headroom.
+      - name: Add swap space
+        run: |
+          sudo fallocate -l 6G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+
       # Pinned to match what's actually been built and tested locally all
       # along — "stable channel" on a GitHub-hosted runner can resolve to
       # an older release than this, and the project's fl_chart dependency
