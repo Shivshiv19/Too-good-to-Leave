@@ -1,0 +1,71 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      # The customer app needs a real MapTiler key to boot at all (see
+      # lib/bootstrap.dart's own startup guard) — supplied as a repo
+      # secret rather than the gitignored local dart_defines.json, which
+      # never leaves this machine.
+      - name: Write dart_defines.json from secret
+        run: |
+          cat > dart_defines.json <<EOF
+          { "MAPTILER_API_KEY": "${{ secrets.MAPTILER_API_KEY }}" }
+          EOF
+
+      - name: Build customer app (site root)
+        run: |
+          flutter pub get
+          flutter build web --release --base-href /Too-good-to-Leave/ \
+            --dart-define-from-file=dart_defines.json
+
+      - name: Build shop app (/shop/ subpath)
+        working-directory: shop
+        run: |
+          flutter pub get
+          flutter build web --release --base-href /Too-good-to-Leave/shop/
+
+      # Combine both builds into one site: customer app at the root, shop
+      # app under /shop/ — two independently-routed Flutter web apps
+      # served from the one Pages deployment.
+      - name: Assemble combined site
+        run: |
+          mkdir -p _site
+          cp -r build/web/. _site/
+          mkdir -p _site/shop
+          cp -r shop/build/web/. _site/shop/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
