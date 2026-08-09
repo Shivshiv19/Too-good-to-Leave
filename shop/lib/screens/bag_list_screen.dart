@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/core/utils/formatters.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
-import 'package:too_good_to_leave_shop/design_system/components/max_width_body.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/domain/shop_bag.dart';
 import 'package:too_good_to_leave_shop/screens/bag_edit_screen.dart';
@@ -45,25 +44,23 @@ class BagListScreen extends StatelessWidget {
                 )
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(Space.x4),
-                  child: MaxWidthBody(
-                    child: Wrap(
-                      spacing: Space.x3,
-                      runSpacing: Space.x3,
-                      children: [
-                        for (final bag in bags)
-                          SizedBox(
-                            width: 400,
-                            child: _BagCard(
-                              bag: bag,
-                              onTap: () => _openEditor(context, bag),
-                              onToggleAvailability: () =>
-                                  repository.toggleAvailability(bag.id),
-                              onDuplicate: () =>
-                                  repository.duplicateBag(bag.id),
-                            ),
+                  child: Wrap(
+                    spacing: Space.x3,
+                    runSpacing: Space.x3,
+                    children: [
+                      for (final bag in bags)
+                        SizedBox(
+                          width: 400,
+                          child: _BagCard(
+                            bag: bag,
+                            onTap: () => _openEditor(context, bag),
+                            onToggleAvailability: () =>
+                                repository.toggleAvailability(bag.id),
+                            onDuplicate: () =>
+                                repository.duplicateBag(bag.id),
                           ),
-                      ],
-                    ),
+                        ),
+                    ],
                   ),
                 ),
           floatingActionButton: FloatingActionButton.extended(

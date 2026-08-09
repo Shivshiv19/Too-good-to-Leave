@@ -3,7 +3,6 @@ import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/core/utils/formatters.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/design_system/components/app_button.dart';
-import 'package:too_good_to_leave_shop/design_system/components/max_width_body.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/domain/payout.dart';
 import 'package:too_good_to_leave_shop/domain/shop_order.dart';
@@ -48,10 +47,9 @@ class PaymentsScreen extends StatelessWidget {
           ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(Space.x4),
-            child: MaxWidthBody(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(Space.x4),
@@ -137,7 +135,6 @@ class PaymentsScreen extends StatelessWidget {
                     ),
                 ],
               ),
-            ),
           ),
         );
       },

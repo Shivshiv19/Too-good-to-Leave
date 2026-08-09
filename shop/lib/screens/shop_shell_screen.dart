@@ -231,9 +231,9 @@ class _SidebarItem extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: Space.x3, vertical: 2),
       child: Material(
         color: selected ? colors.actionPrimaryBg : Colors.transparent,
-        borderRadius: BorderRadius.circular(Radii.full),
+        borderRadius: BorderRadius.circular(Radii.sm),
         child: InkWell(
-          borderRadius: BorderRadius.circular(Radii.full),
+          borderRadius: BorderRadius.circular(Radii.sm),
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(

@@ -3,7 +3,6 @@ import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/core/domain/money.dart';
 import 'package:too_good_to_leave_shop/core/utils/formatters.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
-import 'package:too_good_to_leave_shop/design_system/components/max_width_body.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/domain/impact_estimate.dart';
 import 'package:too_good_to_leave_shop/domain/payout.dart';
@@ -60,10 +59,9 @@ class AnalyticsScreen extends StatelessWidget {
           ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(Space.x4),
-            child: MaxWidthBody(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                   Text('Your impact', style: context.type.title),
                   const SizedBox(height: Space.x1),
                   Text(
@@ -195,7 +193,6 @@ class AnalyticsScreen extends StatelessWidget {
                     ),
                 ],
               ),
-            ),
           ),
         );
       },

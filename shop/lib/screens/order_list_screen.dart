@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
-import 'package:too_good_to_leave_shop/design_system/components/max_width_body.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/domain/shop_order.dart';
 import 'package:too_good_to_leave_shop/screens/order_detail_screen.dart';
@@ -77,36 +76,34 @@ class OrderListScreen extends StatelessWidget {
                 )
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(Space.x4),
-                  child: MaxWidthBody(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (needsPrep.isNotEmpty) ...[
-                          _SectionHeader('Needs prep now'),
-                          _OrderWrap(
-                            orders: needsPrep,
-                            onTap: (o) => _openOrder(context, o),
-                          ),
-                          const SizedBox(height: Space.x5),
-                        ],
-                        if (overdue.isNotEmpty) ...[
-                          _SectionHeader('Overdue — no-show?'),
-                          _OrderWrap(
-                            orders: overdue,
-                            onTap: (o) => _openOrder(context, o),
-                          ),
-                          const SizedBox(height: Space.x5),
-                        ],
-                        if (rest.isNotEmpty) ...[
-                          if (needsPrep.isNotEmpty || overdue.isNotEmpty)
-                            _SectionHeader('All orders'),
-                          _OrderWrap(
-                            orders: rest,
-                            onTap: (o) => _openOrder(context, o),
-                          ),
-                        ],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (needsPrep.isNotEmpty) ...[
+                        _SectionHeader('Needs prep now'),
+                        _OrderWrap(
+                          orders: needsPrep,
+                          onTap: (o) => _openOrder(context, o),
+                        ),
+                        const SizedBox(height: Space.x5),
                       ],
-                    ),
+                      if (overdue.isNotEmpty) ...[
+                        _SectionHeader('Overdue — no-show?'),
+                        _OrderWrap(
+                          orders: overdue,
+                          onTap: (o) => _openOrder(context, o),
+                        ),
+                        const SizedBox(height: Space.x5),
+                      ],
+                      if (rest.isNotEmpty) ...[
+                        if (needsPrep.isNotEmpty || overdue.isNotEmpty)
+                          _SectionHeader('All orders'),
+                        _OrderWrap(
+                          orders: rest,
+                          onTap: (o) => _openOrder(context, o),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
         );
