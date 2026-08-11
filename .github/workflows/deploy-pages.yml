@@ -29,14 +29,24 @@ jobs:
         with:
           flutter-version: 3.44.8
 
-      # The customer app needs a real MapTiler key to boot at all (see
-      # lib/bootstrap.dart's own startup guard) — supplied as a repo
-      # secret rather than the gitignored local dart_defines.json, which
-      # never leaves this machine.
-      - name: Write dart_defines.json from secret
+      # The customer app needs a real MapTiler key and Supabase project
+      # to boot at all (see lib/bootstrap.dart's own startup guard) —
+      # supplied as repo secrets rather than the gitignored local
+      # dart_defines.json, which never leaves this machine.
+      - name: Write dart_defines.json from secrets
         run: |
           cat > dart_defines.json <<EOF
-          { "MAPTILER_API_KEY": "${{ secrets.MAPTILER_API_KEY }}" }
+          {
+            "MAPTILER_API_KEY": "${{ secrets.MAPTILER_API_KEY }}",
+            "SUPABASE_URL": "${{ secrets.SUPABASE_URL }}",
+            "SUPABASE_ANON_KEY": "${{ secrets.SUPABASE_ANON_KEY }}"
+          }
+          EOF
+          cat > shop/dart_defines.json <<EOF
+          {
+            "SUPABASE_URL": "${{ secrets.SUPABASE_URL }}",
+            "SUPABASE_ANON_KEY": "${{ secrets.SUPABASE_ANON_KEY }}"
+          }
           EOF
 
       - name: Build customer app (site root)
@@ -80,7 +90,8 @@ jobs:
           flutter pub get
           set +e
           flutter build web --release --no-wasm-dry-run -v \
-            --base-href /Too-good-to-Leave/shop/ 2>&1 | tee build_shop.log
+            --base-href /Too-good-to-Leave/shop/ \
+            --dart-define-from-file=dart_defines.json 2>&1 | tee build_shop.log
           BUILD_EXIT=${PIPESTATUS[0]}
           set -e
           if [ "$BUILD_EXIT" -ne 0 ]; then

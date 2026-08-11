@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Secrets — real Supabase project credentials, never committed. See
+# ../dart_defines.json's own comment; this app now has one too.
+dart_defines.json

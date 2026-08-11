@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/domain/shop_profile.dart';
 import 'package:too_good_to_leave_shop/screens/pending_approval_screen.dart';
 import 'package:too_good_to_leave_shop/screens/registration_screen.dart';
 import 'package:too_good_to_leave_shop/screens/shop_shell_screen.dart';
+
+/// The same Supabase project the customer app connects to — see
+/// ../supabase/schema.sql at the repo root. Same secrets-file convention
+/// as the customer app's MAPTILER_API_KEY.
+const _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+const _supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,6 +21,19 @@ Future<void> main() async {
   // locale data has been loaded — unlike NumberFormat, which works without
   // this. Must happen before any screen that formats a date/time runs.
   await initializeDateFormatting('en_IN');
+
+  if (_supabaseUrl.isEmpty || _supabaseAnonKey.isEmpty) {
+    throw UnimplementedError(
+      'No SUPABASE_URL/SUPABASE_ANON_KEY configured. Run with '
+      '--dart-define-from-file=dart_defines.json (see .gitignore\'s '
+      '"Secrets" section — the real values live only in that local file).',
+    );
+  }
+  await Supabase.initialize(
+    url: _supabaseUrl,
+    publishableKey: _supabaseAnonKey,
+  );
+
   runApp(const ShopAppLoader());
 }
 

@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:too_good_to_leave_shop/core/domain/clock.dart';
 import 'package:too_good_to_leave_shop/core/domain/dietary_envelope.dart';
 import 'package:too_good_to_leave_shop/core/domain/money.dart';
@@ -9,6 +11,7 @@ import 'package:too_good_to_leave_shop/core/domain/pickup_token.dart';
 import 'package:too_good_to_leave_shop/core/domain/pickup_window.dart';
 import 'package:too_good_to_leave_shop/domain/payout.dart';
 import 'package:too_good_to_leave_shop/domain/shop_bag.dart';
+import 'package:too_good_to_leave_shop/domain/shop_category.dart';
 import 'package:too_good_to_leave_shop/domain/shop_notification.dart';
 import 'package:too_good_to_leave_shop/domain/shop_order.dart';
 import 'package:too_good_to_leave_shop/domain/shop_profile.dart';
@@ -19,76 +22,254 @@ class PickupCodeMismatchException implements Exception {
   const PickupCodeMismatchException();
 }
 
-const _profileKey = 'shop_profile';
-const _bagsKey = 'shop_bags';
-const _ordersKey = 'shop_orders';
 const _payoutsKey = 'shop_payouts';
 const _notificationsKey = 'shop_notifications';
 const _storeHoursKey = 'shop_store_hours';
 
-/// Shop-side data — registration, bags, orders, and (as later areas land)
-/// payments/analytics/notifications/settings. Standalone: nothing here is
-/// shared with the customer app, which runs against its own fakes (Phase
-/// 1's "build against fakes" pattern, applied on this side too).
+/// Fixed placeholder password paired with a synthetic per-shop email — the
+/// same "hardcoded OTP, fake payment, but real realtime data" scope the
+/// customer app's auth uses. Not a real secret boundary; the OTP layer this
+/// stands in for was never real either.
+const _fixedPassword = 'Tgtl-Shop-Fixed-Pw-2026!';
+
+String _syntheticEmail(String phone) {
+  final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+  return 'shop.$digits@toogoodtoleave.local';
+}
+
+bool _isAlreadyRegistered(AuthException e) =>
+    e.message.toLowerCase().contains('already registered') ||
+    e.message.toLowerCase().contains('already exists') ||
+    e.code == 'user_already_exists';
+
+String _categoryToWire(ShopCategory category) => switch (category) {
+  ShopCategory.sweetsShop => 'sweets_shop',
+  ShopCategory.cloudKitchen => 'cloud_kitchen',
+  _ => category.name,
+};
+
+ShopCategory _categoryFromWire(String value) => switch (value) {
+  'sweets_shop' => ShopCategory.sweetsShop,
+  'cloud_kitchen' => ShopCategory.cloudKitchen,
+  _ => ShopCategory.values.firstWhere(
+    (c) => c.name == value,
+    orElse: () => ShopCategory.other,
+  ),
+};
+
+ShopApprovalStatus _approvalFromWire(String value) => switch (value) {
+  'verified' => ShopApprovalStatus.verified,
+  'rejected' => ShopApprovalStatus.rejected,
+  _ => ShopApprovalStatus.pendingReview,
+};
+
+/// Fields shared by insert and update — everything the registration/account
+/// screens actually collect. `auth_user_id`/`state`/`pincode`/`lat`/`lng`
+/// aren't collected by today's UI, so they're insert-only defaults (see
+/// [_shopInsertRow]) rather than something an edit could ever reset.
+Map<String, dynamic> _shopUpdateRow(ShopProfile profile) => {
+  'display_name': profile.businessName,
+  'legal_name': profile.businessName,
+  'category': _categoryToWire(profile.category),
+  'address_line1': profile.addressLine,
+  // The registration form only captures a single locality string today —
+  // landmark/city reuse it and state/pincode/lat/lng get placeholders
+  // (below) until a real structured-address screen replaces this.
+  'landmark': profile.locality,
+  'locality': profile.locality,
+  'city': profile.locality,
+  'phone': profile.phone,
+  'fssai_license_number': profile.fssai.licenseNumber,
+  'fssai_license_expiry': profile.fssai.expiresAt.toIso8601String().split(
+    'T',
+  )[0],
+  'updated_at': DateTime.now().toUtc().toIso8601String(),
+};
+
+Map<String, dynamic> _shopInsertRow(ShopProfile profile, String authUserId) => {
+  ..._shopUpdateRow(profile),
+  'auth_user_id': authUserId,
+  'state': 'Unknown',
+  'pincode': '000000',
+  'lat': 0.0,
+  'lng': 0.0,
+};
+
+Map<String, dynamic> _billingRow(ShopProfile profile, {String? shopId}) => {
+  if (shopId != null) 'shop_id': shopId,
+  'owner_name': profile.ownerName,
+  'owner_email': profile.email,
+  'bank_account_holder_name': profile.bankDetails.accountHolderName,
+  'bank_account_number': profile.bankDetails.accountNumber,
+  'bank_ifsc_code': profile.bankDetails.ifscCode,
+  'bank_upi_id': profile.bankDetails.upiId,
+  'updated_at': DateTime.now().toUtc().toIso8601String(),
+};
+
+ShopProfile _profileFromRows(
+  Map<String, dynamic> shop,
+  Map<String, dynamic> billing,
+) => ShopProfile(
+  businessName: shop['display_name'] as String,
+  ownerName: billing['owner_name'] as String,
+  phone: shop['phone'] as String,
+  email: billing['owner_email'] as String,
+  category: _categoryFromWire(shop['category'] as String),
+  addressLine: shop['address_line1'] as String,
+  locality: shop['locality'] as String,
+  fssai: FssaiLicense(
+    licenseNumber: shop['fssai_license_number'] as String,
+    expiresAt: DateTime.parse(shop['fssai_license_expiry'] as String),
+  ),
+  bankDetails: BankDetails(
+    accountHolderName: billing['bank_account_holder_name'] as String,
+    accountNumber: billing['bank_account_number'] as String,
+    ifscCode: billing['bank_ifsc_code'] as String,
+    upiId: billing['bank_upi_id'] as String?,
+  ),
+  status: _approvalFromWire(shop['approval_status'] as String),
+  rejectionReason: billing['rejection_reason'] as String?,
+);
+
+BagStatus _bagStatusFromWire(String value) =>
+    BagStatus.values.firstWhere((s) => s.name == value, orElse: () => BagStatus.paused);
+
+Map<String, dynamic> _bagRow({
+  required String title,
+  required String description,
+  required DietaryEnvelope envelope,
+  required Money price,
+  required int quantityAvailable,
+  required PickupWindow pickupWindow,
+  required BagStatus status,
+  required bool repeatsDaily,
+  required List<String> tags,
+  String? shopId,
+}) => {
+  if (shopId != null) 'shop_id': shopId,
+  'title': title,
+  'description': description,
+  'dietary_envelope': envelope.wireValue,
+  'tags': tags,
+  'price_paise': price.amountInPaise,
+  // Not collected by today's bag editor — a plausible default that keeps
+  // the schema's `price < stated_retail_value` constraint satisfied until
+  // a real "original price" field is added to the editor.
+  'stated_retail_value_paise': price.amountInPaise * 2,
+  // No partial-redemption concept exists in this app yet, so total always
+  // tracks available — see the schema's `quantity_available <= quantity_total`
+  // constraint.
+  'quantity_total': quantityAvailable,
+  'quantity_available': quantityAvailable,
+  'pickup_start_at': pickupWindow.startAt.toIso8601String(),
+  'pickup_end_at': pickupWindow.endAt.toIso8601String(),
+  'safe_until': pickupWindow.endAt.toIso8601String(),
+  'status': status.name,
+  'repeats_daily': repeatsDaily,
+  'updated_at': DateTime.now().toUtc().toIso8601String(),
+};
+
+ShopBag _bagFromRow(Map<String, dynamic> row) => ShopBag(
+  id: row['id'] as String,
+  title: row['title'] as String,
+  description: row['description'] as String,
+  envelope: DietaryEnvelope.fromWire(row['dietary_envelope'] as String),
+  price: Money(row['price_paise'] as int),
+  quantityAvailable: row['quantity_available'] as int,
+  pickupWindow: PickupWindow(
+    startAt: DateTime.parse(row['pickup_start_at'] as String),
+    endAt: DateTime.parse(row['pickup_end_at'] as String),
+  ),
+  status: _bagStatusFromWire(row['status'] as String),
+  repeatsDaily: row['repeats_daily'] as bool? ?? false,
+  tags: (row['tags'] as List).cast<String>(),
+);
+
+ShopOrderStatus _shopOrderStatusFromWire(String value) => switch (value) {
+  'collected' => ShopOrderStatus.collected,
+  'cancelled_by_customer' || 'cancelled_by_merchant' => ShopOrderStatus.cancelled,
+  'expired_uncollected' => ShopOrderStatus.expired,
+  _ => ShopOrderStatus.reserved,
+};
+
+PickupToken _tokenFromRow(Map<String, dynamic>? json) {
+  if (json == null) {
+    // Every order the customer app creates populates this at insert time —
+    // null only happens for data created outside that path.
+    final now = DateTime.now();
+    return PickupToken(
+      rotatingPayload: '',
+      rotationExpiresAt: now,
+      offlineToken: '',
+      offlineTokenValidUntil: now,
+      fallbackCode: '------',
+    );
+  }
+  return PickupToken(
+    rotatingPayload: json['rotatingPayload'] as String? ?? '',
+    rotationExpiresAt: DateTime.parse(json['rotationExpiresAt'] as String),
+    offlineToken: json['offlineToken'] as String? ?? '',
+    offlineTokenValidUntil: DateTime.parse(
+      json['offlineTokenValidUntil'] as String,
+    ),
+    fallbackCode: json['fallbackCode'] as String,
+  );
+}
+
+ShopOrder _orderFromRow(Map<String, dynamic> row) {
+  final bagSnapshot = (row['bag_snapshot'] as Map).cast<String, dynamic>();
+  final customerSnapshot = (row['customer_snapshot'] as Map)
+      .cast<String, dynamic>();
+  final priceBreakdown = (row['price_breakdown'] as Map).cast<String, dynamic>();
+  return ShopOrder(
+    id: row['id'] as String,
+    bagTitle: bagSnapshot['title'] as String? ?? 'Surprise bag',
+    customerName: customerSnapshot['name'] as String? ?? 'Customer',
+    pickupWindow: PickupWindow(
+      startAt: DateTime.parse(row['pickup_start_at'] as String),
+      endAt: DateTime.parse(row['pickup_end_at'] as String),
+    ),
+    token: _tokenFromRow((row['pickup_token'] as Map?)?.cast<String, dynamic>()),
+    price: Money((priceBreakdown['total'] as num).round()),
+    status: _shopOrderStatusFromWire(row['status'] as String),
+  );
+}
+
+/// Shop-side data — registration, bags, orders, payments/payouts, and
+/// notifications.
 ///
-/// A [ChangeNotifier] rather than manual per-screen refresh calls — this
-/// repository's surface area is only going to grow, and a listenable single
-/// source of truth scales better than each screen re-fetching after every
-/// mutation it happens to know about.
+/// Registration, bags, and orders are backed by the shared Supabase project
+/// (`supabase/schema.sql`) once loaded via [ShopRepository.load] — the same
+/// backend the customer app reads/writes, so a bag published here shows up
+/// live on the customer side, and an order placed there shows up live here
+/// (via a Realtime subscription on `orders`). Payouts, notifications, and
+/// store hours stay on local `shared_preferences` — genuinely local
+/// shop-device settings that don't need to sync anywhere.
 ///
-/// Persisted to `shared_preferences` so a browser refresh doesn't wipe a
-/// shop's registration and listings — the plain [ShopRepository] constructor
-/// stays purely in-memory (seeded with fixtures, no persistence) for tests;
-/// [ShopRepository.load] is what the real app uses.
+/// The plain [ShopRepository] constructor stays purely in-memory and
+/// fixture-seeded, touching neither Supabase nor `shared_preferences` beyond
+/// the local-only sections — it exists for fast unit/widget tests that
+/// exercise bag/order/payout domain logic without a backend.
 class ShopRepository extends ChangeNotifier {
-  ShopRepository({this._clock = const SystemClock()}) {
+  ShopRepository({this._clock = const SystemClock()}) : _useBackend = false {
     _seedOrdersAndBags();
   }
 
-  ShopRepository._loaded({required this._clock});
+  ShopRepository._loaded({required this._clock}) : _useBackend = true;
 
-  /// Loads persisted state, or seeds fresh fixture bags/orders on a shop's
-  /// first-ever launch (registration itself is never seeded — every shop
-  /// starts unregistered).
+  /// Loads local settings (payouts/notifications/store hours) and, if a
+  /// Supabase session already exists on this device, the signed-in shop's
+  /// profile/bags/orders plus a live subscription for new orders.
   static Future<ShopRepository> load({
     Clock clock = const SystemClock(),
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final repo = ShopRepository._loaded(clock: clock);
 
-    final profileJson = prefs.getString(_profileKey);
-    final bagsJson = prefs.getString(_bagsKey);
-    final ordersJson = prefs.getString(_ordersKey);
     final payoutsJson = prefs.getString(_payoutsKey);
     final notificationsJson = prefs.getString(_notificationsKey);
     final storeHoursJson = prefs.getString(_storeHoursKey);
 
-    if (profileJson == null && bagsJson == null) {
-      // First-ever launch on this browser — nothing persisted yet.
-      repo._seedOrdersAndBags();
-      return repo;
-    }
-
-    if (profileJson != null) {
-      repo._profile = ShopProfile.fromJson(
-        jsonDecode(profileJson) as Map<String, dynamic>,
-      );
-    }
-    if (bagsJson != null) {
-      repo._bags.addAll(
-        (jsonDecode(bagsJson) as List).cast<Map<String, dynamic>>().map(
-          ShopBag.fromJson,
-        ),
-      );
-      repo._recomputeNextBagId();
-    }
-    if (ordersJson != null) {
-      repo._orders.addAll(
-        (jsonDecode(ordersJson) as List).cast<Map<String, dynamic>>().map(
-          ShopOrder.fromJson,
-        ),
-      );
-    }
     if (payoutsJson != null) {
       repo._payouts.addAll(
         (jsonDecode(payoutsJson) as List).cast<Map<String, dynamic>>().map(
@@ -108,10 +289,45 @@ class ShopRepository extends ChangeNotifier {
         jsonDecode(storeHoursJson) as Map<String, dynamic>,
       );
     }
+
+    // Supabase.instance throws if Supabase.initialize() was never called —
+    // true in unit/widget tests, which never touch the network. Treat that
+    // the same as "no session": the bare fixture-free unregistered state.
+    User? user;
+    try {
+      user = repo._client.auth.currentUser;
+    } catch (_) {
+      return repo;
+    }
+    if (user == null) return repo;
+
+    final shopRow = await repo._client
+        .from('shops')
+        .select()
+        .eq('auth_user_id', user.id)
+        .maybeSingle();
+    if (shopRow == null) return repo;
+
+    final billingRow = await repo._client
+        .from('shop_billing')
+        .select()
+        .eq('shop_id', shopRow['id'] as String)
+        .single();
+
+    repo._shopId = shopRow['id'] as String;
+    repo._profile = _profileFromRows(shopRow, billingRow);
+    await repo._loadBagsAndOrders();
+    repo._subscribeToOrders();
     return repo;
   }
 
   final Clock _clock;
+  final bool _useBackend;
+
+  SupabaseClient get _client => Supabase.instance.client;
+
+  String? _shopId;
+  RealtimeChannel? _ordersChannel;
 
   ShopProfile? _profile;
   final List<ShopBag> _bags = [];
@@ -134,10 +350,8 @@ class ShopRepository extends ChangeNotifier {
     );
   }
 
-  /// Derives the next id from the highest `bag_N` suffix actually present,
-  /// not just `_bags.length` — a count would collide again the moment any
-  /// bag has ever been deleted (3 bags left after a deletion doesn't mean
-  /// the highest id used was 3).
+  /// Derives the next id from the highest `bag_N` suffix actually present —
+  /// only used by the fixture-only, non-backend constructor.
   void _recomputeNextBagId() {
     var highest = 0;
     for (final bag in _bags) {
@@ -147,19 +361,8 @@ class ShopRepository extends ChangeNotifier {
     _nextBagId = highest + 1;
   }
 
-  Future<void> _persist() async {
+  Future<void> _persistLocal() async {
     final prefs = await SharedPreferences.getInstance();
-    if (_profile != null) {
-      await prefs.setString(_profileKey, jsonEncode(_profile!.toJson()));
-    }
-    await prefs.setString(
-      _bagsKey,
-      jsonEncode(_bags.map((b) => b.toJson()).toList()),
-    );
-    await prefs.setString(
-      _ordersKey,
-      jsonEncode(_orders.map((o) => o.toJson()).toList()),
-    );
     await prefs.setString(
       _payoutsKey,
       jsonEncode(_payouts.map((p) => p.toJson()).toList()),
@@ -169,6 +372,61 @@ class ShopRepository extends ChangeNotifier {
       jsonEncode(_notifications.map((n) => n.toJson()).toList()),
     );
     await prefs.setString(_storeHoursKey, jsonEncode(_storeHours.toJson()));
+  }
+
+  Future<void> _loadBagsAndOrders() async {
+    final shopId = _shopId;
+    if (shopId == null) return;
+    final bagRows = await _client
+        .from('bags')
+        .select()
+        .eq('shop_id', shopId)
+        .order('created_at');
+    _bags
+      ..clear()
+      ..addAll((bagRows as List).cast<Map<String, dynamic>>().map(_bagFromRow));
+
+    final orderRows = await _client
+        .from('orders')
+        .select()
+        .eq('shop_id', shopId)
+        .order('created_at', ascending: false);
+    _orders
+      ..clear()
+      ..addAll(
+        (orderRows as List).cast<Map<String, dynamic>>().map(_orderFromRow),
+      );
+  }
+
+  /// New orders arrive live — a customer completing checkout against this
+  /// shop's bag shows up here without any manual refresh, which is the
+  /// "shop gets notified" half of the order lifecycle.
+  void _subscribeToOrders() {
+    final shopId = _shopId;
+    if (shopId == null) return;
+    _ordersChannel = _client
+        .channel('shop-orders-$shopId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'orders',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'shop_id',
+            value: shopId,
+          ),
+          callback: (payload) {
+            final order = _orderFromRow(payload.newRecord);
+            if (_orders.any((o) => o.id == order.id)) return;
+            _orders.insert(0, order);
+            _addNotification(
+              'New order — ${order.bagTitle} for ${order.customerName}.',
+            );
+            notifyListeners();
+            unawaited(_persistLocal());
+          },
+        )
+        .subscribe();
   }
 
   void _seedOrdersAndBags() {
@@ -216,11 +474,6 @@ class ShopRepository extends ChangeNotifier {
         status: BagStatus.draft,
       ),
     ]);
-    // Seeded IDs are hardcoded above, not generated through createBag() —
-    // without this, the next createBag() call reuses `bag_1` and silently
-    // collides with the seeded bag of that id (two bags, same id, in the
-    // same list — lookups by id then find whichever comes first, not
-    // necessarily the one just created).
     _recomputeNextBagId();
 
     _orders.addAll([
@@ -264,10 +517,81 @@ class ShopRepository extends ChangeNotifier {
 
   bool get isRegistered => _profile != null;
 
+  /// Signs in as a real Supabase Auth user (phone formatted as a synthetic
+  /// email + a fixed password — see module doc) and creates/loads the
+  /// matching `shops`/`shop_billing` rows.
   Future<void> register(ShopProfile profile) async {
-    _profile = profile;
+    if (!_useBackend) {
+      _profile = profile;
+      notifyListeners();
+      return;
+    }
+
+    final email = _syntheticEmail(profile.phone);
+    AuthResponse res;
+    try {
+      res = await _client.auth.signUp(
+        email: email,
+        password: _fixedPassword,
+      );
+    } on AuthException catch (e) {
+      if (!_isAlreadyRegistered(e)) rethrow;
+      res = await _client.auth.signInWithPassword(
+        email: email,
+        password: _fixedPassword,
+      );
+    }
+    if (res.session == null) {
+      // Supabase's default "Confirm email" setting blocks sign-in until a
+      // confirmation link is clicked — impossible for these synthetic
+      // per-shop emails. Must be off: Supabase dashboard > Authentication >
+      // Sign In / Providers > Email > "Confirm email".
+      try {
+        res = await _client.auth.signInWithPassword(
+          email: email,
+          password: _fixedPassword,
+        );
+      } on AuthException catch (e) {
+        throw StateError(
+          'Supabase sign-in failed ($e). If this says "Email not '
+          'confirmed", turn off Authentication > Providers > Email > '
+          '"Confirm email" in the Supabase dashboard — synthetic per-shop '
+          'emails can never confirm.',
+        );
+      }
+    }
+    final user = res.user;
+    if (user == null) {
+      throw StateError('Supabase authentication returned no user for $email.');
+    }
+
+    Map<String, dynamic> shopRow;
+    try {
+      shopRow = await _client
+          .from('shops')
+          .insert(_shopInsertRow(profile, user.id))
+          .select()
+          .single();
+    } on PostgrestException catch (e) {
+      if (e.code != '23505') rethrow; // unique_violation on auth_user_id
+      shopRow = await _client
+          .from('shops')
+          .select()
+          .eq('auth_user_id', user.id)
+          .single();
+    }
+    final shopId = shopRow['id'] as String;
+    final billingRow = await _client
+        .from('shop_billing')
+        .upsert(_billingRow(profile, shopId: shopId))
+        .select()
+        .single();
+
+    _shopId = shopId;
+    _profile = _profileFromRows(shopRow, billingRow);
+    await _loadBagsAndOrders();
+    _subscribeToOrders();
     notifyListeners();
-    await _persist();
   }
 
   /// Stands in for a real review process — there's no admin surface in this
@@ -277,29 +601,48 @@ class ShopRepository extends ChangeNotifier {
   Future<void> simulateApproval() async {
     final current = _profile;
     if (current == null) return;
+    if (_useBackend) {
+      final shopId = _shopId;
+      if (shopId == null) return;
+      await _client
+          .from('shops')
+          .update({
+            'approval_status': 'verified',
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', shopId);
+    }
     _profile = current.copyWith(status: ShopApprovalStatus.verified);
     notifyListeners();
-    await _persist();
   }
 
   Future<void> updateProfile(ShopProfile updated) async {
+    if (_useBackend) {
+      final shopId = _shopId;
+      if (shopId == null) return;
+      await _client.from('shops').update(_shopUpdateRow(updated)).eq('id', shopId);
+      await _client
+          .from('shop_billing')
+          .update(_billingRow(updated))
+          .eq('shop_id', shopId);
+    }
     _profile = updated;
     notifyListeners();
-    await _persist();
   }
 
-  /// Clears everything for this browser — the standalone equivalent of a
-  /// real "log out and forget this device," since there's no server-side
-  /// session to end.
+  /// Ends the Supabase session (or, for the fixture-only build, just clears
+  /// in-memory state) and drops this device's cached profile/bags/orders.
   Future<void> logOut() async {
+    if (_useBackend) {
+      await _ordersChannel?.unsubscribe();
+      _ordersChannel = null;
+      await _client.auth.signOut();
+    }
     _profile = null;
+    _shopId = null;
     _bags.clear();
     _orders.clear();
     _nextBagId = 1;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_profileKey);
-    await prefs.remove(_bagsKey);
-    await prefs.remove(_ordersKey);
     notifyListeners();
   }
 
@@ -320,35 +663,85 @@ class ShopRepository extends ChangeNotifier {
     bool repeatsDaily = false,
     List<String> tags = const [],
   }) async {
-    final bag = ShopBag(
-      id: 'bag_${_nextBagId++}',
-      title: title,
-      description: description,
-      envelope: envelope,
-      price: price,
-      quantityAvailable: quantityAvailable,
-      pickupWindow: pickupWindow,
-      photoBytes: photoBytes,
-      repeatsDaily: repeatsDaily,
-      tags: tags,
-    );
+    if (!_useBackend) {
+      final bag = ShopBag(
+        id: 'bag_${_nextBagId++}',
+        title: title,
+        description: description,
+        envelope: envelope,
+        price: price,
+        quantityAvailable: quantityAvailable,
+        pickupWindow: pickupWindow,
+        photoBytes: photoBytes,
+        repeatsDaily: repeatsDaily,
+        tags: tags,
+      );
+      _bags.add(bag);
+      notifyListeners();
+      return bag;
+    }
+
+    final shopId = _shopId;
+    if (shopId == null) {
+      throw StateError('createBag called before a shop is registered.');
+    }
+    final row = await _client
+        .from('bags')
+        .insert(
+          _bagRow(
+            shopId: shopId,
+            title: title,
+            description: description,
+            envelope: envelope,
+            price: price,
+            quantityAvailable: quantityAvailable,
+            pickupWindow: pickupWindow,
+            status: BagStatus.draft,
+            repeatsDaily: repeatsDaily,
+            tags: tags,
+          ),
+        )
+        .select()
+        .single();
+    // Supabase Storage upload for `photoBytes` isn't wired yet — bags sync
+    // live across apps without photos for now; kept locally for this
+    // session's preview only.
+    final bag = _bagFromRow(row).copyWith(photoBytes: photoBytes);
     _bags.add(bag);
     notifyListeners();
-    await _persist();
     return bag;
   }
 
   Future<void> updateBag(ShopBag updated) async {
+    if (_useBackend) {
+      await _client
+          .from('bags')
+          .update(
+            _bagRow(
+              title: updated.title,
+              description: updated.description,
+              envelope: updated.envelope,
+              price: updated.price,
+              quantityAvailable: updated.quantityAvailable,
+              pickupWindow: updated.pickupWindow,
+              status: updated.status,
+              repeatsDaily: updated.repeatsDaily,
+              tags: updated.tags,
+            ),
+          )
+          .eq('id', updated.id);
+    }
     final index = _bags.indexWhere((b) => b.id == updated.id);
     if (index != -1) _bags[index] = updated;
     notifyListeners();
-    await _persist();
   }
 
   Future<void> deleteBag(String id) async {
+    if (_useBackend) {
+      await _client.from('bags').delete().eq('id', id);
+    }
     _bags.removeWhere((b) => b.id == id);
     notifyListeners();
-    await _persist();
   }
 
   /// Copies a bag's details into a new draft — the standalone stand-in for
@@ -405,11 +798,11 @@ class ShopRepository extends ChangeNotifier {
     if (index == -1) return;
     final bag = _bags[index];
     if (bag.status == BagStatus.draft) return;
-    _bags[index] = bag.copyWith(
-      status: bag.status == BagStatus.live ? BagStatus.paused : BagStatus.live,
+    await updateBag(
+      bag.copyWith(
+        status: bag.status == BagStatus.live ? BagStatus.paused : BagStatus.live,
+      ),
     );
-    notifyListeners();
-    await _persist();
   }
 
   // ---------------------------------------------------------------------
@@ -439,12 +832,19 @@ class ShopRepository extends ChangeNotifier {
     if (order.token.fallbackCode.toUpperCase() != code.trim().toUpperCase()) {
       throw const PickupCodeMismatchException();
     }
+    if (_useBackend) {
+      final now = DateTime.now().toUtc().toIso8601String();
+      await _client
+          .from('orders')
+          .update({'status': 'collected', 'collected_at': now, 'updated_at': now})
+          .eq('id', orderId);
+    }
     _orders[index] = order.copyWith(status: ShopOrderStatus.collected);
     _addNotification(
       'Pickup confirmed for ${order.bagTitle} — ${order.customerName}.',
     );
     notifyListeners();
-    await _persist();
+    await _persistLocal();
   }
 
   /// Records a pickup window that closed without collection. Deliberately a
@@ -458,12 +858,21 @@ class ShopRepository extends ChangeNotifier {
     if (index == -1) return;
     if (_orders[index].status != ShopOrderStatus.reserved) return;
     final order = _orders[index];
+    if (_useBackend) {
+      await _client
+          .from('orders')
+          .update({
+            'status': 'expired_uncollected',
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', orderId);
+    }
     _orders[index] = order.copyWith(status: ShopOrderStatus.expired);
     _addNotification(
       'No-show recorded for ${order.bagTitle} — ${order.customerName}.',
     );
     notifyListeners();
-    await _persist();
+    await _persistLocal();
   }
 
   /// Shop-initiated cancellation (ran out of stock, unexpected closure,
@@ -477,12 +886,24 @@ class ShopRepository extends ChangeNotifier {
     if (index == -1) return;
     if (_orders[index].status != ShopOrderStatus.reserved) return;
     final order = _orders[index];
+    if (_useBackend) {
+      final now = DateTime.now().toUtc().toIso8601String();
+      await _client
+          .from('orders')
+          .update({
+            'status': 'cancelled_by_merchant',
+            'cancelled_at': now,
+            'cancellation_reason': 'Cancelled by shop',
+            'updated_at': now,
+          })
+          .eq('id', orderId);
+    }
     _orders[index] = order.copyWith(status: ShopOrderStatus.cancelled);
     _addNotification(
       'Order cancelled for ${order.bagTitle} — ${order.customerName}.',
     );
     notifyListeners();
-    await _persist();
+    await _persistLocal();
   }
 
   // ---------------------------------------------------------------------
@@ -546,7 +967,7 @@ class ShopRepository extends ChangeNotifier {
     _payouts.add(payout);
     _addNotification('Payout of ₹${payout.amount.wholeUnits} requested.');
     notifyListeners();
-    await _persist();
+    await _persistLocal();
     return payout;
   }
 
@@ -567,7 +988,7 @@ class ShopRepository extends ChangeNotifier {
       _notifications[i] = _notifications[i].copyWith(read: true);
     }
     notifyListeners();
-    await _persist();
+    await _persistLocal();
   }
 
   // ---------------------------------------------------------------------
@@ -579,6 +1000,6 @@ class ShopRepository extends ChangeNotifier {
   Future<void> updateStoreHours(StoreHours hours) async {
     _storeHours = hours;
     notifyListeners();
-    await _persist();
+    await _persistLocal();
   }
 }

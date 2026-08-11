@@ -2,23 +2,26 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:surplus_marketplace/app/app.dart';
 import 'package:surplus_marketplace/core/domain/clock.dart';
 import 'package:surplus_marketplace/core/storage/prefs.dart';
 import 'package:surplus_marketplace/core/platform/location_capability.dart';
 import 'package:surplus_marketplace/core/platform/map_tile_config.dart';
 import 'package:surplus_marketplace/core/platform/map_tile_config_provider.dart';
-import 'package:surplus_marketplace/core/storage/secure_store.dart';
 import 'package:surplus_marketplace/core/payment/payment_gateway_fake.dart';
 import 'package:surplus_marketplace/features/account/account.dart';
 import 'package:surplus_marketplace/features/auth/auth.dart';
+import 'package:surplus_marketplace/features/auth/data/repositories/auth_repository_supabase.dart';
 import 'package:surplus_marketplace/features/catalog/catalog.dart';
+import 'package:surplus_marketplace/features/catalog/data/repositories/catalog_repository_supabase.dart';
 import 'package:surplus_marketplace/features/checkout/checkout.dart';
+import 'package:surplus_marketplace/features/checkout/data/repositories/checkout_repository_supabase.dart';
 import 'package:surplus_marketplace/features/config/config.dart';
 import 'package:surplus_marketplace/features/engagement/engagement.dart';
 import 'package:surplus_marketplace/features/location/location.dart';
 import 'package:surplus_marketplace/features/onboarding/onboarding.dart';
+import 'package:surplus_marketplace/features/orders/data/repositories/orders_repository_supabase.dart';
 import 'package:surplus_marketplace/features/orders/orders.dart';
 
 /// Build flavour (Phase 8 §8.6), selected via `--dart-define=FLAVOR=`.
@@ -43,6 +46,12 @@ enum Flavor {
 /// --dart-define-from-file=dart_defines.json` (gitignored, real key lives
 /// only in that local file — see `.gitignore`'s "Secrets" section).
 const _mapTilerApiKey = String.fromEnvironment('MAPTILER_API_KEY');
+
+/// The shared Supabase project both apps read/write — see
+/// `supabase/schema.sql` at the repo root for the schema this connects
+/// to. Same secrets-file convention as [_mapTilerApiKey].
+const _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+const _supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
 /// The composition root (Phase 8 §8.6). Builds the `ProviderScope` overrides
 /// for [flavor], wires global error handlers, then calls `runApp`.
@@ -79,59 +88,53 @@ Future<void> bootstrap({required Flavor flavor}) async {
     );
   }
 
+  if (_supabaseUrl.isEmpty || _supabaseAnonKey.isEmpty) {
+    throw UnimplementedError(
+      'No SUPABASE_URL/SUPABASE_ANON_KEY configured. Run with '
+      '--dart-define-from-file=dart_defines.json (see .gitignore\'s '
+      '"Secrets" section — the real values live only in that local file).',
+    );
+  }
+
   // Platform channels (shared_preferences below) must not be touched before
   // this, and it must run before any `await` in main — see the framework's
   // own guidance on WidgetsFlutterBinding.
   WidgetsFlutterBinding.ensureInitialized();
 
+  // The shared backend both apps read/write — must be ready before any
+  // repository below touches it.
+  await Supabase.initialize(
+    url: _supabaseUrl,
+    publishableKey: _supabaseAnonKey,
+  );
+
   // `onboarding`'s repository is real local storage, not a fake standing in
   // for a server (see OnboardingRepository's class doc), so it is
   // constructed here regardless of flavour — there is nothing to swap.
   final prefs = await Prefs.open();
-  const secureStore = SecureStore(FlutterSecureStorage());
 
-  // Shared across `authRepositoryProvider` and `account`'s dependency on it
-  // (§8.12 step 9) — account editing and deletion both act on the same
-  // signed-in customer `auth` owns.
-  final authRepositoryFake = AuthRepositoryFake(
-    prefs: prefs,
-    secureStore: secureStore,
-    clock: const SystemClock(),
-  );
-
-  // Shared across `catalogRepositoryProvider` and `checkout`'s dependency
-  // on it (D-35's cross-feature data-layer dependency) — one instance, one
-  // source of truth for bag/merchant fixture reads.
-  final catalogRepositoryFake = CatalogRepositoryFake(
-    prefs: prefs,
-    clock: const SystemClock(),
-  );
-
-  // Shared across `checkoutRepositoryProvider` and `orders`' dependency on
-  // it (§8.12 step 7's D-53) — `orders` reads and mutates the same order
-  // store `checkout` writes to, rather than a second, divergent copy.
-  final checkoutRepositoryFake = CheckoutRepositoryFake(
-    catalog: catalogRepositoryFake,
-    clock: const SystemClock(),
-  );
-
-  // Shared with `engagement`'s dependency on it — notifications and
-  // review-eligibility are both derived from the same order store
-  // (§8.12 step 8).
-  final ordersRepositoryFake = OrdersRepositoryFake(
-    checkout: checkoutRepositoryFake,
-    clock: const SystemClock(),
-  );
+  // Real Supabase-backed repositories — see `supabase/schema.sql`. Auth is
+  // real Supabase Auth sessions behind a hardcoded OTP; catalog/checkout/
+  // orders read and write the shared `bags`/`orders`/`payments` tables the
+  // shop app (`shop/`) also reads and writes, which is what makes a bag
+  // published there and an order placed here show up live on both sides.
+  // Payment stays fake (`PaymentGatewayFake` below) — the explicit product
+  // scoping this phase was built against.
+  final authRepository = AuthRepositorySupabase();
+  final catalogRepository = CatalogRepositorySupabase();
+  final checkoutRepository = CheckoutRepositorySupabase();
+  final ordersRepository = OrdersRepositorySupabase();
 
   runApp(
     ProviderScope(
       overrides: [
-        // Phase 1 locked decision — build entirely against fakes.
+        // config/onboarding/location stay on fakes/local-storage — untouched
+        // by this phase's "bags and orders are real and realtime" scope.
         configRepositoryProvider.overrideWithValue(ConfigRepositoryFake()),
         onboardingRepositoryProvider.overrideWithValue(
           OnboardingRepositoryPrefs(prefs),
         ),
-        authRepositoryProvider.overrideWithValue(authRepositoryFake),
+        authRepositoryProvider.overrideWithValue(authRepository),
         locationRepositoryProvider.overrideWithValue(
           LocationRepositoryFake(prefs),
         ),
@@ -141,22 +144,22 @@ Future<void> bootstrap({required Flavor flavor}) async {
         locationCapabilityProvider.overrideWithValue(
           const LocationCapabilityGeolocator(),
         ),
-        catalogRepositoryProvider.overrideWithValue(catalogRepositoryFake),
-        checkoutRepositoryProvider.overrideWithValue(checkoutRepositoryFake),
+        catalogRepositoryProvider.overrideWithValue(catalogRepository),
+        checkoutRepositoryProvider.overrideWithValue(checkoutRepository),
         paymentGatewayProvider.overrideWithValue(const PaymentGatewayFake()),
-        ordersRepositoryProvider.overrideWithValue(ordersRepositoryFake),
+        ordersRepositoryProvider.overrideWithValue(ordersRepository),
         engagementRepositoryProvider.overrideWithValue(
           EngagementRepositoryFake(
-            orders: ordersRepositoryFake,
+            orders: ordersRepository,
             clock: const SystemClock(),
           ),
         ),
         accountRepositoryProvider.overrideWithValue(
           AccountRepositoryFake(
             prefs: prefs,
-            orders: ordersRepositoryFake,
-            catalog: catalogRepositoryFake,
-            auth: authRepositoryFake,
+            orders: ordersRepository,
+            catalog: catalogRepository,
+            auth: authRepository,
           ),
         ),
         mapTileConfigProvider.overrideWithValue(

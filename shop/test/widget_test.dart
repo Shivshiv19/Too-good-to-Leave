@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -129,65 +127,13 @@ void main() {
     expect(find.text('Register your shop'), findsOneWidget);
   });
 
-  group('persistence', () {
-    test('registration, bags, and orders survive a fresh load()', () async {
-      final first = await ShopRepository.load();
-      await first.register(_testProfile());
-      await first.simulateApproval();
-      await first.createBag(
-        title: 'Persisted Bag',
-        description: 'Should still be here after reload.',
-        envelope: first.getBags().first.envelope,
-        price: first.getBags().first.price,
-        quantityAvailable: 3,
-        pickupWindow: first.getBags().first.pickupWindow,
-      );
-      await first.confirmPickupByCode(
-        orderId: first.getOrders().first.id,
-        code: first.getOrders().first.token.fallbackCode,
-      );
-
-      final reloaded = await ShopRepository.load();
-
-      expect(reloaded.profile?.businessName, 'Test Bakery');
-      expect(reloaded.getBags().any((b) => b.title == 'Persisted Bag'), true);
-      expect(
-        reloaded.getOrders().first.status.name,
-        first.getOrders().first.status.name,
-      );
-    });
-
-    test(
-      'logOut clears persisted state so the next load starts fresh',
-      () async {
-        final first = await ShopRepository.load();
-        await first.register(_testProfile());
-
-        await first.logOut();
-
-        final reloaded = await ShopRepository.load();
-        expect(reloaded.profile, isNull);
-      },
-    );
-
-    test('a bag photo survives a fresh load()', () async {
-      final first = await ShopRepository.load();
-      final photo = Uint8List.fromList([1, 2, 3, 4, 5]);
-      final bag = await first.createBag(
-        title: 'Photo Bag',
-        description: 'Has a photo.',
-        envelope: first.getBags().first.envelope,
-        price: first.getBags().first.price,
-        quantityAvailable: 1,
-        pickupWindow: first.getBags().first.pickupWindow,
-        photoBytes: photo,
-      );
-
-      final reloaded = await ShopRepository.load();
-      final reloadedBag = reloaded.getBags().firstWhere((b) => b.id == bag.id);
-      expect(reloadedBag.photoBytes, photo);
-    });
-  });
+  // Registration/bags/orders are now Supabase-backed (see
+  // data/shop_repository.dart's module doc) rather than persisted to
+  // `shared_preferences`, so cross-reload persistence for them is no
+  // longer something a backend-free unit test can exercise — that needs a
+  // real (or mocked) Supabase project instead. `ShopRepository.load()`
+  // with no prior Supabase session simply comes up unregistered, which is
+  // covered by the widget tests above via the bare fixture constructor.
 
   group('listings', () {
     test(
@@ -382,19 +328,6 @@ void main() {
   });
 
   group('persistence', () {
-    test('notifications survive a fresh load()', () async {
-      final first = await ShopRepository.load();
-      final reserved = first.getOrders().firstWhere(
-        (o) => o.status == ShopOrderStatus.reserved,
-      );
-      await first.cancelOrder(reserved.id);
-
-      final reloaded = await ShopRepository.load();
-
-      expect(reloaded.getNotifications(), hasLength(1));
-      expect(reloaded.getNotifications().first.message, contains('cancelled'));
-    });
-
     test('store hours survive a fresh load()', () async {
       final first = await ShopRepository.load();
       final updated = first.storeHours.withDay(

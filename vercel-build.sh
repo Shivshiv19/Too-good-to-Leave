@@ -16,11 +16,16 @@ flutter pub get
 # GitHub Pages deploy.
 dart run build_runner build --delete-conflicting-outputs
 
-# MAPTILER_API_KEY comes from a Vercel project environment variable
-# (Settings > Environment Variables), never committed — see
-# lib/bootstrap.dart's own startup guard for why this can't be empty.
+# MAPTILER_API_KEY / SUPABASE_URL / SUPABASE_ANON_KEY come from Vercel
+# project environment variables (Settings > Environment Variables), never
+# committed — see lib/bootstrap.dart's own startup guard for why these
+# can't be empty.
 cat > dart_defines.json <<EOF
-{ "MAPTILER_API_KEY": "${MAPTILER_API_KEY:-}" }
+{
+  "MAPTILER_API_KEY": "${MAPTILER_API_KEY:-}",
+  "SUPABASE_URL": "${SUPABASE_URL:-}",
+  "SUPABASE_ANON_KEY": "${SUPABASE_ANON_KEY:-}"
+}
 EOF
 
 flutter build web --release --no-wasm-dry-run \
