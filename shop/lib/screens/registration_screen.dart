@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/design_system/components/app_button.dart';
@@ -121,6 +122,65 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   String? _required(String? value) =>
       (value == null || value.trim().isEmpty) ? 'Required' : null;
+
+  String? _validatePhone(String? value) {
+    final requiredError = _required(value);
+    if (requiredError != null) return requiredError;
+    final digits = value!.trim().replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length != 10) return 'Enter a valid 10-digit phone number';
+    return null;
+  }
+
+  static final _emailPattern = RegExp(r'^[\w.\-]+@[\w\-]+\.[a-zA-Z]{2,}$');
+
+  String? _validateEmail(String? value) {
+    final requiredError = _required(value);
+    if (requiredError != null) return requiredError;
+    if (!_emailPattern.hasMatch(value!.trim())) {
+      return 'Enter a valid email address';
+    }
+    return null;
+  }
+
+  String? _validateFssai(String? value) {
+    final requiredError = _required(value);
+    if (requiredError != null) return requiredError;
+    if (!RegExp(r'^\d{14}$').hasMatch(value!.trim())) {
+      return 'FSSAI licence number must be 14 digits';
+    }
+    return null;
+  }
+
+  String? _validateAccountNumber(String? value) {
+    final requiredError = _required(value);
+    if (requiredError != null) return requiredError;
+    if (!RegExp(r'^\d{9,18}$').hasMatch(value!.trim())) {
+      return 'Enter a valid account number (9–18 digits)';
+    }
+    return null;
+  }
+
+  static final _ifscPattern = RegExp(r'^[A-Z]{4}0[A-Z0-9]{6}$');
+
+  String? _validateIfsc(String? value) {
+    final requiredError = _required(value);
+    if (requiredError != null) return requiredError;
+    if (!_ifscPattern.hasMatch(value!.trim().toUpperCase())) {
+      return 'Enter a valid IFSC code (e.g. SBIN0001234)';
+    }
+    return null;
+  }
+
+  static final _upiPattern = RegExp(r'^[\w.\-]{2,}@[a-zA-Z]{2,}$');
+
+  /// Optional field — only validated when the shop actually enters one.
+  String? _validateUpi(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    if (!_upiPattern.hasMatch(value.trim())) {
+      return 'Enter a valid UPI ID (e.g. name@bank)';
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -272,12 +332,16 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           TextFormField(
             controller: _phone,
             keyboardType: TextInputType.phone,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(10),
+            ],
             decoration: _decoration(
               context,
               'Phone number',
               Icons.call_outlined,
             ),
-            validator: _required,
+            validator: _validatePhone,
           ),
         ]),
         const SizedBox(height: Space.x4),
@@ -286,7 +350,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             controller: _email,
             keyboardType: TextInputType.emailAddress,
             decoration: _decoration(context, 'Email', Icons.mail_outline),
-            validator: _required,
+            validator: _validateEmail,
           ),
           DropdownButtonFormField<ShopCategory>(
             initialValue: _category,
@@ -337,12 +401,17 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         _FieldRow([
           TextFormField(
             controller: _fssaiNumber,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(14),
+            ],
             decoration: _decoration(
               context,
               'Licence number',
               Icons.badge_outlined,
             ),
-            validator: _required,
+            validator: _validateFssai,
           ),
           InkWell(
             borderRadius: BorderRadius.circular(Radii.sm),
@@ -391,12 +460,16 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           TextFormField(
             controller: _accountNumber,
             keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(18),
+            ],
             decoration: _decoration(
               context,
               'Account number',
               Icons.account_balance_outlined,
             ),
-            validator: _required,
+            validator: _validateAccountNumber,
           ),
         ]),
         const SizedBox(height: Space.x4),
@@ -404,8 +477,12 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           TextFormField(
             controller: _ifscCode,
             textCapitalization: TextCapitalization.characters,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9]')),
+              LengthLimitingTextInputFormatter(11),
+            ],
             decoration: _decoration(context, 'IFSC code', Icons.tag),
-            validator: _required,
+            validator: _validateIfsc,
           ),
           TextFormField(
             controller: _upiId,
@@ -414,6 +491,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               'UPI ID (optional)',
               Icons.qr_code_outlined,
             ),
+            validator: _validateUpi,
           ),
         ]),
       ],
