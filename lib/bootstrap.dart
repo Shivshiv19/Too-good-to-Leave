@@ -19,6 +19,7 @@ import 'package:surplus_marketplace/features/checkout/checkout.dart';
 import 'package:surplus_marketplace/features/checkout/data/repositories/checkout_repository_supabase.dart';
 import 'package:surplus_marketplace/features/config/config.dart';
 import 'package:surplus_marketplace/features/engagement/engagement.dart';
+import 'package:surplus_marketplace/features/location/data/repositories/location_repository_maptiler.dart';
 import 'package:surplus_marketplace/features/location/location.dart';
 import 'package:surplus_marketplace/features/onboarding/onboarding.dart';
 import 'package:surplus_marketplace/features/orders/data/repositories/orders_repository_supabase.dart';
@@ -128,15 +129,17 @@ Future<void> bootstrap({required Flavor flavor}) async {
   runApp(
     ProviderScope(
       overrides: [
-        // config/onboarding/location stay on fakes/local-storage — untouched
-        // by this phase's "bags and orders are real and realtime" scope.
+        // config/onboarding stay on fakes/local-storage — untouched by this
+        // phase's "bags and orders are real and realtime" scope.
         configRepositoryProvider.overrideWithValue(ConfigRepositoryFake()),
         onboardingRepositoryProvider.overrideWithValue(
           OnboardingRepositoryPrefs(prefs),
         ),
         authRepositoryProvider.overrideWithValue(authRepository),
+        // Real MapTiler geocoding, not the Bengaluru-only fixture search —
+        // see LocationRepositoryMaptiler's class doc.
         locationRepositoryProvider.overrideWithValue(
-          LocationRepositoryFake(prefs),
+          LocationRepositoryMaptiler(prefs, apiKey: _mapTilerApiKey),
         ),
         // The device-capability wrapper, not a server stand-in — always the
         // real `geolocator`-backed implementation regardless of flavour,
