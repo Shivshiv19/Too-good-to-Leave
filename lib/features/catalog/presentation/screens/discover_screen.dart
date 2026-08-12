@@ -318,16 +318,21 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
       case _Phase.error:
         return _ErrorState(onRetry: _load, l10n: l10n);
       case _Phase.loaded:
+        // Map mode always renders a real map, even with zero pins — falling
+        // through to the list's text empty-state here would make the map
+        // toggle a silent no-op exactly when there's nothing to list
+        // (e.g. an over-filtered or genuinely bag-less area), which reads
+        // as "the map is broken" rather than "there's nothing to show yet".
+        if (_viewMode == _ViewMode.map) return _buildMap(context, l10n);
         if (_items.isEmpty) return _buildEmptyState(context, l10n);
-        return _viewMode == _ViewMode.list
-            ? _buildSections(context, l10n)
-            : _buildMap(context, l10n);
+        return _buildSections(context, l10n);
     }
   }
 
   Widget _buildMap(BuildContext context, AppLocalizations l10n) {
+    final colors = context.colors;
     final anchor = _query!.anchor;
-    return TileMapView(
+    final map = TileMapView(
       tileConfig: ref.watch(mapTileConfigProvider),
       center: anchor,
       zoom: 13,
@@ -348,6 +353,34 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
               ),
             ),
           ),
+      ],
+    );
+    if (_items.isNotEmpty) return map;
+    return Stack(
+      children: [
+        map,
+        Positioned(
+          left: Space.x4,
+          right: Space.x4,
+          top: Space.x4,
+          child: Material(
+            color: colors.surfaceRaised,
+            borderRadius: BorderRadius.circular(Radii.chip),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: Space.x4,
+                vertical: Space.x3,
+              ),
+              child: Text(
+                l10n.discoverMapNoBags,
+                textAlign: TextAlign.center,
+                style: context.type.body.copyWith(
+                  color: colors.textSecondary,
+                ),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
