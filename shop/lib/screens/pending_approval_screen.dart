@@ -89,7 +89,7 @@ class PendingApprovalScreen extends StatelessWidget {
                   ),
                 ),
                 Align(
-                  alignment: Alignment.centerLeft,
+                  alignment: Alignment.center,
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(
                       maxWidth: Breakpoints.formMaxWidth,
@@ -113,7 +113,7 @@ class PendingApprovalScreen extends StatelessWidget {
             flex: 11,
             child: SafeArea(
               child: Align(
-                alignment: Alignment.centerLeft,
+                alignment: Alignment.center,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(
                     maxWidth: Breakpoints.formMaxWidth,
