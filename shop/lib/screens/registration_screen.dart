@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart' as fm;
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
+import 'package:too_good_to_leave_shop/core/platform/geocoding_service.dart';
 import 'package:too_good_to_leave_shop/core/platform/map_tile_config.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/design_system/components/app_button.dart';
@@ -128,15 +132,25 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     if (!mounted) return;
     setState(() => _isLocatingForPicker = false);
 
-    final picked = await showModalBottomSheet<LatLng>(
+    final picked = await showModalBottomSheet<GeocodingResult>(
       context: context,
       isScrollControlled: true,
       builder: (context) => _MapPickerSheet(
         tileConfig: MapTilerTileConfig(apiKey: widget.mapTilerApiKey),
+        geocoding: MapTilerGeocodingService(apiKey: widget.mapTilerApiKey),
         initialCenter: startingCenter,
       ),
     );
-    if (picked != null) setState(() => _pickedLocation = picked);
+    if (picked == null) return;
+    setState(() => _pickedLocation = picked.position);
+    // The whole point of picking on a map is to skip typing this by hand —
+    // always overwrite rather than only-fill-if-empty.
+    if (picked.addressLine != null && picked.addressLine!.isNotEmpty) {
+      _addressLine.text = picked.addressLine!;
+    }
+    if (picked.locality != null && picked.locality!.isNotEmpty) {
+      _locality.text = picked.locality!;
+    }
   }
 
   Future<void> _submit() async {
@@ -845,13 +859,20 @@ class _LocationPickerField extends StatelessWidget {
 /// (the standard "pin follows the map, not your finger" pattern),
 /// confirmed explicitly rather than resolving on the first frame — mirrors
 /// the customer app's own `_PinDropSheet` in `location_setup_screen.dart`.
+///
+/// Two ways to land on a spot: type into the search box (jumps the map to
+/// the picked result), or drag the map by hand. Either way, confirming
+/// reverse-geocodes the final centre so the registration form's Address /
+/// Locality fields get filled in without the owner typing them.
 class _MapPickerSheet extends StatefulWidget {
   const _MapPickerSheet({
     required this.tileConfig,
+    required this.geocoding,
     required this.initialCenter,
   });
 
   final MapTileConfig tileConfig;
+  final MapTilerGeocodingService geocoding;
   final LatLng initialCenter;
 
   @override
@@ -859,7 +880,59 @@ class _MapPickerSheet extends StatefulWidget {
 }
 
 class _MapPickerSheetState extends State<_MapPickerSheet> {
+  final _mapController = fm.MapController();
+  final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
+  Timer? _debounce;
+
   late LatLng _center = widget.initialCenter;
+  List<GeocodingResult> _results = [];
+  bool _isSearching = false;
+  bool _isConfirming = false;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    _debounce?.cancel();
+    if (query.trim().isEmpty) {
+      setState(() => _results = []);
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 400), () async {
+      setState(() => _isSearching = true);
+      final results = await widget.geocoding.search(query);
+      if (!mounted) return;
+      setState(() {
+        _results = results;
+        _isSearching = false;
+      });
+    });
+  }
+
+  void _selectResult(GeocodingResult result) {
+    setState(() {
+      _center = result.position;
+      _results = [];
+      _searchController.text = result.label;
+    });
+    _searchFocusNode.unfocus();
+    _mapController.move(result.position, 16);
+  }
+
+  Future<void> _confirm() async {
+    setState(() => _isConfirming = true);
+    final resolved = await widget.geocoding.reverseGeocode(_center);
+    if (!mounted) return;
+    Navigator.of(context).pop(
+      resolved ?? GeocodingResult(position: _center, label: 'Pinned location'),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -869,7 +942,12 @@ class _MapPickerSheetState extends State<_MapPickerSheet> {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(Space.x4),
+            padding: const EdgeInsets.fromLTRB(
+              Space.x4,
+              Space.x4,
+              Space.x4,
+              0,
+            ),
             child: Row(
               children: [
                 Expanded(
@@ -885,6 +963,55 @@ class _MapPickerSheetState extends State<_MapPickerSheet> {
               ],
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              Space.x4,
+              Space.x3,
+              Space.x4,
+              0,
+            ),
+            child: TextField(
+              controller: _searchController,
+              focusNode: _searchFocusNode,
+              onChanged: _onSearchChanged,
+              decoration: InputDecoration(
+                hintText: 'Search for your shop, street or area',
+                prefixIcon: Icon(
+                  Icons.search,
+                  size: 20,
+                  color: colors.textSecondary,
+                ),
+                suffixIcon: _isSearching
+                    ? const Padding(
+                        padding: EdgeInsets.all(14),
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : (_searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.close, size: 18),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() => _results = []);
+                              },
+                            )
+                          : null),
+                filled: true,
+                fillColor: colors.surfaceSunken,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(Radii.sm),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: Space.x4,
+                  vertical: Space.x3,
+                ),
+              ),
+            ),
+          ),
           Expanded(
             child: Stack(
               alignment: Alignment.center,
@@ -893,18 +1020,36 @@ class _MapPickerSheetState extends State<_MapPickerSheet> {
                   tileConfig: widget.tileConfig,
                   center: widget.initialCenter,
                   zoom: 16,
-                  onCenterChanged: (center) => setState(() => _center = center),
+                  mapController: _mapController,
+                  onCenterChanged: (center) => setState(() {
+                    _center = center;
+                    _results = [];
+                  }),
                 ),
                 // Fixed at the visual centre — the map moves under it, not
                 // the other way round.
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 36),
-                  child: Icon(
-                    Icons.location_pin,
-                    size: 44,
-                    color: colors.actionPrimaryBg,
+                IgnorePointer(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 36),
+                    child: Icon(
+                      Icons.location_pin,
+                      size: 44,
+                      color: colors.actionPrimaryBg,
+                    ),
                   ),
                 ),
+                // Search suggestions float over the map so the sheet
+                // doesn't grow/shrink as results appear/disappear.
+                if (_results.isNotEmpty)
+                  Positioned(
+                    top: 0,
+                    left: Space.x4,
+                    right: Space.x4,
+                    child: _SearchResultsList(
+                      results: _results,
+                      onSelected: _selectResult,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -912,10 +1057,60 @@ class _MapPickerSheetState extends State<_MapPickerSheet> {
             padding: const EdgeInsets.all(Space.x4),
             child: AppButton(
               label: 'Confirm this location',
-              onPressed: () => Navigator.of(context).pop(_center),
+              onPressed: _isConfirming ? null : _confirm,
+              isLoading: _isConfirming,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The dropdown of search matches shown under the map picker's search box.
+class _SearchResultsList extends StatelessWidget {
+  const _SearchResultsList({required this.results, required this.onSelected});
+
+  final List<GeocodingResult> results;
+  final ValueChanged<GeocodingResult> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 260),
+      decoration: BoxDecoration(
+        color: colors.surfaceRaised,
+        borderRadius: BorderRadius.circular(Radii.sm),
+        border: Border.all(color: colors.borderSubtle.withValues(alpha: 0.6)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: ListView.separated(
+        shrinkWrap: true,
+        padding: EdgeInsets.zero,
+        itemCount: results.length,
+        separatorBuilder: (_, _) =>
+            Divider(height: 1, color: colors.borderSubtle.withValues(alpha: 0.6)),
+        itemBuilder: (context, index) {
+          final result = results[index];
+          return ListTile(
+            dense: true,
+            leading: Icon(
+              Icons.place_outlined,
+              size: 20,
+              color: colors.textSecondary,
+            ),
+            title: Text(result.label, style: context.type.body),
+            onTap: () => onSelected(result),
+          );
+        },
       ),
     );
   }

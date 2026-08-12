@@ -26,6 +26,7 @@ class TileMapView extends StatelessWidget {
     this.pins = const [],
     this.onCenterChanged,
     this.interactive = true,
+    this.mapController,
     super.key,
   });
 
@@ -40,10 +41,16 @@ class TileMapView extends StatelessWidget {
 
   final bool interactive;
 
+  /// Lets a parent (e.g. a search box picking a result) recentre the map
+  /// programmatically via `mapController.move(...)`. Optional — most call
+  /// sites never need to drive the map from outside.
+  final fm.MapController? mapController;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     return fm.FlutterMap(
+      mapController: mapController,
       options: fm.MapOptions(
         initialCenter: center,
         initialZoom: zoom,
