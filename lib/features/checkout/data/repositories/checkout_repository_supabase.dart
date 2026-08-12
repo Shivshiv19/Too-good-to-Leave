@@ -464,51 +464,45 @@ final class CheckoutRepositorySupabase implements CheckoutRepository {
     final pickupStart = DateTime.parse(bagRow['pickup_start_at'] as String);
     final pickupEnd = DateTime.parse(bagRow['pickup_end_at'] as String);
 
-    final orderRow = await _client
-        .from('orders')
-        .insert({
-          'customer_id': customerId,
-          'shop_id': hold.merchantId,
-          'bag_id': hold.bagId,
-          'quantity': hold.quantity,
-          'shop_snapshot': _shopSnapshotJson(shopRow),
-          'bag_snapshot': _bagSnapshotJson(bagRow),
-          'customer_snapshot': await _customerSnapshotJson(customerId),
-          'price_breakdown': _breakdownToJson(hold.breakdown),
-          'pickup_start_at': pickupStart.toIso8601String(),
-          'pickup_end_at': pickupEnd.toIso8601String(),
-          // Fake payment always succeeds synchronously — the order is
-          // born confirmed, never lingering in pending_payment.
-          'status': 'confirmed',
-          'pickup_token': _generatePickupTokenJson(pickupEnd),
-        })
-        .select()
-        .single();
-    final orderId = orderRow['id'] as String;
-
-    final remainingStock =
-        (bagRow['quantity_available'] as int) - hold.quantity;
-    await _client
-        .from('bags')
-        .update({
-          'quantity_available': remainingStock,
-          'status': remainingStock <= 0 ? 'sold_out' : bagRow['status'],
-          'updated_at': DateTime.now().toUtc().toIso8601String(),
-        })
-        .eq('id', hold.bagId);
-
-    final paymentRow = await _client
-        .from('payments')
-        .insert({
-          'order_id': orderId,
-          'method': _paymentMethodToWire(method),
-          'gateway_ref': 'FAKE-${_randomCode(10)}',
-          'amount_paise': hold.breakdown.total.amountInPaise,
-          'status': 'captured',
-          'attempts': 1,
-        })
-        .select()
-        .single();
+    // A single `security definer` RPC, not three separate REST calls — the
+    // order insert, the shop-owned bag's stock decrement, and the payment
+    // insert must all happen atomically (a customer session has no RLS
+    // grant to update someone else's bag or insert a payment row directly;
+    // see `create_order_and_pay`'s own doc comment in schema.sql). It also
+    // row-locks the bag, closing the race where two holds on the last unit
+    // could otherwise both succeed.
+    final Object? result;
+    try {
+      result = await _client.rpc(
+        'create_order_and_pay',
+        params: {
+          'p_bag_id': hold.bagId,
+          'p_quantity': hold.quantity,
+          'p_shop_snapshot': _shopSnapshotJson(shopRow),
+          'p_bag_snapshot': _bagSnapshotJson(bagRow),
+          'p_customer_snapshot': await _customerSnapshotJson(customerId),
+          'p_price_breakdown': _breakdownToJson(hold.breakdown),
+          'p_pickup_start_at': pickupStart.toIso8601String(),
+          'p_pickup_end_at': pickupEnd.toIso8601String(),
+          'p_pickup_token': _generatePickupTokenJson(pickupEnd),
+          'p_payment_method': _paymentMethodToWire(method),
+          'p_gateway_ref': 'FAKE-${_randomCode(10)}',
+          'p_amount_paise': hold.breakdown.total.amountInPaise,
+        },
+      );
+    } on PostgrestException catch (e) {
+      // The RPC re-validates live stock under a row lock (closing the race
+      // the pre-check above can't) — surface that the same way the
+      // pre-check does rather than as a raw server error.
+      if (e.message.contains('insufficient stock') ||
+          e.message.contains('bag is not live')) {
+        throw const BagSoldOutException();
+      }
+      rethrow;
+    }
+    final resultMap = (result! as Map).cast<String, dynamic>();
+    final orderRow = (resultMap['order'] as Map).cast<String, dynamic>();
+    final paymentRow = (resultMap['payment'] as Map).cast<String, dynamic>();
 
     _holds.remove(holdId);
 

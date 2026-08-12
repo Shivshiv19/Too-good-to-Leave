@@ -450,6 +450,90 @@ create policy refunds_customer_read on refunds
     )
   );
 
+-- Placing an order needs to insert an `orders` row (covered by
+-- orders_customer_create), decrement `bags.quantity_available` (the bag
+-- belongs to the *shop*, not the customer — no RLS policy should ever let a
+-- customer write to it directly), and insert a `payments` row (no
+-- customer-facing insert policy exists on `payments` at all, by design —
+-- see the payments/refunds comment above). A `security definer` function is
+-- the correct way to let a customer trigger exactly this one bounded write
+-- across two tables they don't otherwise own, instead of loosening RLS on
+-- `bags`/`payments` broadly. It re-validates live stock itself (never trust
+-- the client) and locks the bag row (`for update`) so two simultaneous
+-- purchases can't both succeed against the last unit.
+create or replace function create_order_and_pay(
+  p_bag_id uuid,
+  p_quantity integer,
+  p_shop_snapshot jsonb,
+  p_bag_snapshot jsonb,
+  p_customer_snapshot jsonb,
+  p_price_breakdown jsonb,
+  p_pickup_start_at timestamptz,
+  p_pickup_end_at timestamptz,
+  p_pickup_token jsonb,
+  p_payment_method payment_method,
+  p_gateway_ref text,
+  p_amount_paise bigint
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_customer_id uuid := auth.uid();
+  v_shop_id uuid;
+  v_available integer;
+  v_status bag_status;
+  v_order orders%rowtype;
+  v_payment payments%rowtype;
+begin
+  if v_customer_id is null then
+    raise exception 'not authenticated';
+  end if;
+
+  select shop_id, quantity_available, status
+    into v_shop_id, v_available, v_status
+    from bags where id = p_bag_id
+    for update;
+
+  if not found then
+    raise exception 'bag not found';
+  end if;
+  if v_status <> 'live' then
+    raise exception 'bag is not live';
+  end if;
+  if v_available < p_quantity then
+    raise exception 'insufficient stock';
+  end if;
+
+  insert into orders (
+    customer_id, shop_id, bag_id, quantity, shop_snapshot, bag_snapshot,
+    customer_snapshot, price_breakdown, pickup_start_at, pickup_end_at,
+    status, pickup_token
+  ) values (
+    v_customer_id, v_shop_id, p_bag_id, p_quantity, p_shop_snapshot, p_bag_snapshot,
+    p_customer_snapshot, p_price_breakdown, p_pickup_start_at, p_pickup_end_at,
+    'confirmed', p_pickup_token
+  ) returning * into v_order;
+
+  update bags
+    set quantity_available = v_available - p_quantity,
+        status = case when v_available - p_quantity <= 0 then 'sold_out' else status end,
+        updated_at = now()
+    where id = p_bag_id;
+
+  insert into payments (
+    order_id, method, gateway_ref, amount_paise, status, attempts
+  ) values (
+    v_order.id, p_payment_method, p_gateway_ref, p_amount_paise, 'captured', 1
+  ) returning * into v_payment;
+
+  return jsonb_build_object('order', to_jsonb(v_order), 'payment', to_jsonb(v_payment));
+end;
+$$;
+
+grant execute on function create_order_and_pay to authenticated;
+
 -- payouts / payout_order_items / shop_notifications: owner only.
 create policy payouts_owner_only on payouts
   for all using (shop_id in (select id from shops where auth_user_id = auth.uid()))

@@ -146,7 +146,16 @@ class _ReviewPayScreenState extends ConsumerState<ReviewPayScreen> {
         setState(() => _phase = _Phase.idle);
       }
     } on Object {
-      if (mounted) setState(() => _phase = _Phase.idle);
+      // A reset-to-idle with no message here reads as "the button did
+      // nothing" — the worst possible feedback for a payment tap that just
+      // hit a real network backend. Always surface *something*.
+      if (mounted) {
+        final l10n = AppLocalizations.of(context);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.errorServerBody)));
+        setState(() => _phase = _Phase.idle);
+      }
     }
   }
 
