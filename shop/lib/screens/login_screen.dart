@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/design_system/components/app_button.dart';
@@ -65,6 +66,12 @@ class _LoginScreenState extends State<LoginScreen> {
       // If a shop *was* found, `logIn` already set the repository's
       // profile — main.dart's reactive builder swaps away from this
       // screen on its own, nothing further to do here.
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(_readableAuthError(e))));
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -73,6 +80,46 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  /// A wrong email/password is the overwhelmingly common failure here —
+  /// worth a plain sentence instead of the raw exception dump every other
+  /// error path in this app still shows.
+  String _readableAuthError(AuthException e) {
+    if (e.code == 'invalid_credentials' ||
+        e.message.toLowerCase().contains('invalid login credentials')) {
+      return 'Incorrect email or password.';
+    }
+    return 'Login failed: ${e.message}';
+  }
+
+  Future<void> _forgotPassword() async {
+    final email = _email.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enter your email above first, then tap this again.'),
+        ),
+      );
+      return;
+    }
+    try {
+      await widget.repository.requestPasswordReset(email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'If an account exists for $email, a reset link has been sent.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not send reset email: $e')),
+        );
+      }
     }
   }
 
@@ -165,7 +212,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
               validator: _required,
             ),
-            const SizedBox(height: Space.x8),
+            const SizedBox(height: Space.x2),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _isSubmitting ? null : _forgotPassword,
+                child: const Text('Forgot password?'),
+              ),
+            ),
+            const SizedBox(height: Space.x6),
             AppButton(
               label: 'Log in',
               onPressed: _isSubmitting ? null : _submit,

@@ -612,6 +612,17 @@ class ShopRepository extends ChangeNotifier {
     return true;
   }
 
+  /// Sends a real Supabase password-reset email for a [logIn] account.
+  /// Unlike sign-up, a reset email is unavoidable — resetting a password is
+  /// the one auth action here that has no hardcoded-workaround shape — so
+  /// this only actually reaches an inbox if a working SMTP provider is
+  /// configured (see `logIn`'s doc on the sign-up mailer issues this app
+  /// otherwise avoids entirely).
+  Future<void> requestPasswordReset(String email) async {
+    if (!_useBackend) return;
+    await _client.auth.resetPasswordForEmail(email);
+  }
+
   /// Stands in for a real review process — there's no admin surface in this
   /// standalone build, so approval is a demo action the registration flow's
   /// own "pending review" screen exposes, rather than something that
