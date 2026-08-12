@@ -6,7 +6,6 @@ import 'package:too_good_to_leave_shop/design_system/components/hero_visual.dart
 import 'package:too_good_to_leave_shop/design_system/components/max_width_body.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/breakpoints.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
-import 'package:too_good_to_leave_shop/design_system/foundations/elevation.dart';
 import 'package:too_good_to_leave_shop/domain/shop_category.dart';
 import 'package:too_good_to_leave_shop/domain/shop_profile.dart';
 
@@ -486,32 +485,22 @@ class _SectionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surfaceRaised,
         borderRadius: BorderRadius.circular(Radii.card),
-        border: Border.all(color: colors.borderSubtle),
-        boxShadow: Elevation.card.shadowsFor(colors.brightness),
+        border: Border.all(color: colors.borderSubtle.withValues(alpha: 0.6)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: colors.actionPrimaryBg.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(Radii.sm),
-                ),
-                alignment: Alignment.center,
-                child: Icon(icon, size: 18, color: colors.actionPrimaryBg),
-              ),
-              const SizedBox(width: Space.x3),
+              Icon(icon, size: 18, color: colors.textSecondary),
+              const SizedBox(width: Space.x2),
               Expanded(child: Text(title, style: context.type.titleSmall)),
             ],
           ),
           if (subtitle != null) ...[
             const SizedBox(height: Space.x2),
             Padding(
-              padding: const EdgeInsets.only(left: 48),
+              padding: const EdgeInsets.only(left: 26),
               child: Text(
                 subtitle!,
                 style: context.type.caption.copyWith(
