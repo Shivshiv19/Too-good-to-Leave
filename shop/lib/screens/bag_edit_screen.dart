@@ -50,6 +50,8 @@ class _BagEditScreenState extends State<BagEditScreen> {
   late Uint8List? _photoBytes = widget.existing?.photoBytes;
   late bool _repeatsDaily = widget.existing?.repeatsDaily ?? false;
   late final Set<String> _tags = {...?widget.existing?.tags};
+  bool _isSaving = false;
+  bool _isDeleting = false;
 
   Future<void> _pickPhoto() async {
     final picked = await ImagePicker().pickImage(
@@ -84,61 +86,116 @@ class _BagEditScreenState extends State<BagEditScreen> {
     setState(() => isStart ? _startTime = picked : _endTime = picked);
   }
 
+  /// `null` means valid — every field the shop actually types into gets a
+  /// real check here rather than `int.tryParse(...) ?? 0` silently turning
+  /// blank/garbage/negative input into a free (₹0) or phantom-stock bag
+  /// with no feedback at all.
+  String? _validate({
+    required String title,
+    required int? price,
+    required int? quantity,
+    required DateTime start,
+    required DateTime end,
+  }) {
+    if (title.isEmpty) return 'Enter a title.';
+    if (price == null || price <= 0) {
+      return 'Enter a price greater than ₹0.';
+    }
+    if (quantity == null || quantity < 0) {
+      return 'Enter a valid quantity (0 or more).';
+    }
+    // A brand-new listing with 0 units has nothing to sell; an existing
+    // bag being edited down to 0 is a legitimate "just sold the last one"
+    // state, so this only blocks the create path.
+    if (widget.existing == null && quantity < 1) {
+      return 'Enter at least 1 unit for a new bag.';
+    }
+    if (!start.isBefore(end)) {
+      return 'Pickup start must be before pickup end.';
+    }
+    return null;
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<void> _save() async {
     final title = _titleController.text.trim();
-    final price = int.tryParse(_priceController.text.trim()) ?? 0;
-    final quantity = int.tryParse(_quantityController.text.trim()) ?? 0;
+    final price = int.tryParse(_priceController.text.trim());
+    final quantity = int.tryParse(_quantityController.text.trim());
     final start = _todayAt(_startTime);
     final end = _todayAt(_endTime);
 
-    if (title.isEmpty || !start.isBefore(end)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Enter a title, and make sure pickup start is before end.',
-          ),
-        ),
-      );
+    final error = _validate(
+      title: title,
+      price: price,
+      quantity: quantity,
+      start: start,
+      end: end,
+    );
+    if (error != null) {
+      _showError(error);
       return;
     }
 
-    final pickupWindow = PickupWindow(startAt: start, endAt: end);
-    final existing = widget.existing;
-    if (existing == null) {
-      await widget.repository.createBag(
-        title: title,
-        description: _descriptionController.text.trim(),
-        envelope: _envelope,
-        price: Money.rupees(price),
-        quantityAvailable: quantity,
-        pickupWindow: pickupWindow,
-        photoBytes: _photoBytes,
-        repeatsDaily: _repeatsDaily,
-        tags: _tags.toList(),
-      );
-    } else {
-      await widget.repository.updateBag(
-        existing.copyWith(
+    setState(() => _isSaving = true);
+    try {
+      final pickupWindow = PickupWindow(startAt: start, endAt: end);
+      final existing = widget.existing;
+      if (existing == null) {
+        await widget.repository.createBag(
           title: title,
           description: _descriptionController.text.trim(),
           envelope: _envelope,
-          price: Money.rupees(price),
-          quantityAvailable: quantity,
+          price: Money.rupees(price!),
+          quantityAvailable: quantity!,
           pickupWindow: pickupWindow,
-          status: _status,
           photoBytes: _photoBytes,
           repeatsDaily: _repeatsDaily,
           tags: _tags.toList(),
-        ),
-      );
+        );
+      } else {
+        await widget.repository.updateBag(
+          existing.copyWith(
+            title: title,
+            description: _descriptionController.text.trim(),
+            envelope: _envelope,
+            price: Money.rupees(price!),
+            quantityAvailable: quantity!,
+            pickupWindow: pickupWindow,
+            status: _status,
+            photoBytes: _photoBytes,
+            repeatsDaily: _repeatsDaily,
+            tags: _tags.toList(),
+          ),
+        );
+      }
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      // A silent failure here reads as "the button did nothing" — the shop
+      // owner has no way to know the bag wasn't actually saved.
+      if (mounted) {
+        _showError('Could not save this bag: $e');
+        setState(() => _isSaving = false);
+      }
     }
-    if (mounted) Navigator.of(context).pop();
   }
 
   Future<void> _delete() async {
     if (widget.existing == null) return;
-    await widget.repository.deleteBag(widget.existing!.id);
-    if (mounted) Navigator.of(context).pop();
+    setState(() => _isDeleting = true);
+    try {
+      await widget.repository.deleteBag(widget.existing!.id);
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        _showError('Could not delete this bag: $e');
+        setState(() => _isDeleting = false);
+      }
+    }
   }
 
   @override
@@ -154,8 +211,17 @@ class _BagEditScreenState extends State<BagEditScreen> {
         actions: [
           if (isEditing)
             IconButton(
-              onPressed: _delete,
-              icon: Icon(Icons.delete_outline, color: colors.critical.fg),
+              onPressed: (_isSaving || _isDeleting) ? null : _delete,
+              icon: _isDeleting
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: colors.critical.fg,
+                      ),
+                    )
+                  : Icon(Icons.delete_outline, color: colors.critical.fg),
             ),
         ],
       ),
@@ -276,7 +342,11 @@ class _BagEditScreenState extends State<BagEditScreen> {
                 ),
               ],
               const SizedBox(height: Space.x8),
-              AppButton(label: 'Save bag', onPressed: _save),
+              AppButton(
+                label: 'Save bag',
+                isLoading: _isSaving,
+                onPressed: (_isSaving || _isDeleting) ? null : _save,
+              ),
             ],
           ),
         ),

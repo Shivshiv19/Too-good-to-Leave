@@ -409,11 +409,19 @@ create policy store_hours_owner_update on store_hours
 create policy store_hours_owner_delete on store_hours
   for delete using (shop_id in (select id from shops where auth_user_id = auth.uid()));
 
--- bags: public read for live bags from verified shops; shop owner gets
--- full read/write on their own bags regardless of status (drafts included).
+-- bags: public read for any bag that has ever been published (everything
+-- except 'draft'), from verified shops; shop owner gets full read/write on
+-- their own bags regardless of status (drafts included). Gating on
+-- `status = 'live'` alone (the original version of this policy) hid a bag
+-- from everyone but its owner the instant it sold out / had its window
+-- close / got withdrawn — which broke the app's own sold-out/withdrawn
+-- messaging (bag detail, checkout) into a generic "not found", since the
+-- row became genuinely unreadable rather than readable-but-unavailable.
+-- Bags aren't sensitive data (no pricing secrets, no PII) — the only thing
+-- actually worth hiding pre-publish is a shop's still-being-drafted listing.
 create policy bags_public_read on bags
   for select using (
-    status = 'live'
+    status <> 'draft'
     or shop_id in (select id from shops where auth_user_id = auth.uid())
   );
 create policy bags_owner_write on bags
@@ -533,6 +541,73 @@ end;
 $$;
 
 grant execute on function create_order_and_pay to authenticated;
+
+-- Customer-initiated cancellation needs exactly the same shape of fix as
+-- create_order_and_pay above: updating the order itself has no RLS problem
+-- (orders_customer_create covers insert, but there is deliberately no
+-- customer-facing UPDATE policy on orders at all — a customer can create
+-- an order, never edit an arbitrary one directly), and giving the
+-- reserved stock back writes to `bags`, which the customer doesn't own
+-- either way. Re-validates the cancellation window itself (a client-side
+-- check alone can't be trusted, and could otherwise race past the cutoff
+-- between the UI's own check and the write).
+create or replace function cancel_order(
+  p_order_id uuid,
+  p_reason text
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_customer_id uuid := auth.uid();
+  v_order orders%rowtype;
+  v_cutoff timestamptz;
+  v_available integer;
+  v_total integer;
+  v_status bag_status;
+begin
+  if v_customer_id is null then
+    raise exception 'not authenticated';
+  end if;
+
+  select * into v_order from orders
+    where id = p_order_id and customer_id = v_customer_id;
+  if not found then
+    raise exception 'order not found';
+  end if;
+
+  v_cutoff := v_order.pickup_start_at - interval '60 minutes';
+  if now() >= v_cutoff or v_order.status not in ('pending_payment', 'confirmed') then
+    raise exception 'cancellation window passed';
+  end if;
+
+  update orders
+    set status = 'cancelled_by_customer',
+        cancelled_at = now(),
+        cancellation_reason = p_reason,
+        updated_at = now()
+    where id = p_order_id
+    returning * into v_order;
+
+  select quantity_available, quantity_total, status
+    into v_available, v_total, v_status
+    from bags where id = v_order.bag_id
+    for update;
+
+  if found then
+    update bags
+      set quantity_available = least(v_available + v_order.quantity, v_total),
+          status = case when v_status = 'sold_out' then 'live' else status end,
+          updated_at = now()
+      where id = v_order.bag_id;
+  end if;
+
+  return to_jsonb(v_order);
+end;
+$$;
+
+grant execute on function cancel_order to authenticated;
 
 -- payouts / payout_order_items / shop_notifications: owner only.
 create policy payouts_owner_only on payouts

@@ -45,17 +45,6 @@ OrderStatus _orderStatusFromWire(String v) => switch (v) {
   _ => OrderStatus.pendingPayment,
 };
 
-String _orderStatusToWire(OrderStatus s) => switch (s) {
-  OrderStatus.pendingPayment => 'pending_payment',
-  OrderStatus.confirmed => 'confirmed',
-  OrderStatus.paymentFailed => 'payment_failed',
-  OrderStatus.readyForPickup => 'ready_for_pickup',
-  OrderStatus.collected => 'collected',
-  OrderStatus.cancelledByCustomer => 'cancelled_by_customer',
-  OrderStatus.cancelledByMerchant => 'cancelled_by_merchant',
-  OrderStatus.expiredUncollected => 'expired_uncollected',
-};
-
 PaymentMethod _paymentMethodFromWire(String v) => switch (v) {
   'net_banking' => PaymentMethod.netBanking,
   'card' => PaymentMethod.card,
@@ -320,44 +309,32 @@ final class OrdersRepositorySupabase implements OrdersRepository {
 
   @override
   Future<Order> cancelOrder(String orderId, {String? reason}) async {
+    // The pre-check gives fast, specific UI feedback (the cancel dialog
+    // shows the refund amount before the customer even confirms) — the
+    // `cancel_order` RPC re-validates the same window server-side
+    // regardless, since a customer has no RLS write access to `orders`
+    // (no customer-facing UPDATE policy exists) or to `bags` (shop-owned),
+    // so both writes have to happen inside a `security definer` function.
+    // See its own doc comment in schema.sql.
     final eligibility = await getCancellationEligibility(orderId);
     if (!eligibility.eligible) {
       throw CancellationWindowPassedException(cutoffAt: eligibility.cutoffAt);
     }
-    final order = await getOrder(orderId);
-    final now = DateTime.now().toUtc();
-    final updatedRow = await _client
-        .from('orders')
-        .update({
-          'status': _orderStatusToWire(OrderStatus.cancelledByCustomer),
-          'cancelled_at': now.toIso8601String(),
-          'cancellation_reason': reason,
-          'updated_at': now.toIso8601String(),
-        })
-        .eq('id', orderId)
-        .select()
-        .single();
-
-    // Give the reserved stock back — a customer-initiated cancellation
-    // frees the bag for someone else, same as the shop app's own
-    // cancelOrder/markNoShow actions do on their side.
-    final bagRow = await _client
-        .from('bags')
-        .select('quantity_available, quantity_total, status')
-        .eq('id', order.bagSnapshot.bagId)
-        .maybeSingle();
-    if (bagRow != null) {
-      final restored = ((bagRow['quantity_available'] as int) + order.quantity)
-          .clamp(0, bagRow['quantity_total'] as int);
-      await _client
-          .from('bags')
-          .update({
-            'quantity_available': restored,
-            'status': bagRow['status'] == 'sold_out' ? 'live' : bagRow['status'],
-            'updated_at': now.toIso8601String(),
-          })
-          .eq('id', order.bagSnapshot.bagId);
+    final Object? result;
+    try {
+      result = await _client.rpc(
+        'cancel_order',
+        params: {'p_order_id': orderId, 'p_reason': reason},
+      );
+    } on PostgrestException catch (e) {
+      if (e.message.contains('cancellation window passed')) {
+        throw CancellationWindowPassedException(
+          cutoffAt: eligibility.cutoffAt,
+        );
+      }
+      rethrow;
     }
+    final updatedRow = (result! as Map).cast<String, dynamic>();
 
     final paymentRow = await _client
         .from('payments')

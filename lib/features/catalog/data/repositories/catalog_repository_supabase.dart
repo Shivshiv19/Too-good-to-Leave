@@ -6,6 +6,7 @@ import 'package:surplus_marketplace/core/domain/money.dart';
 import 'package:surplus_marketplace/core/domain/pickup_window.dart';
 import 'package:surplus_marketplace/core/domain/rating_aggregate.dart';
 import 'package:surplus_marketplace/core/error/app_exception.dart';
+import 'package:surplus_marketplace/core/storage/prefs.dart';
 import 'package:surplus_marketplace/features/catalog/catalog.dart';
 
 Address _addressFromShopRow(Map<String, dynamic> row) => Address(
@@ -140,16 +141,42 @@ int Function(BagSummary, BagSummary) _comparatorFor(DiscoverSort sort) =>
 /// either) — they reset on app restart until a real `saved_merchants` table
 /// exists.
 final class CatalogRepositorySupabase implements CatalogRepository {
+  /// [_prefs] persists saved/watched merchant ids to this device's local
+  /// storage — there's no `saved_merchants` table in the shared schema, but
+  /// a customer expecting "Saved" to survive a page reload is a much lower
+  /// bar than syncing across devices, and shared_preferences already
+  /// covers it without new backend surface.
+  CatalogRepositorySupabase(this._prefs) {
+    _savedMerchantIds.addAll(_prefs.getStringList(_savedKey) ?? const []);
+    _watchedMerchantIds.addAll(_prefs.getStringList(_watchedKey) ?? const []);
+  }
+
+  static const _savedKey = 'catalog.savedMerchantIds';
+  static const _watchedKey = 'catalog.watchedMerchantIds';
+
   SupabaseClient get _client => Supabase.instance.client;
 
+  final Prefs _prefs;
   final Set<String> _savedMerchantIds = {};
   final Set<String> _watchedMerchantIds = {};
 
+  Future<void> _persist() async {
+    await _prefs.setStringList(_savedKey, _savedMerchantIds.toList());
+    await _prefs.setStringList(_watchedKey, _watchedMerchantIds.toList());
+  }
+
   Future<List<Map<String, dynamic>>> _fetchLiveBagsWithShops() async {
-    final rows = await _client.from('bags').select('*, shops(*)').eq(
-      'status',
-      'live',
-    );
+    // `status='live'` alone isn't "actually purchasable" — the shop editor's
+    // Quantity field and its Draft/Live/Paused toggle are independent
+    // controls, so a shop can leave a bag "Live" with 0 units left (e.g.
+    // after manually editing it down, outside the checkout RPC's own
+    // atomic sold-out flip). Filtering stock here keeps a phantom listing
+    // out of Discover rather than showing it with no scarcity warning.
+    final rows = await _client
+        .from('bags')
+        .select('*, shops(*)')
+        .eq('status', 'live')
+        .gt('quantity_available', 0);
     return (rows as List)
         .cast<Map<String, dynamic>>()
         .where((r) => (r['shops'] as Map)['approval_status'] == 'verified')
@@ -293,7 +320,8 @@ final class CatalogRepositorySupabase implements CatalogRepository {
         .from('bags')
         .select()
         .eq('shop_id', merchantId)
-        .eq('status', 'live');
+        .eq('status', 'live')
+        .gt('quantity_available', 0);
     return (rows as List)
         .cast<Map<String, dynamic>>()
         .map((r) => _bagSummaryFromRow({...r, 'shops': shopRow}, anchor))
@@ -360,6 +388,7 @@ final class CatalogRepositorySupabase implements CatalogRepository {
       _savedMerchantIds.remove(merchantId);
       _watchedMerchantIds.remove(merchantId); // A17
     }
+    await _persist();
   }
 
   @override
@@ -377,6 +406,7 @@ final class CatalogRepositorySupabase implements CatalogRepository {
     } else {
       _watchedMerchantIds.remove(merchantId);
     }
+    await _persist();
   }
 
   @override

@@ -125,6 +125,14 @@ class _BagDetailScreenState extends ConsumerState<BagDetailScreen> {
     final merchant = _merchant!;
     final isTerminal =
         bag.status != BagStatus.live || bag.quantityAvailable == 0;
+    // The shop editor's Quantity field and its Draft/Live/Paused toggle are
+    // independent controls, so a bag can be `live` with 0 units left
+    // without the shop ever having touched its status. Sold-out copy is
+    // the honest reason in that case, not the raw (still-`live`) status.
+    final effectiveStatus =
+        bag.quantityAvailable == 0 && bag.status == BagStatus.live
+        ? BagStatus.soldOut
+        : bag.status;
 
     return Scaffold(
       backgroundColor: colors.surfaceBase,
@@ -195,7 +203,10 @@ class _BagDetailScreenState extends ConsumerState<BagDetailScreen> {
                       ),
                       const SizedBox(height: Space.x4),
                       if (isTerminal)
-                        _TerminalStateBanner(status: bag.status, l10n: l10n)
+                        _TerminalStateBanner(
+                          status: effectiveStatus,
+                          l10n: l10n,
+                        )
                       else ...[
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,

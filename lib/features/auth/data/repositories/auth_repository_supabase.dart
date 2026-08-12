@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart' hide OtpChannel;
 import 'package:surplus_marketplace/core/error/app_exception.dart';
+import 'package:surplus_marketplace/core/storage/prefs.dart';
 import 'package:surplus_marketplace/features/auth/auth.dart';
 
 /// Fixed 6-digit code accepted for every OTP verification — the app's own
@@ -40,9 +41,29 @@ Customer _customerFromRow(Map<String, dynamic> row) => Customer(
 ///
 /// Requires **Authentication > Settings > "Allow anonymous sign-ins"**
 /// enabled in the Supabase dashboard.
+///
+/// **`logout` never calls Supabase's real `signOut`.** An anonymous
+/// identity has no password/email to sign back in *with* — actually ending
+/// the session would make [logout] permanently and silently destroy the
+/// customer's entire order history on this device, directly contradicting
+/// the sign-out dialog's own "your orders and reservations aren't
+/// affected" copy. Instead [logout] sets a local-only "appears signed out"
+/// flag ([_prefs]) that [restoreSession] honours; the underlying anonymous
+/// session stays alive in browser storage so re-verifying with the same
+/// phone number + OTP on this same device/browser resumes the exact same
+/// account rather than minting a new empty one. (Cross-device/browser
+/// identity continuity remains out of scope either way — see the class
+/// doc above.)
 final class AuthRepositorySupabase implements AuthRepository {
+  /// [_prefs] backs the local-only "appears signed out" flag — see the
+  /// class doc.
+  AuthRepositorySupabase(this._prefs);
+
+  static const _locallySignedOutKey = 'auth.locallySignedOut';
+
   SupabaseClient get _client => Supabase.instance.client;
 
+  final Prefs _prefs;
   final Map<String, String> _pendingSignInPhones = {};
   final Set<String> _pendingReverificationIds = {};
   int _requestSeq = 0;
@@ -77,6 +98,10 @@ final class AuthRepositorySupabase implements AuthRepository {
   }
 
   Future<Customer> _signInWithPhone(String phoneE164) async {
+    // A successful verification always means "resume/create my account
+    // now" — clear the local-only sign-out flag so `restoreSession` (and
+    // anything else that reads it) sees this session as live again.
+    await _prefs.setBool(_locallySignedOutKey, value: false);
     var user = _client.auth.currentUser;
     if (user == null) {
       final AuthResponse res;
@@ -177,6 +202,7 @@ final class AuthRepositorySupabase implements AuthRepository {
   @override
   Future<Customer?> restoreSession() async {
     try {
+      if (_prefs.getBool(_locallySignedOutKey) ?? false) return null;
       final user = _client.auth.currentUser;
       if (user == null) return null;
       final row = await _client
@@ -195,7 +221,8 @@ final class AuthRepositorySupabase implements AuthRepository {
 
   @override
   Future<void> logout() async {
-    await _client.auth.signOut();
+    // See the class doc — deliberately not `_client.auth.signOut()`.
+    await _prefs.setBool(_locallySignedOutKey, value: true);
   }
 
   String _requireUserId() {

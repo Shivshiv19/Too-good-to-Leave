@@ -172,6 +172,11 @@ Map<String, dynamic> _bagRow({
   required bool repeatsDaily,
   required List<String> tags,
   String? shopId,
+  // Create has no prior row, so total starts equal to available. Update
+  // passes the existing row's total (see `updateBag`) so an edit that
+  // doesn't touch quantity never silently discards how many were
+  // originally listed — only ever grows to cover a genuine restock.
+  int? quantityTotal,
 }) => {
   if (shopId != null) 'shop_id': shopId,
   'title': title,
@@ -183,10 +188,9 @@ Map<String, dynamic> _bagRow({
   // the schema's `price < stated_retail_value` constraint satisfied until
   // a real "original price" field is added to the editor.
   'stated_retail_value_paise': price.amountInPaise * 2,
-  // No partial-redemption concept exists in this app yet, so total always
-  // tracks available — see the schema's `quantity_available <= quantity_total`
-  // constraint.
-  'quantity_total': quantityAvailable,
+  'quantity_total': quantityTotal == null
+      ? quantityAvailable
+      : (quantityTotal < quantityAvailable ? quantityAvailable : quantityTotal),
   'quantity_available': quantityAvailable,
   'pickup_start_at': pickupWindow.startAt.toIso8601String(),
   'pickup_end_at': pickupWindow.endAt.toIso8601String(),
@@ -801,6 +805,11 @@ class ShopRepository extends ChangeNotifier {
 
   Future<void> updateBag(ShopBag updated) async {
     if (_useBackend) {
+      final existing = await _client
+          .from('bags')
+          .select('quantity_total')
+          .eq('id', updated.id)
+          .maybeSingle();
       await _client
           .from('bags')
           .update(
@@ -814,6 +823,7 @@ class ShopRepository extends ChangeNotifier {
               status: updated.status,
               repeatsDaily: updated.repeatsDaily,
               tags: updated.tags,
+              quantityTotal: existing?['quantity_total'] as int?,
             ),
           )
           .eq('id', updated.id);
@@ -940,6 +950,35 @@ class ShopRepository extends ChangeNotifier {
     await _persistLocal();
   }
 
+  /// Gives a bag's stock back after an order is settled without a
+  /// collection (no-show or cancellation) — otherwise that unit is lost
+  /// forever even though nobody actually has it. Mirrors the customer
+  /// app's own `OrdersRepositorySupabase.cancelOrder` restore logic
+  /// exactly, so a bag that sold out and then had an order fall through
+  /// flips back to `live` the same way regardless of which side triggered
+  /// the release.
+  Future<void> _restoreBagStock({
+    required String bagId,
+    required int quantity,
+  }) async {
+    final bagRow = await _client
+        .from('bags')
+        .select('quantity_available, quantity_total, status')
+        .eq('id', bagId)
+        .maybeSingle();
+    if (bagRow == null) return;
+    final restored = ((bagRow['quantity_available'] as int) + quantity)
+        .clamp(0, bagRow['quantity_total'] as int);
+    await _client
+        .from('bags')
+        .update({
+          'quantity_available': restored,
+          'status': bagRow['status'] == 'sold_out' ? 'live' : bagRow['status'],
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', bagId);
+  }
+
   /// Records a pickup window that closed without collection. Deliberately a
   /// shop-initiated action rather than something that flips automatically
   /// the instant a window closes — there's no background process in this
@@ -952,13 +991,17 @@ class ShopRepository extends ChangeNotifier {
     if (_orders[index].status != ShopOrderStatus.reserved) return;
     final order = _orders[index];
     if (_useBackend) {
-      await _client
+      final now = DateTime.now().toUtc().toIso8601String();
+      final updatedRow = await _client
           .from('orders')
-          .update({
-            'status': 'expired_uncollected',
-            'updated_at': DateTime.now().toUtc().toIso8601String(),
-          })
-          .eq('id', orderId);
+          .update({'status': 'expired_uncollected', 'updated_at': now})
+          .eq('id', orderId)
+          .select('bag_id, quantity')
+          .single();
+      await _restoreBagStock(
+        bagId: updatedRow['bag_id'] as String,
+        quantity: updatedRow['quantity'] as int,
+      );
     }
     _orders[index] = order.copyWith(status: ShopOrderStatus.expired);
     _addNotification(
@@ -981,7 +1024,7 @@ class ShopRepository extends ChangeNotifier {
     final order = _orders[index];
     if (_useBackend) {
       final now = DateTime.now().toUtc().toIso8601String();
-      await _client
+      final updatedRow = await _client
           .from('orders')
           .update({
             'status': 'cancelled_by_merchant',
@@ -989,7 +1032,13 @@ class ShopRepository extends ChangeNotifier {
             'cancellation_reason': 'Cancelled by shop',
             'updated_at': now,
           })
-          .eq('id', orderId);
+          .eq('id', orderId)
+          .select('bag_id, quantity')
+          .single();
+      await _restoreBagStock(
+        bagId: updatedRow['bag_id'] as String,
+        quantity: updatedRow['quantity'] as int,
+      );
     }
     _orders[index] = order.copyWith(status: ShopOrderStatus.cancelled);
     _addNotification(

@@ -121,8 +121,8 @@ Future<void> bootstrap({required Flavor flavor}) async {
   // published there and an order placed here show up live on both sides.
   // Payment stays fake (`PaymentGatewayFake` below) — the explicit product
   // scoping this phase was built against.
-  final authRepository = AuthRepositorySupabase();
-  final catalogRepository = CatalogRepositorySupabase();
+  final authRepository = AuthRepositorySupabase(prefs);
+  final catalogRepository = CatalogRepositorySupabase(prefs);
   final checkoutRepository = CheckoutRepositorySupabase();
   final ordersRepository = OrdersRepositorySupabase();
 
