@@ -26,7 +26,6 @@ const _payoutsKey = 'shop_payouts';
 const _notificationsKey = 'shop_notifications';
 const _storeHoursKey = 'shop_store_hours';
 
-
 String _categoryToWire(ShopCategory category) => switch (category) {
   ShopCategory.sweetsShop => 'sweets_shop',
   ShopCategory.cloudKitchen => 'cloud_kitchen',
@@ -116,8 +115,10 @@ ShopProfile _profileFromRows(
   rejectionReason: billing['rejection_reason'] as String?,
 );
 
-BagStatus _bagStatusFromWire(String value) =>
-    BagStatus.values.firstWhere((s) => s.name == value, orElse: () => BagStatus.paused);
+BagStatus _bagStatusFromWire(String value) => BagStatus.values.firstWhere(
+  (s) => s.name == value,
+  orElse: () => BagStatus.paused,
+);
 
 Map<String, dynamic> _bagRow({
   required String title,
@@ -172,7 +173,8 @@ ShopBag _bagFromRow(Map<String, dynamic> row) => ShopBag(
 
 ShopOrderStatus _shopOrderStatusFromWire(String value) => switch (value) {
   'collected' => ShopOrderStatus.collected,
-  'cancelled_by_customer' || 'cancelled_by_merchant' => ShopOrderStatus.cancelled,
+  'cancelled_by_customer' ||
+  'cancelled_by_merchant' => ShopOrderStatus.cancelled,
   'expired_uncollected' => ShopOrderStatus.expired,
   _ => ShopOrderStatus.reserved,
 };
@@ -205,7 +207,8 @@ ShopOrder _orderFromRow(Map<String, dynamic> row) {
   final bagSnapshot = (row['bag_snapshot'] as Map).cast<String, dynamic>();
   final customerSnapshot = (row['customer_snapshot'] as Map)
       .cast<String, dynamic>();
-  final priceBreakdown = (row['price_breakdown'] as Map).cast<String, dynamic>();
+  final priceBreakdown = (row['price_breakdown'] as Map)
+      .cast<String, dynamic>();
   return ShopOrder(
     id: row['id'] as String,
     bagTitle: bagSnapshot['title'] as String? ?? 'Surprise bag',
@@ -214,7 +217,9 @@ ShopOrder _orderFromRow(Map<String, dynamic> row) {
       startAt: DateTime.parse(row['pickup_start_at'] as String),
       endAt: DateTime.parse(row['pickup_end_at'] as String),
     ),
-    token: _tokenFromRow((row['pickup_token'] as Map?)?.cast<String, dynamic>()),
+    token: _tokenFromRow(
+      (row['pickup_token'] as Map?)?.cast<String, dynamic>(),
+    ),
     price: Money((priceBreakdown['total'] as num).round()),
     status: _shopOrderStatusFromWire(row['status'] as String),
   );
@@ -559,6 +564,54 @@ class ShopRepository extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Signs in with a real Supabase email+password identity — the one
+  /// deliberate exception to this app's otherwise-anonymous auth (see
+  /// [register]'s doc). This is what lets a shop return to the *same*
+  /// account from any browser/device using nothing but a fixed
+  /// email/password, which anonymous sign-in (tied to one browser's local
+  /// session) can't do on its own.
+  ///
+  /// The matching Supabase user must already exist — create it via the
+  /// Supabase dashboard's **Authentication > Users > "Add user"** (with
+  /// "Auto Confirm User" checked) so this never goes through the sign-up
+  /// mailer that caused problems earlier.
+  ///
+  /// Returns `true` once an existing shop tied to this account is loaded
+  /// and ready. Returns `false` when the credentials are valid but no shop
+  /// is registered under this account yet — the session is still real and
+  /// signed in, so the caller can proceed straight to [register] and it
+  /// will attach the new shop to this same identity rather than creating a
+  /// throwaway anonymous one (see [register]'s own "already signed in"
+  /// check).
+  Future<bool> logIn({required String email, required String password}) async {
+    if (!_useBackend) return false;
+    await _client.auth.signInWithPassword(email: email, password: password);
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw StateError('Supabase sign-in returned no user.');
+    }
+
+    final shopRow = await _client
+        .from('shops')
+        .select()
+        .eq('auth_user_id', user.id)
+        .maybeSingle();
+    if (shopRow == null) return false;
+
+    final billingRow = await _client
+        .from('shop_billing')
+        .select()
+        .eq('shop_id', shopRow['id'] as String)
+        .single();
+
+    _shopId = shopRow['id'] as String;
+    _profile = _profileFromRows(shopRow, billingRow);
+    await _loadBagsAndOrders();
+    _subscribeToOrders();
+    notifyListeners();
+    return true;
+  }
+
   /// Stands in for a real review process — there's no admin surface in this
   /// standalone build, so approval is a demo action the registration flow's
   /// own "pending review" screen exposes, rather than something that
@@ -585,7 +638,10 @@ class ShopRepository extends ChangeNotifier {
     if (_useBackend) {
       final shopId = _shopId;
       if (shopId == null) return;
-      await _client.from('shops').update(_shopUpdateRow(updated)).eq('id', shopId);
+      await _client
+          .from('shops')
+          .update(_shopUpdateRow(updated))
+          .eq('id', shopId);
       await _client
           .from('shop_billing')
           .update(_billingRow(updated))
@@ -765,7 +821,9 @@ class ShopRepository extends ChangeNotifier {
     if (bag.status == BagStatus.draft) return;
     await updateBag(
       bag.copyWith(
-        status: bag.status == BagStatus.live ? BagStatus.paused : BagStatus.live,
+        status: bag.status == BagStatus.live
+            ? BagStatus.paused
+            : BagStatus.live,
       ),
     );
   }
@@ -801,7 +859,11 @@ class ShopRepository extends ChangeNotifier {
       final now = DateTime.now().toUtc().toIso8601String();
       await _client
           .from('orders')
-          .update({'status': 'collected', 'collected_at': now, 'updated_at': now})
+          .update({
+            'status': 'collected',
+            'collected_at': now,
+            'updated_at': now,
+          })
           .eq('id', orderId);
     }
     _orders[index] = order.copyWith(status: ShopOrderStatus.collected);

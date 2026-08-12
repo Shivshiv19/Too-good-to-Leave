@@ -46,14 +46,22 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('unregistered shop sees the registration form first', (
-    tester,
-  ) async {
-    await tester.pumpWidget(ShopApp(repository: ShopRepository()));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'unregistered shop sees the login-or-register choice first, and '
+    'choosing register reaches the registration form',
+    (tester) async {
+      await tester.pumpWidget(ShopApp(repository: ShopRepository()));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Register your shop'), findsOneWidget);
-  });
+      expect(find.text('Welcome'), findsOneWidget);
+      expect(find.text('Register your shop'), findsNothing);
+
+      await tester.tap(find.text('Register your business'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Register your shop'), findsOneWidget);
+    },
+  );
 
   testWidgets('submitting registration moves to the pending-review screen', (
     tester,
@@ -132,7 +140,7 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, 'Log out'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Register your shop'), findsOneWidget);
+    expect(find.text('Welcome'), findsOneWidget);
   });
 
   // Registration/bags/orders are now Supabase-backed (see

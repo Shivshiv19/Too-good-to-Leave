@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/domain/shop_profile.dart';
+import 'package:too_good_to_leave_shop/screens/login_or_register_screen.dart';
+import 'package:too_good_to_leave_shop/screens/login_screen.dart';
 import 'package:too_good_to_leave_shop/screens/pending_approval_screen.dart';
 import 'package:too_good_to_leave_shop/screens/registration_screen.dart';
 import 'package:too_good_to_leave_shop/screens/shop_shell_screen.dart';
@@ -60,10 +62,46 @@ class ShopAppLoader extends StatelessWidget {
   );
 }
 
-class ShopApp extends StatelessWidget {
+/// The pre-registration choice this app currently shows — landing (log in
+/// vs register), the login form itself, or the registration form. Only
+/// meaningful while [ShopRepository.profile] is null; once a shop exists,
+/// [ShopApp]'s builder ignores this entirely.
+enum _EntryStep { landing, login, register }
+
+class ShopApp extends StatefulWidget {
   const ShopApp({required this.repository, super.key});
 
   final ShopRepository repository;
+
+  @override
+  State<ShopApp> createState() => _ShopAppState();
+}
+
+class _ShopAppState extends State<ShopApp> {
+  _EntryStep _step = _EntryStep.landing;
+  late bool _wasRegistered = widget.repository.isRegistered;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.repository.addListener(_handleRepositoryChange);
+  }
+
+  @override
+  void dispose() {
+    widget.repository.removeListener(_handleRepositoryChange);
+    super.dispose();
+  }
+
+  void _handleRepositoryChange() {
+    final isRegistered = widget.repository.isRegistered;
+    if (_wasRegistered && !isRegistered) {
+      // A log-out just happened — the next session should start back at
+      // the landing choice, not wherever this one happened to leave off.
+      setState(() => _step = _EntryStep.landing);
+    }
+    _wasRegistered = isRegistered;
+  }
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -77,16 +115,30 @@ class ShopApp extends StatelessWidget {
     // sees the light palette this app is designed and verified against.
     themeMode: ThemeMode.light,
     home: ListenableBuilder(
-      listenable: repository,
+      listenable: widget.repository,
       builder: (context, _) {
-        final profile = repository.profile;
+        final profile = widget.repository.profile;
         if (profile == null) {
-          return RegistrationScreen(repository: repository);
+          return switch (_step) {
+            _EntryStep.landing => LoginOrRegisterScreen(
+              onChooseLogin: () => setState(() => _step = _EntryStep.login),
+              onChooseRegister: () =>
+                  setState(() => _step = _EntryStep.register),
+            ),
+            _EntryStep.login => LoginScreen(
+              repository: widget.repository,
+              onRegisterInstead: () =>
+                  setState(() => _step = _EntryStep.register),
+            ),
+            _EntryStep.register => RegistrationScreen(
+              repository: widget.repository,
+            ),
+          };
         }
         if (profile.status != ShopApprovalStatus.verified) {
-          return PendingApprovalScreen(repository: repository);
+          return PendingApprovalScreen(repository: widget.repository);
         }
-        return ShopShellScreen(repository: repository);
+        return ShopShellScreen(repository: widget.repository);
       },
     ),
   );
