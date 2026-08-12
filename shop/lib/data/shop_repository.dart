@@ -552,7 +552,11 @@ class ShopRepository extends ChangeNotifier {
   /// needed — see module doc) and creates/loads the matching
   /// `shops`/`shop_billing` rows. Requires Authentication > Settings >
   /// "Allow anonymous sign-ins" enabled in the Supabase dashboard.
-  Future<void> register(ShopProfile profile) async {
+  ///
+  /// [lat]/[lng] come from the registration screen's map picker when the
+  /// shop owner confirms a pin; when omitted, falls back to
+  /// [_resolveShopLocation] (silent device geolocation, then Bengaluru).
+  Future<void> register(ShopProfile profile, {double? lat, double? lng}) async {
     if (!_useBackend) {
       _profile = profile;
       notifyListeners();
@@ -576,7 +580,9 @@ class ShopRepository extends ChangeNotifier {
       throw StateError('Supabase anonymous sign-in returned no user.');
     }
 
-    final location = await _resolveShopLocation();
+    final location = (lat != null && lng != null)
+        ? (lat: lat, lng: lng)
+        : await _resolveShopLocation();
     Map<String, dynamic> shopRow;
     try {
       shopRow = await _client

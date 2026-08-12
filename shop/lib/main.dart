@@ -16,6 +16,14 @@ import 'package:too_good_to_leave_shop/screens/shop_shell_screen.dart';
 const _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
 const _supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
+/// The same MapTiler project/key the customer app's own map screens use —
+/// see `core/platform/map_tile_config.dart`. Deliberately not a startup
+/// guard like the two keys above: the registration screen's map picker is
+/// additive (device geolocation still works without it), never
+/// load-bearing, so a missing key degrades that one feature instead of
+/// blocking the whole app.
+const _mapTilerApiKey = String.fromEnvironment('MAPTILER_API_KEY');
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // `Fmt`'s date formatters (core/utils/formatters.dart) use `intl`'s
@@ -133,6 +141,7 @@ class _ShopAppState extends State<ShopApp> {
             _EntryStep.register => RegistrationScreen(
               repository: widget.repository,
               onLoginInstead: () => setState(() => _step = _EntryStep.login),
+              mapTilerApiKey: _mapTilerApiKey,
             ),
           };
         }

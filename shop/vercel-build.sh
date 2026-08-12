@@ -10,12 +10,14 @@ export PATH="$PATH:$(pwd)/flutter-sdk/bin"
 
 flutter pub get
 
-# SUPABASE_URL / SUPABASE_ANON_KEY come from a Vercel project environment
-# variable (Settings > Environment Variables), never committed.
+# SUPABASE_URL / SUPABASE_ANON_KEY / MAPTILER_API_KEY come from Vercel
+# project environment variables (Settings > Environment Variables), never
+# committed.
 cat > dart_defines.json <<EOF
 {
   "SUPABASE_URL": "${SUPABASE_URL:-}",
-  "SUPABASE_ANON_KEY": "${SUPABASE_ANON_KEY:-}"
+  "SUPABASE_ANON_KEY": "${SUPABASE_ANON_KEY:-}",
+  "MAPTILER_API_KEY": "${MAPTILER_API_KEY:-}"
 }
 EOF
 

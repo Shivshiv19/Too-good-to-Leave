@@ -1,14 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
+import 'package:too_good_to_leave_shop/core/platform/map_tile_config.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/design_system/components/app_button.dart';
 import 'package:too_good_to_leave_shop/design_system/components/hero_visual.dart';
 import 'package:too_good_to_leave_shop/design_system/components/max_width_body.dart';
+import 'package:too_good_to_leave_shop/design_system/components/tile_map_view.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/breakpoints.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/domain/shop_category.dart';
 import 'package:too_good_to_leave_shop/domain/shop_profile.dart';
+
+/// Bengaluru city centre — the starting point for the map picker when
+/// device geolocation isn't available/granted. Matches the customer app's
+/// own launch-city fallback and `ShopRepository`'s silent-geolocation one.
+const _fallbackCenter = LatLng(12.9716, 77.5946);
 
 /// Shop signup — business details, FSSAI licence, address, and payout
 /// bank details. Submitting moves the shop to [ShopApprovalStatus
@@ -18,6 +27,7 @@ class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({
     required this.repository,
     required this.onLoginInstead,
+    required this.mapTilerApiKey,
     super.key,
   });
 
@@ -27,6 +37,11 @@ class RegistrationScreen extends StatefulWidget {
   /// landed here but already has an account shouldn't have to fill out
   /// the whole form to discover that.
   final VoidCallback onLoginInstead;
+
+  /// Empty when unconfigured — the map picker section just doesn't render
+  /// rather than crashing; registration still works via
+  /// `ShopRepository.register`'s own silent-geolocation fallback.
+  final String mapTilerApiKey;
 
   @override
   State<RegistrationScreen> createState() => _RegistrationScreenState();
@@ -50,6 +65,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   ShopCategory _category = ShopCategory.bakery;
   DateTime? _fssaiExpiry;
   bool _isSubmitting = false;
+  LatLng? _pickedLocation;
+  bool _isLocatingForPicker = false;
 
   @override
   void dispose() {
@@ -80,6 +97,46 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       lastDate: DateTime(now.year + 5),
     );
     if (picked != null) setState(() => _fssaiExpiry = picked);
+  }
+
+  /// Best-effort starting point for the map picker — the shop's real
+  /// current location if permission is already granted, Bengaluru
+  /// otherwise. Never blocks on a permission *prompt* here; the picker
+  /// itself opens either way and the owner can pan to the right spot.
+  Future<LatLng> _bestStartingCenter() async {
+    if (_pickedLocation != null) return _pickedLocation!;
+    try {
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return _fallbackCenter;
+      }
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          timeLimit: Duration(seconds: 8),
+        ),
+      );
+      return LatLng(position.latitude, position.longitude);
+    } catch (_) {
+      return _fallbackCenter;
+    }
+  }
+
+  Future<void> _openMapPicker() async {
+    setState(() => _isLocatingForPicker = true);
+    final startingCenter = await _bestStartingCenter();
+    if (!mounted) return;
+    setState(() => _isLocatingForPicker = false);
+
+    final picked = await showModalBottomSheet<LatLng>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => _MapPickerSheet(
+        tileConfig: MapTilerTileConfig(apiKey: widget.mapTilerApiKey),
+        initialCenter: startingCenter,
+      ),
+    );
+    if (picked != null) setState(() => _pickedLocation = picked);
   }
 
   Future<void> _submit() async {
@@ -113,6 +170,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             upiId: _upiId.text.trim().isEmpty ? null : _upiId.text.trim(),
           ),
         ),
+        lat: _pickedLocation?.latitude,
+        lng: _pickedLocation?.longitude,
       );
     } catch (e) {
       // A silent failure here reads as "the button did nothing" — the
@@ -397,6 +456,15 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             validator: _required,
           ),
         ]),
+        if (widget.mapTilerApiKey.isNotEmpty) ...[
+          const SizedBox(height: Space.x4),
+          _LocationPickerField(
+            picked: _pickedLocation,
+            isLocating: _isLocatingForPicker,
+            tileConfig: MapTilerTileConfig(apiKey: widget.mapTilerApiKey),
+            onTap: _isLocatingForPicker ? null : _openMapPicker,
+          ),
+        ],
       ],
     ),
     const SizedBox(height: Space.x5),
@@ -640,6 +708,215 @@ class _FieldRow extends StatelessWidget {
           Expanded(child: children[i]),
         ],
       ],
+    );
+  }
+}
+
+/// The Location card's map affordance — a static thumbnail once a spot is
+/// picked (tap to change), or a plain prompt button before that. Never
+/// required: skipping it just means `ShopRepository.register` falls back
+/// to silent device geolocation instead of this explicit pin.
+class _LocationPickerField extends StatelessWidget {
+  const _LocationPickerField({
+    required this.picked,
+    required this.isLocating,
+    required this.tileConfig,
+    required this.onTap,
+  });
+
+  final LatLng? picked;
+  final bool isLocating;
+  final MapTileConfig tileConfig;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final location = picked;
+
+    if (location == null) {
+      return InkWell(
+        borderRadius: BorderRadius.circular(Radii.sm),
+        onTap: onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+            horizontal: Space.x4,
+            vertical: Space.x4,
+          ),
+          decoration: BoxDecoration(
+            color: colors.surfaceSunken,
+            borderRadius: BorderRadius.circular(Radii.sm),
+          ),
+          child: Row(
+            children: [
+              if (isLocating)
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: colors.textSecondary,
+                  ),
+                )
+              else
+                Icon(
+                  Icons.pin_drop_outlined,
+                  size: 20,
+                  color: colors.textSecondary,
+                ),
+              const SizedBox(width: Space.x3),
+              Expanded(
+                child: Text(
+                  'Set your shop\'s exact location on a map',
+                  style: context.type.body.copyWith(
+                    color: colors.textSecondary,
+                  ),
+                ),
+              ),
+              Icon(Icons.chevron_right, size: 20, color: colors.textSecondary),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(Radii.sm),
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: colors.borderSubtle.withValues(alpha: 0.6)),
+          borderRadius: BorderRadius.circular(Radii.sm),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              height: 120,
+              child: IgnorePointer(
+                child: TileMapView(
+                  tileConfig: tileConfig,
+                  center: location,
+                  zoom: 15,
+                  interactive: false,
+                  pins: [
+                    MapPin(
+                      position: location,
+                      child: Icon(
+                        Icons.location_pin,
+                        size: 32,
+                        color: colors.actionPrimaryBg,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: Space.x4,
+                vertical: Space.x3,
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle, size: 18, color: colors.success.fg),
+                  const SizedBox(width: Space.x2),
+                  Expanded(
+                    child: Text(
+                      'Location pinned — tap to change',
+                      style: context.type.caption.copyWith(
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A real centred-pin picker: the map pans underneath a fixed centre icon
+/// (the standard "pin follows the map, not your finger" pattern),
+/// confirmed explicitly rather than resolving on the first frame — mirrors
+/// the customer app's own `_PinDropSheet` in `location_setup_screen.dart`.
+class _MapPickerSheet extends StatefulWidget {
+  const _MapPickerSheet({
+    required this.tileConfig,
+    required this.initialCenter,
+  });
+
+  final MapTileConfig tileConfig;
+  final LatLng initialCenter;
+
+  @override
+  State<_MapPickerSheet> createState() => _MapPickerSheetState();
+}
+
+class _MapPickerSheetState extends State<_MapPickerSheet> {
+  late LatLng _center = widget.initialCenter;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.8,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(Space.x4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Drop a pin on your shop',
+                    style: context.type.title,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                TileMapView(
+                  tileConfig: widget.tileConfig,
+                  center: widget.initialCenter,
+                  zoom: 16,
+                  onCenterChanged: (center) => setState(() => _center = center),
+                ),
+                // Fixed at the visual centre — the map moves under it, not
+                // the other way round.
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 36),
+                  child: Icon(
+                    Icons.location_pin,
+                    size: 44,
+                    color: colors.actionPrimaryBg,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(Space.x4),
+            child: AppButton(
+              label: 'Confirm this location',
+              onPressed: () => Navigator.of(context).pop(_center),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -45,7 +45,8 @@ jobs:
           cat > shop/dart_defines.json <<EOF
           {
             "SUPABASE_URL": "${{ secrets.SUPABASE_URL }}",
-            "SUPABASE_ANON_KEY": "${{ secrets.SUPABASE_ANON_KEY }}"
+            "SUPABASE_ANON_KEY": "${{ secrets.SUPABASE_ANON_KEY }}",
+            "MAPTILER_API_KEY": "${{ secrets.MAPTILER_API_KEY }}"
           }
           EOF
 
