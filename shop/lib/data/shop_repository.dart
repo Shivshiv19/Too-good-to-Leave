@@ -34,7 +34,13 @@ const _fixedPassword = 'Tgtl-Shop-Fixed-Pw-2026!';
 
 String _syntheticEmail(String phone) {
   final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
-  return 'shop.$digits@toogoodtoleave.local';
+  // A `.local`/`.test`/`.invalid` TLD (the conventional choice for a
+  // never-delivered address) is rejected outright by Supabase Auth's own
+  // email-format validator ("email_address_invalid") — it blocklists
+  // exactly these reserved TLDs to stop this pattern. `.com` passes
+  // validation; nothing is ever actually sent here since "Confirm email"
+  // stays off for this project.
+  return 'shop.$digits@toogoodtoleave-app.com';
 }
 
 bool _isAlreadyRegistered(AuthException e) =>
