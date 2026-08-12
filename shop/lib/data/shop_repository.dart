@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:too_good_to_leave_shop/core/domain/clock.dart';
@@ -48,8 +49,8 @@ ShopApprovalStatus _approvalFromWire(String value) => switch (value) {
 };
 
 /// Fields shared by insert and update — everything the registration/account
-/// screens actually collect. `auth_user_id`/`state`/`pincode`/`lat`/`lng`
-/// aren't collected by today's UI, so they're insert-only defaults (see
+/// screens actually collect. `auth_user_id`/`state`/`pincode` aren't
+/// collected by today's UI, so they're insert-only defaults (see
 /// [_shopInsertRow]) rather than something an edit could ever reset.
 Map<String, dynamic> _shopUpdateRow(ShopProfile profile) => {
   'display_name': profile.businessName,
@@ -57,8 +58,8 @@ Map<String, dynamic> _shopUpdateRow(ShopProfile profile) => {
   'category': _categoryToWire(profile.category),
   'address_line1': profile.addressLine,
   // The registration form only captures a single locality string today —
-  // landmark/city reuse it and state/pincode/lat/lng get placeholders
-  // (below) until a real structured-address screen replaces this.
+  // landmark/city reuse it and state/pincode get placeholders (below)
+  // until a real structured-address screen replaces this.
   'landmark': profile.locality,
   'locality': profile.locality,
   'city': profile.locality,
@@ -70,13 +71,53 @@ Map<String, dynamic> _shopUpdateRow(ShopProfile profile) => {
   'updated_at': DateTime.now().toUtc().toIso8601String(),
 };
 
-Map<String, dynamic> _shopInsertRow(ShopProfile profile, String authUserId) => {
+/// Bengaluru city centre — the customer app's own launch-city fallback
+/// (`LocationRepositoryFake._cityCenter`). Used only when real geolocation
+/// isn't available/granted, so a shop still lands somewhere the customer
+/// app actually considers "in service" rather than off the coast of
+/// Africa at `(0, 0)`.
+const _fallbackLat = 12.9716;
+const _fallbackLng = 77.5946;
+
+/// Real device geolocation at the moment of registration — a shop is
+/// physically where its owner is standing when they sign up, which is a
+/// reasonable proxy for "where the shop is" without building a full
+/// address-to-coordinates lookup. Falls back to Bengaluru (see
+/// [_fallbackLat]) on denial/timeout/any platform error rather than
+/// blocking registration on a permission prompt succeeding.
+Future<({double lat, double lng})> _resolveShopLocation() async {
+  try {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return (lat: _fallbackLat, lng: _fallbackLng);
+    }
+    final position = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        timeLimit: Duration(seconds: 15),
+      ),
+    );
+    return (lat: position.latitude, lng: position.longitude);
+  } catch (_) {
+    return (lat: _fallbackLat, lng: _fallbackLng);
+  }
+}
+
+Map<String, dynamic> _shopInsertRow(
+  ShopProfile profile,
+  String authUserId, {
+  required double lat,
+  required double lng,
+}) => {
   ..._shopUpdateRow(profile),
   'auth_user_id': authUserId,
   'state': 'Unknown',
   'pincode': '000000',
-  'lat': 0.0,
-  'lng': 0.0,
+  'lat': lat,
+  'lng': lng,
 };
 
 Map<String, dynamic> _billingRow(ShopProfile profile, {String? shopId}) => {
@@ -535,11 +576,19 @@ class ShopRepository extends ChangeNotifier {
       throw StateError('Supabase anonymous sign-in returned no user.');
     }
 
+    final location = await _resolveShopLocation();
     Map<String, dynamic> shopRow;
     try {
       shopRow = await _client
           .from('shops')
-          .insert(_shopInsertRow(profile, user.id))
+          .insert(
+            _shopInsertRow(
+              profile,
+              user.id,
+              lat: location.lat,
+              lng: location.lng,
+            ),
+          )
           .select()
           .single();
     } on PostgrestException catch (e) {
