@@ -4,31 +4,10 @@ import 'package:surplus_marketplace/features/auth/auth.dart';
 
 /// Fixed 6-digit code accepted for every OTP verification — the app's own
 /// scoping decision (real Supabase Auth session + real data everywhere
-/// else, but no real SMS provider): "we can use hardcoded OTP". Never
-/// generated, never sent anywhere; [AuthRepositorySupabase.requestOtp]
+/// else, but no real SMS/email provider): "we can use hardcoded OTP".
+/// Never generated, never sent anywhere; [AuthRepositorySupabase.requestOtp]
 /// doesn't dispatch an SMS at all.
 const _fixedOtpCode = '123456';
-
-/// Fixed placeholder password paired with a synthetic per-customer email —
-/// the phone number is the real identity; this just satisfies Supabase
-/// Auth's email/password shape without a real password ever existing.
-const _fixedPassword = 'Tgtl-Customer-Fixed-Pw-2026!';
-
-String _syntheticEmail(String phoneE164) {
-  final digits = phoneE164.replaceAll(RegExp(r'[^0-9]'), '');
-  // A `.local`/`.test`/`.invalid` TLD (the conventional choice for a
-  // never-delivered address) is rejected outright by Supabase Auth's own
-  // email-format validator ("email_address_invalid") — it blocklists
-  // exactly these reserved TLDs to stop this pattern. `.com` passes
-  // validation; nothing is ever actually sent here since "Confirm email"
-  // stays off for this project.
-  return 'cust.$digits@toogoodtoleave-app.com';
-}
-
-bool _isAlreadyRegistered(AuthException e) =>
-    e.message.toLowerCase().contains('already registered') ||
-    e.message.toLowerCase().contains('already exists') ||
-    e.code == 'user_already_exists';
 
 Customer _customerFromRow(Map<String, dynamic> row) => Customer(
   id: row['id'] as String,
@@ -41,11 +20,26 @@ Customer _customerFromRow(Map<String, dynamic> row) => Customer(
 /// Real Supabase Auth sessions behind a hardcoded-OTP front door.
 ///
 /// [requestOtp]/[verifyOtp] never talk to an SMS provider — the code is
-/// always [_fixedOtpCode] — but a correct verification performs a real
-/// Supabase `signUp`/`signInWithPassword` (phone formatted as a synthetic
-/// email, see [_syntheticEmail]) and creates/reads a real row in the shared
-/// `customers` table (`supabase/schema.sql`), so the resulting session and
-/// customer id are exactly what RLS and every other repository expect.
+/// always [_fixedOtpCode]. A correct verification signs in via Supabase's
+/// **anonymous auth** (`signInAnonymously`) rather than email/password —
+/// deliberately, after email/password kept triggering Supabase's own
+/// confirmation-email machinery (rate limits, then SMTP failures) even with
+/// "Confirm email" off. Anonymous auth needs no email or SMS provider at
+/// all: it hands back a real, persistent `auth.users` row and session,
+/// which is all RLS and every other repository actually need — the phone
+/// number itself is stored as plain data on the `customers` row, not as
+/// the identity Supabase authenticates.
+///
+/// **Trade-off, accepted for this phase**: identity is tied to *this
+/// browser's* session, not the phone number. Re-entering the same phone
+/// number on a different device/browser (or after clearing site data)
+/// creates a new anonymous identity and a new `customers` row, rather than
+/// resuming the original one — real cross-device phone-based identity
+/// needs either a real SMS/email provider or a server-side admin-API
+/// lookup, neither of which exist yet.
+///
+/// Requires **Authentication > Settings > "Allow anonymous sign-ins"**
+/// enabled in the Supabase dashboard.
 final class AuthRepositorySupabase implements AuthRepository {
   SupabaseClient get _client => Supabase.instance.client;
 
@@ -83,39 +77,21 @@ final class AuthRepositorySupabase implements AuthRepository {
   }
 
   Future<Customer> _signInWithPhone(String phoneE164) async {
-    final email = _syntheticEmail(phoneE164);
-    AuthResponse res;
-    try {
-      res = await _client.auth.signUp(email: email, password: _fixedPassword);
-    } on AuthException catch (e) {
-      if (!_isAlreadyRegistered(e)) rethrow;
-      res = await _client.auth.signInWithPassword(
-        email: email,
-        password: _fixedPassword,
-      );
-    }
-    if (res.session == null) {
-      // Supabase's default "Confirm email" setting blocks sign-in until a
-      // confirmation link is clicked — impossible for these synthetic
-      // per-customer emails. Must be off: Supabase dashboard >
-      // Authentication > Sign In / Providers > Email > "Confirm email".
+    var user = _client.auth.currentUser;
+    if (user == null) {
+      final AuthResponse res;
       try {
-        res = await _client.auth.signInWithPassword(
-          email: email,
-          password: _fixedPassword,
-        );
+        res = await _client.auth.signInAnonymously();
       } on AuthException catch (e) {
         throw StateError(
-          'Supabase sign-in failed ($e). If this says "Email not '
-          'confirmed", turn off Authentication > Providers > Email > '
-          '"Confirm email" in the Supabase dashboard — synthetic '
-          'per-customer emails can never confirm.',
+          'Supabase anonymous sign-in failed ($e). Check Authentication > '
+          'Settings > "Allow anonymous sign-ins" is enabled.',
         );
       }
+      user = res.user;
     }
-    final user = res.user;
     if (user == null) {
-      throw StateError('Supabase authentication returned no user for $email.');
+      throw StateError('Supabase anonymous sign-in returned no user.');
     }
 
     final existing = await _client

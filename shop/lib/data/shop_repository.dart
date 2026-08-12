@@ -26,27 +26,6 @@ const _payoutsKey = 'shop_payouts';
 const _notificationsKey = 'shop_notifications';
 const _storeHoursKey = 'shop_store_hours';
 
-/// Fixed placeholder password paired with a synthetic per-shop email — the
-/// same "hardcoded OTP, fake payment, but real realtime data" scope the
-/// customer app's auth uses. Not a real secret boundary; the OTP layer this
-/// stands in for was never real either.
-const _fixedPassword = 'Tgtl-Shop-Fixed-Pw-2026!';
-
-String _syntheticEmail(String phone) {
-  final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
-  // A `.local`/`.test`/`.invalid` TLD (the conventional choice for a
-  // never-delivered address) is rejected outright by Supabase Auth's own
-  // email-format validator ("email_address_invalid") — it blocklists
-  // exactly these reserved TLDs to stop this pattern. `.com` passes
-  // validation; nothing is ever actually sent here since "Confirm email"
-  // stays off for this project.
-  return 'shop.$digits@toogoodtoleave-app.com';
-}
-
-bool _isAlreadyRegistered(AuthException e) =>
-    e.message.toLowerCase().contains('already registered') ||
-    e.message.toLowerCase().contains('already exists') ||
-    e.code == 'user_already_exists';
 
 String _categoryToWire(ShopCategory category) => switch (category) {
   ShopCategory.sweetsShop => 'sweets_shop',
@@ -523,9 +502,10 @@ class ShopRepository extends ChangeNotifier {
 
   bool get isRegistered => _profile != null;
 
-  /// Signs in as a real Supabase Auth user (phone formatted as a synthetic
-  /// email + a fixed password — see module doc) and creates/loads the
-  /// matching `shops`/`shop_billing` rows.
+  /// Signs in via Supabase's **anonymous auth** (no email/SMS provider
+  /// needed — see module doc) and creates/loads the matching
+  /// `shops`/`shop_billing` rows. Requires Authentication > Settings >
+  /// "Allow anonymous sign-ins" enabled in the Supabase dashboard.
   Future<void> register(ShopProfile profile) async {
     if (!_useBackend) {
       _profile = profile;
@@ -533,42 +513,21 @@ class ShopRepository extends ChangeNotifier {
       return;
     }
 
-    final email = _syntheticEmail(profile.phone);
-    AuthResponse res;
-    try {
-      res = await _client.auth.signUp(
-        email: email,
-        password: _fixedPassword,
-      );
-    } on AuthException catch (e) {
-      if (!_isAlreadyRegistered(e)) rethrow;
-      res = await _client.auth.signInWithPassword(
-        email: email,
-        password: _fixedPassword,
-      );
-    }
-    if (res.session == null) {
-      // Supabase's default "Confirm email" setting blocks sign-in until a
-      // confirmation link is clicked — impossible for these synthetic
-      // per-shop emails. Must be off: Supabase dashboard > Authentication >
-      // Sign In / Providers > Email > "Confirm email".
+    var user = _client.auth.currentUser;
+    if (user == null) {
+      final AuthResponse res;
       try {
-        res = await _client.auth.signInWithPassword(
-          email: email,
-          password: _fixedPassword,
-        );
+        res = await _client.auth.signInAnonymously();
       } on AuthException catch (e) {
         throw StateError(
-          'Supabase sign-in failed ($e). If this says "Email not '
-          'confirmed", turn off Authentication > Providers > Email > '
-          '"Confirm email" in the Supabase dashboard — synthetic per-shop '
-          'emails can never confirm.',
+          'Supabase anonymous sign-in failed ($e). Check Authentication > '
+          'Settings > "Allow anonymous sign-ins" is enabled.',
         );
       }
+      user = res.user;
     }
-    final user = res.user;
     if (user == null) {
-      throw StateError('Supabase authentication returned no user for $email.');
+      throw StateError('Supabase anonymous sign-in returned no user.');
     }
 
     Map<String, dynamic> shopRow;
