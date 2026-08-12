@@ -132,6 +132,7 @@ class _ShopAppState extends State<ShopApp> {
             ),
             _EntryStep.register => RegistrationScreen(
               repository: widget.repository,
+              onLoginInstead: () => setState(() => _step = _EntryStep.login),
             ),
           };
         }

@@ -15,9 +15,18 @@ import 'package:too_good_to_leave_shop/domain/shop_profile.dart';
 /// .pendingReview]; nothing past this screen is reachable until a review
 /// clears it (see `PendingApprovalScreen`).
 class RegistrationScreen extends StatefulWidget {
-  const RegistrationScreen({required this.repository, super.key});
+  const RegistrationScreen({
+    required this.repository,
+    required this.onLoginInstead,
+    super.key,
+  });
 
   final ShopRepository repository;
+
+  /// Mirrors `LoginScreen`'s own "Register instead" link — someone who
+  /// landed here but already has an account shouldn't have to fill out
+  /// the whole form to discover that.
+  final VoidCallback onLoginInstead;
 
   @override
   State<RegistrationScreen> createState() => _RegistrationScreenState();
@@ -501,6 +510,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       label: 'Submit for review',
       onPressed: _isSubmitting ? null : _submit,
       isLoading: _isSubmitting,
+    ),
+    const SizedBox(height: Space.x4),
+    Center(
+      child: TextButton(
+        onPressed: _isSubmitting ? null : widget.onLoginInstead,
+        child: const Text('Already have an account? Log in instead'),
+      ),
     ),
     const SizedBox(height: Space.x6),
   ];
