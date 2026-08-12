@@ -38,6 +38,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   ShopCategory _category = ShopCategory.bakery;
   DateTime? _fssaiExpiry;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -79,27 +80,42 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       return;
     }
 
-    await widget.repository.register(
-      ShopProfile(
-        businessName: _businessName.text.trim(),
-        ownerName: _ownerName.text.trim(),
-        phone: _phone.text.trim(),
-        email: _email.text.trim(),
-        category: _category,
-        addressLine: _addressLine.text.trim(),
-        locality: _locality.text.trim(),
-        fssai: FssaiLicense(
-          licenseNumber: _fssaiNumber.text.trim(),
-          expiresAt: _fssaiExpiry!,
+    setState(() => _isSubmitting = true);
+    try {
+      await widget.repository.register(
+        ShopProfile(
+          businessName: _businessName.text.trim(),
+          ownerName: _ownerName.text.trim(),
+          phone: _phone.text.trim(),
+          email: _email.text.trim(),
+          category: _category,
+          addressLine: _addressLine.text.trim(),
+          locality: _locality.text.trim(),
+          fssai: FssaiLicense(
+            licenseNumber: _fssaiNumber.text.trim(),
+            expiresAt: _fssaiExpiry!,
+          ),
+          bankDetails: BankDetails(
+            accountHolderName: _accountHolderName.text.trim(),
+            accountNumber: _accountNumber.text.trim(),
+            ifscCode: _ifscCode.text.trim(),
+            upiId: _upiId.text.trim().isEmpty ? null : _upiId.text.trim(),
+          ),
         ),
-        bankDetails: BankDetails(
-          accountHolderName: _accountHolderName.text.trim(),
-          accountNumber: _accountNumber.text.trim(),
-          ifscCode: _ifscCode.text.trim(),
-          upiId: _upiId.text.trim().isEmpty ? null : _upiId.text.trim(),
-        ),
-      ),
-    );
+      );
+    } catch (e) {
+      // A silent failure here reads as "the button did nothing" — the
+      // worst possible feedback for a form that just tried to hit a real
+      // network backend. Always surface *something*, even a raw message,
+      // rather than nothing at all.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Registration failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -236,7 +252,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 ),
 
                 const SizedBox(height: Space.x8),
-                AppButton(label: 'Submit for review', onPressed: _submit),
+                AppButton(
+                  label: 'Submit for review',
+                  onPressed: _isSubmitting ? null : _submit,
+                  isLoading: _isSubmitting,
+                ),
               ],
             ),
           ),

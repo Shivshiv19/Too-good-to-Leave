@@ -147,7 +147,17 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
       });
     } on Object {
       if (!mounted) return;
-      setState(() => _verifying = false);
+      // A real backend call (Supabase sign-in/up) sits behind verifyOtp
+      // now, not just the fixed-vocabulary OTP exceptions above — an
+      // unrecognised failure must still say *something*, rather than
+      // silently stopping the spinner and leaving the screen looking like
+      // the tap did nothing.
+      setState(() {
+        _verifying = false;
+        _controller.clear();
+        _errorTitle = l10n.errorServerTitle;
+        _errorBody = l10n.errorServerBody;
+      });
     }
   }
 
