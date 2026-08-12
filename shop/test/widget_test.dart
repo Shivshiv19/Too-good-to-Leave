@@ -67,6 +67,14 @@ void main() {
 
     expect(find.text('Under review'), findsOneWidget);
 
+    // The photo banner above the content pushes the button below the
+    // default 800x600 test viewport — scroll it into view first, the
+    // same pattern the Account screen's log-out test already uses below.
+    await tester.scrollUntilVisible(
+      find.text('Simulate approval'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('Simulate approval'));
     await tester.pumpAndSettle();
 

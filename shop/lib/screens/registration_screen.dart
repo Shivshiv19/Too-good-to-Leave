@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/design_system/components/app_button.dart';
+import 'package:too_good_to_leave_shop/design_system/components/hero_visual.dart';
 import 'package:too_good_to_leave_shop/design_system/components/max_width_body.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/breakpoints.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
@@ -143,7 +144,15 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 220, child: _HeroVisual()),
+                const SizedBox(
+                  height: 220,
+                  child: HeroVisual(
+                    title: 'Register your shop',
+                    subtitle:
+                        "Tell us about your business — we'll review your "
+                        'details and get you listing surplus bags.',
+                  ),
+                ),
                 Padding(
                   padding: const EdgeInsets.all(Space.x4),
                   child: MaxWidthBody(
@@ -222,7 +231,15 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               ),
             ),
           ),
-          const Expanded(flex: 9, child: _HeroVisual()),
+          const Expanded(
+            flex: 9,
+            child: HeroVisual(
+              title: 'Register your shop',
+              subtitle:
+                  "Tell us about your business — we'll review your "
+                  'details and get you listing surplus bags.',
+            ),
+          ),
         ],
       ),
     );
@@ -443,76 +460,6 @@ InputDecoration _decoration(BuildContext context, String label, IconData icon) {
       vertical: Space.x3,
     ),
   );
-}
-
-/// The photo panel — a mobile top banner or a desktop side panel (both
-/// callers just size it differently via a `SizedBox`/`Expanded`). A bottom
-/// scrim guarantees the overlaid title stays legible regardless of what
-/// part of the photo lands underneath it.
-class _HeroVisual extends StatelessWidget {
-  const _HeroVisual();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Image.asset(
-          'assets/images/registration_hero.jpg',
-          fit: BoxFit.cover,
-          alignment: Alignment.centerLeft,
-        ),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Colors.transparent, colors.scrim],
-            ),
-          ),
-        ),
-        Positioned(
-          left: Space.x5,
-          right: Space.x5,
-          bottom: Space.x5,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.2),
-                ),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.storefront_rounded,
-                  size: 22,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: Space.x3),
-              Text(
-                'Register your shop',
-                style: context.type.headline.copyWith(color: Colors.white),
-              ),
-              const SizedBox(height: Space.x1),
-              Text(
-                "Tell us about your business — we'll review your details "
-                'and get you listing surplus bags.',
-                style: context.type.body.copyWith(
-                  color: Colors.white.withValues(alpha: 0.85),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 /// A titled, boxed group of fields — replaces the old bare
