@@ -120,6 +120,11 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
         token = null; // Silently fall back to the fallback code alone.
       }
       if (!mounted) return;
+      // Captured before the setState below overwrites `_order` — only a
+      // *live* transition (the shop entering the code while this screen is
+      // open and polling) should pop the celebration, not merely loading an
+      // order that was already collected in the past.
+      final previousStatus = _order?.status;
       setState(() {
         _order = order;
         _token = token;
@@ -129,12 +134,42 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
           order.status == OrderStatus.cancelledByMerchant) {
         _announceTerminal(order.status);
       }
+      if (previousStatus != null &&
+          previousStatus != OrderStatus.collected &&
+          order.status == OrderStatus.collected) {
+        unawaited(_celebrateCollection());
+      }
       _scheduleNextPoll();
     } on NotFoundException {
       if (mounted) setState(() => _phase = _Phase.notFound);
     } on Object {
       if (mounted) setState(() => _phase = _Phase.error);
     }
+  }
+
+  /// The "pop up" moment — distinct from [_announceTerminal]'s
+  /// screen-reader announcement (which fires for every terminal status,
+  /// including a merchant cancellation) and from the plain terminal screen
+  /// `_Loaded` swaps to underneath (which also renders correctly for an
+  /// order that was *already* collected before this screen ever opened).
+  /// This is only for watching it happen live.
+  Future<void> _celebrateCollection() async {
+    final l10n = AppLocalizations.of(context);
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.celebration_outlined),
+        title: Text(l10n.pickupCelebrationTitle),
+        content: Text(l10n.pickupCelebrationBody),
+        actions: [
+          AppButton(
+            label: l10n.pickupCelebrationCta,
+            expand: false,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
   }
 
   void _announceTerminal(OrderStatus status) {

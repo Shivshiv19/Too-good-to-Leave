@@ -990,6 +990,14 @@
   "@pickupCollectedTitle": {},
   "pickupCollectedBody": "Enjoy it.",
   "@pickupCollectedBody": {},
+  "pickupCelebrationTitle": "Thanks for saving food!",
+  "@pickupCelebrationTitle": {
+    "description": "Pop-up shown the instant the shop marks this order collected while the customer is on the pickup screen watching it happen — distinct from pickupCollectedTitle, which is the compact status-chip/timeline label used elsewhere."
+  },
+  "pickupCelebrationBody": "Order picked up successfully — you just kept a good meal out of the bin.",
+  "@pickupCelebrationBody": {},
+  "pickupCelebrationCta": "Nice!",
+  "@pickupCelebrationCta": {},
 
   "@_COMMENT_ORDER_STATES": {},
 
@@ -1343,6 +1351,10 @@
   "@accountEditProfile": {},
   "accountSavedLocations": "Saved locations",
   "@accountSavedLocations": {},
+  "accountGroupImpact": "Impact",
+  "@accountGroupImpact": {},
+  "accountImpact": "Your impact",
+  "@accountImpact": {},
   "accountGroupPreferences": "Preferences",
   "@accountGroupPreferences": {},
   "accountNotificationSettings": "Notification settings",
@@ -1576,5 +1588,31 @@
   "back": "Back",
   "@back": {},
   "continueCta": "Continue",
-  "@continueCta": {}
+  "@continueCta": {},
+
+  "@_COMMENT_IMPACT": {},
+
+  "impactTitle": "Your impact",
+  "@impactTitle": {},
+  "impactSubtitle": "{count, plural, =0{Nothing collected yet} =1{Estimated from 1 collected bag} other{Estimated from {count} collected bags}}",
+  "@impactSubtitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "impactMealsSaved": "Meals saved",
+  "@impactMealsSaved": {},
+  "impactFoodSaved": "Food saved",
+  "@impactFoodSaved": {},
+  "impactCo2Avoided": "Estimated CO₂e avoided",
+  "@impactCo2Avoided": {},
+  "impactMethodologyNote": "Meals saved = one per collected bag. Food saved assumes ~{kgPerBag} kg per bag; CO₂e assumes ~{co2ePerKg} kg CO₂e avoided per kg of food. Both are illustrative estimates, not measured data.",
+  "@impactMethodologyNote": {
+    "placeholders": {
+      "kgPerBag": { "type": "String" },
+      "co2ePerKg": { "type": "String" }
+    }
+  },
+  "impactEmptyTitle": "No bags collected yet",
+  "@impactEmptyTitle": {},
+  "impactEmptyBody": "Collect your first surprise bag and your impact starts adding up here.",
+  "@impactEmptyBody": {}
 }

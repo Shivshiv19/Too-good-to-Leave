@@ -120,6 +120,21 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                     ],
                   ),
                   SettingsGroup(
+                    title: l10n.accountGroupImpact,
+                    rows: [
+                      SettingsRow(
+                        icon: Icons.eco_outlined,
+                        label: l10n.accountImpact,
+                        gated: !authenticated,
+                        gatedSemanticSuffix: l10n.accountSignInRequired,
+                        onTap: () => _goOrGate(
+                          '/account/impact',
+                          () => const AccountImpactRoute().go(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SettingsGroup(
                     title: l10n.accountGroupPreferences,
                     rows: [
                       SettingsRow(

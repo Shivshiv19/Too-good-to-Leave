@@ -13,6 +13,7 @@ import 'package:surplus_marketplace/features/account/presentation/screens/delete
 import 'package:surplus_marketplace/features/account/presentation/screens/edit_profile_screen.dart';
 import 'package:surplus_marketplace/features/account/presentation/screens/faq_topic_screen.dart';
 import 'package:surplus_marketplace/features/account/presentation/screens/help_screen.dart';
+import 'package:surplus_marketplace/features/account/presentation/screens/impact_screen.dart';
 import 'package:surplus_marketplace/features/account/presentation/screens/legal_document_screen.dart';
 import 'package:surplus_marketplace/features/account/presentation/screens/notification_settings_screen.dart';
 import 'package:surplus_marketplace/features/account/presentation/screens/saved_locations_screen.dart';
@@ -225,6 +226,7 @@ class SessionExpiredRoute extends GoRouteData with $SessionExpiredRoute {
           routes: [
             TypedGoRoute<AccountProfileRoute>(path: 'profile'),
             TypedGoRoute<AccountLocationsRoute>(path: 'locations'),
+            TypedGoRoute<AccountImpactRoute>(path: 'impact'),
             TypedGoRoute<AccountNotificationsRoute>(path: 'notifications'),
             TypedGoRoute<AccountSettingsRoute>(path: 'settings'),
             TypedGoRoute<AccountHelpRoute>(path: 'help'),
@@ -420,6 +422,14 @@ class AccountLocationsRoute extends GoRouteData with $AccountLocationsRoute {
   @override
   Widget build(BuildContext context, GoRouterState state) =>
       const SavedLocationsScreen();
+}
+
+class AccountImpactRoute extends GoRouteData with $AccountImpactRoute {
+  const AccountImpactRoute();
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) =>
+      const ImpactScreen();
 }
 
 class AccountNotificationsRoute extends GoRouteData
