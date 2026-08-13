@@ -139,17 +139,16 @@ class HeroPickupCard extends StatelessWidget {
             const SizedBox(height: Space.x4),
             Row(
               children: [
-                Expanded(
-                  child: AppButton(
-                    label: directionsLabel,
-                    variant: AppButtonVariant.secondary,
-                    size: AppButtonSize.medium,
-                    onPressed: onDirections,
-                  ),
+                // Icon-only rather than a "Directions to {merchant}" label —
+                // squeezed next to Show pickup code, a long merchant name
+                // wrapped mid-word instead of eliding. The full label lives
+                // on as the tooltip and semantic announcement.
+                _DirectionsIconButton(
+                  label: directionsLabel,
+                  onPressed: onDirections,
                 ),
                 const SizedBox(width: Space.x3),
                 Expanded(
-                  flex: 2,
                   child: Semantics(
                     label: showCodeSemanticLabel,
                     excludeSemantics: true,
@@ -163,6 +162,51 @@ class HeroPickupCard extends StatelessWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A square, icon-only twin of [AppButton]'s secondary variant — same
+/// border/height so it sits flush against [AppButton] in a `Row`, but
+/// without a label competing for width. [label] carries the full
+/// "Directions to {merchant}" text as the tooltip and semantic name instead
+/// of visible text.
+class _DirectionsIconButton extends StatelessWidget {
+  const _DirectionsIconButton({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Tooltip(
+      message: label,
+      child: Semantics(
+        button: true,
+        label: label,
+        excludeSemantics: true,
+        child: Material(
+          color: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(color: colors.actionSecondaryBorder, width: 1.5),
+            borderRadius: BorderRadius.circular(Radii.full),
+          ),
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(Radii.full),
+            child: SizedBox(
+              width: AppButtonSize.medium.height,
+              height: AppButtonSize.medium.height,
+              child: Icon(
+                Icons.directions,
+                size: 22,
+                color: colors.actionSecondaryFg,
+              ),
+            ),
+          ),
         ),
       ),
     );
