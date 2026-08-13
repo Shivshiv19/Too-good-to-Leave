@@ -194,6 +194,7 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
     if (order == null ||
         order.status == OrderStatus.collected ||
         order.status == OrderStatus.cancelledByMerchant ||
+        order.status == OrderStatus.cancelledByCustomer ||
         order.status == OrderStatus.expiredUncollected) {
       return;
     }
@@ -233,6 +234,7 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
             offline: _offline,
             clock: _clock,
             l10n: l10n,
+            onCancelled: _load,
           ),
         },
       ),
@@ -247,6 +249,7 @@ class _Loaded extends StatelessWidget {
     required this.offline,
     required this.clock,
     required this.l10n,
+    required this.onCancelled,
   });
 
   final Order order;
@@ -254,6 +257,13 @@ class _Loaded extends StatelessWidget {
   final bool offline;
   final Clock clock;
   final AppLocalizations l10n;
+
+  /// Refreshes the parent screen the instant a cancellation succeeds — the
+  /// existing poll `Timer` would eventually catch up on its own (up to 30 s
+  /// while the window is still upcoming), but making the customer wait
+  /// that long to see their own just-completed cancellation reflected
+  /// reads as "did that actually work?".
+  final VoidCallback onCancelled;
 
   @override
   Widget build(BuildContext context) {
@@ -281,6 +291,19 @@ class _Loaded extends StatelessWidget {
         icon: Icons.timer_off_outlined,
         title: l10n.orderExpiredTitle,
         body: l10n.orderExpiredBody(Fmt.timeOfDay(order.pickupWindow.endAt)),
+        assertive: false,
+      );
+    }
+    if (order.status == OrderStatus.cancelledByCustomer) {
+      // Reachable from this very screen's own Cancel reservation action —
+      // without this case the screen kept showing the QR/pickup code as
+      // if the cancellation never happened, since OrderStatus's own
+      // terminal-statuses doc lists this alongside collected/expired but
+      // this widget never actually branched on it.
+      return _Terminal(
+        icon: Icons.event_busy_outlined,
+        title: l10n.customerCancelledTitle,
+        body: l10n.customerCancelledBody(Fmt.money(order.breakdown.total)),
         assertive: false,
       );
     }
@@ -374,7 +397,13 @@ class _Loaded extends StatelessWidget {
           AppButton(
             label: l10n.orderActionCancel,
             variant: AppButtonVariant.tertiary,
-            onPressed: () => showCancelOrderDialog(context, orderId: order.id),
+            onPressed: () async {
+              final cancelled = await showCancelOrderDialog(
+                context,
+                orderId: order.id,
+              );
+              if (cancelled) onCancelled();
+            },
           ),
         ],
       ],

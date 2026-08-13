@@ -1027,6 +1027,16 @@
       "amount": { "type": "String" }
     }
   },
+  "customerCancelledTitle": "Reservation cancelled",
+  "@customerCancelledTitle": {
+    "description": "Pickup screen's terminal state for a self-cancellation — reached via the same Cancel reservation action this screen itself offers, so the screen must stop showing the QR/pickup code once it succeeds rather than looking like nothing happened."
+  },
+  "customerCancelledBody": "You cancelled this — your refund of {amount} is already on its way.",
+  "@customerCancelledBody": {
+    "placeholders": {
+      "amount": { "type": "String" }
+    }
+  },
 
   "cancelOrderTitle": "Cancel this reservation?",
   "@cancelOrderTitle": {},
