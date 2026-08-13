@@ -241,7 +241,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             QuantityStepper(
               value: _quantity,
               onChanged: _onQuantityChanged,
-              max: bag.remainingAllowanceForCustomer,
+              max: bag.quantityAvailable,
               decreaseLabel: l10n.cartQuantityDecrease,
               increaseLabel: l10n.cartQuantityIncrease,
             ),

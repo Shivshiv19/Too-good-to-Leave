@@ -439,9 +439,7 @@ class _StickyReserveBar extends StatelessWidget {
   final VoidCallback onReserve;
   final AppLocalizations l10n;
 
-  int get _cap => bag.remainingAllowanceForCustomer < bag.quantityAvailable
-      ? bag.remainingAllowanceForCustomer
-      : bag.quantityAvailable;
+  int get _cap => bag.quantityAvailable;
 
   @override
   Widget build(BuildContext context) {
