@@ -456,6 +456,16 @@
   "@discoverMapNoBags": {
     "description": "Overlay banner on an empty map view — the map itself still renders (centred on the anchor, zero pins) so toggling to map mode is never a silent no-op just because the list view's own empty state has nothing to plot."
   },
+  "discoverMapZoomIn": "Zoom in",
+  "@discoverMapZoomIn": {},
+  "discoverMapZoomOut": "Zoom out",
+  "@discoverMapZoomOut": {},
+  "discoverMapRecenter": "Use my location",
+  "@discoverMapRecenter": {},
+  "discoverMapRecenterFailed": "Couldn't get your location",
+  "@discoverMapRecenterFailed": {
+    "description": "Snackbar shown when the map's recentre-on-me button can't get a GPS fix (permission denied, timeout, etc)."
+  },
 
   "@_COMMENT_FILTER_SORT": {},
 

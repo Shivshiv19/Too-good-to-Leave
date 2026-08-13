@@ -31,6 +31,7 @@ class TileMapView extends StatefulWidget {
     this.pins = const [],
     this.onCenterChanged,
     this.interactive = true,
+    this.mapController,
     super.key,
   });
 
@@ -45,16 +46,31 @@ class TileMapView extends StatefulWidget {
 
   final bool interactive;
 
+  /// Lets a call site drive the camera from outside (zoom buttons, a
+  /// recentre-on-me action, jumping to a search result) — same pattern the
+  /// shop app's picker sheet already uses. Owned by the caller when passed;
+  /// left null, this widget creates and disposes its own.
+  final fm.MapController? mapController;
+
   @override
   State<TileMapView> createState() => _TileMapViewState();
 }
 
 class _TileMapViewState extends State<TileMapView> {
-  // Owned here (rather than left implicit) so `_onMapTap` can project a
-  // pin's LatLng into the *current* screen position — a fixed
-  // meters-per-pin threshold can't work, since how many metres a marker's
-  // visual footprint covers changes with every zoom level.
-  final _controller = fm.MapController();
+  // Falls back to an internally-owned controller (rather than left
+  // implicit) so `_onMapTap` can project a pin's LatLng into the *current*
+  // screen position — a fixed meters-per-pin threshold can't work, since
+  // how many metres a marker's visual footprint covers changes with every
+  // zoom level. Only disposed here if we created it ourselves — a
+  // caller-supplied controller is the caller's to dispose.
+  late final fm.MapController _controller =
+      widget.mapController ?? fm.MapController();
+
+  @override
+  void dispose() {
+    if (widget.mapController == null) _controller.dispose();
+    super.dispose();
+  }
 
   /// A plain `GestureDetector` on each marker widget turned out to reliably
   /// miss taps on web — flutter_map's own pan/drag gesture recognizer wins
@@ -73,7 +89,10 @@ class _TileMapViewState extends State<TileMapView> {
     var closestDistance = double.infinity;
     for (final pin in widget.pins) {
       if (pin.onTap == null) continue;
-      final pinLatLng = ll.LatLng(pin.position.latitude, pin.position.longitude);
+      final pinLatLng = ll.LatLng(
+        pin.position.latitude,
+        pin.position.longitude,
+      );
       final screenOffset = _controller.camera.latLngToScreenOffset(pinLatLng);
       final distance = (screenOffset - tapOffset).distance;
       if (distance < closestDistance) {
@@ -92,7 +111,10 @@ class _TileMapViewState extends State<TileMapView> {
     return fm.FlutterMap(
       mapController: _controller,
       options: fm.MapOptions(
-        initialCenter: ll.LatLng(widget.center.latitude, widget.center.longitude),
+        initialCenter: ll.LatLng(
+          widget.center.latitude,
+          widget.center.longitude,
+        ),
         initialZoom: widget.zoom,
         interactionOptions: fm.InteractionOptions(
           flags: widget.interactive

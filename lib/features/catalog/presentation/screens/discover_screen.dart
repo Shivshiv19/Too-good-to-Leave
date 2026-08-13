@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart' as fm;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart' as ll;
 import 'package:surplus_marketplace/app/router/routes.dart';
 import 'package:surplus_marketplace/app/theme/app_colors.dart';
 import 'package:surplus_marketplace/app/theme/app_theme.dart';
@@ -8,6 +10,7 @@ import 'package:surplus_marketplace/core/domain/dietary_envelope.dart';
 import 'package:surplus_marketplace/core/domain/lat_lng.dart';
 import 'package:surplus_marketplace/core/domain/pickup_window.dart';
 import 'package:surplus_marketplace/core/l10n/generated/app_localizations.dart';
+import 'package:surplus_marketplace/core/platform/location_capability.dart';
 import 'package:surplus_marketplace/core/platform/map_tile_config_provider.dart';
 import 'package:surplus_marketplace/core/utils/formatters.dart';
 import 'package:surplus_marketplace/design_system/components/app_button.dart';
@@ -57,10 +60,55 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   bool _notifySubmitting = false;
   bool _notifyRegistered = false;
 
+  final _mapController = fm.MapController();
+  bool _isLocatingGps = false;
+
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  void _zoomBy(double delta) {
+    final camera = _mapController.camera;
+    _mapController.move(
+      camera.center,
+      (camera.zoom + delta).clamp(camera.minZoom ?? 1, camera.maxZoom ?? 18),
+    );
+  }
+
+  Future<void> _recenterOnMe() async {
+    final l10n = AppLocalizations.of(context);
+    setState(() => _isLocatingGps = true);
+    try {
+      final capability = ref.read(locationCapabilityProvider);
+      final permission = await capability.checkPermission();
+      if (permission == LocationPermissionOutcome.denied) {
+        await capability.requestPermission();
+      }
+      final latLng = await capability.getCurrentPosition(
+        timeout: const Duration(seconds: 15),
+      );
+      if (!mounted) return;
+      _mapController.move(
+        ll.LatLng(latLng.latitude, latLng.longitude),
+        _mapController.camera.zoom,
+      );
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.discoverMapRecenterFailed)));
+      }
+    } finally {
+      if (mounted) setState(() => _isLocatingGps = false);
+    }
   }
 
   Future<void> _load() async {
@@ -336,6 +384,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
       tileConfig: ref.watch(mapTileConfigProvider),
       center: anchor,
       zoom: 13,
+      mapController: _mapController,
       pins: [
         for (final bag in _items)
           MapPin(
@@ -355,30 +404,41 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
           ),
       ],
     );
-    if (_items.isNotEmpty) return map;
     return Stack(
       children: [
         map,
-        Positioned(
-          left: Space.x4,
-          right: Space.x4,
-          top: Space.x4,
-          child: Material(
-            color: colors.surfaceRaised,
-            borderRadius: BorderRadius.circular(Radii.chip),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: Space.x4,
-                vertical: Space.x3,
-              ),
-              child: Text(
-                l10n.discoverMapNoBags,
-                textAlign: TextAlign.center,
-                style: context.type.body.copyWith(
-                  color: colors.textSecondary,
+        if (_items.isEmpty)
+          Positioned(
+            left: Space.x4,
+            right: Space.x4,
+            top: Space.x4,
+            child: Material(
+              color: colors.surfaceRaised,
+              borderRadius: BorderRadius.circular(Radii.chip),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Space.x4,
+                  vertical: Space.x3,
+                ),
+                child: Text(
+                  l10n.discoverMapNoBags,
+                  textAlign: TextAlign.center,
+                  style: context.type.body.copyWith(
+                    color: colors.textSecondary,
+                  ),
                 ),
               ),
             ),
+          ),
+        Positioned(
+          right: Space.x4,
+          bottom: Space.x4,
+          child: _MapControls(
+            isLocatingGps: _isLocatingGps,
+            onZoomIn: () => _zoomBy(1),
+            onZoomOut: () => _zoomBy(-1),
+            onRecenter: _recenterOnMe,
+            l10n: l10n,
           ),
         ),
       ],
@@ -445,6 +505,118 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
           const SizedBox(height: Space.x6),
         ],
       ),
+    );
+  }
+}
+
+/// Zoom +/− and "recentre on me", stacked bottom-right over the map —
+/// flutter_map ships neither, and pinch/scroll-wheel-only zoom isn't
+/// discoverable on desktop web without a mouse wheel or trackpad gesture.
+class _MapControls extends StatelessWidget {
+  const _MapControls({
+    required this.isLocatingGps,
+    required this.onZoomIn,
+    required this.onZoomOut,
+    required this.onRecenter,
+    required this.l10n,
+  });
+
+  final bool isLocatingGps;
+  final VoidCallback onZoomIn;
+  final VoidCallback onZoomOut;
+  final VoidCallback onRecenter;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _MapControlButton(
+          icon: Icons.my_location,
+          tooltip: l10n.discoverMapRecenter,
+          onPressed: isLocatingGps ? null : onRecenter,
+          loading: isLocatingGps,
+        ),
+        const SizedBox(height: Space.x3),
+        Material(
+          color: context.colors.surfaceRaised,
+          borderRadius: BorderRadius.circular(Radii.chip),
+          elevation: 2,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _MapControlButton(
+                icon: Icons.add,
+                tooltip: l10n.discoverMapZoomIn,
+                onPressed: onZoomIn,
+                flat: true,
+              ),
+              Divider(height: 1, color: context.colors.borderSubtle),
+              _MapControlButton(
+                icon: Icons.remove,
+                tooltip: l10n.discoverMapZoomOut,
+                onPressed: onZoomOut,
+                flat: true,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MapControlButton extends StatelessWidget {
+  const _MapControlButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.loading = false,
+    this.flat = false,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+  final bool loading;
+
+  /// Flat buttons skip their own Material/elevation — used when a parent
+  /// (the zoom +/− pair) already provides one shared surface.
+  final bool flat;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final button = InkWell(
+      onTap: onPressed,
+      child: SizedBox(
+        width: Layout.minTouchTarget,
+        height: Layout.minTouchTarget,
+        child: Center(
+          child: loading
+              ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: colors.textSecondary,
+                  ),
+                )
+              : Icon(icon, color: colors.textPrimary),
+        ),
+      ),
+    );
+    return Tooltip(
+      message: tooltip,
+      child: flat
+          ? button
+          : Material(
+              color: colors.surfaceRaised,
+              borderRadius: BorderRadius.circular(Radii.chip),
+              elevation: 2,
+              child: button,
+            ),
     );
   }
 }
