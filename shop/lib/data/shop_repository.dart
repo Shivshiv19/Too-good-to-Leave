@@ -416,6 +416,7 @@ class ShopRepository extends ChangeNotifier {
         .from('bags')
         .select()
         .eq('shop_id', shopId)
+        .neq('status', 'withdrawn_by_merchant')
         .order('created_at');
     _bags
       ..clear()
@@ -835,7 +836,27 @@ class ShopRepository extends ChangeNotifier {
 
   Future<void> deleteBag(String id) async {
     if (_useBackend) {
-      await _client.from('bags').delete().eq('id', id);
+      try {
+        await _client.from('bags').delete().eq('id', id);
+      } on PostgrestException catch (e) {
+        // 23503 = foreign key violation — this bag has orders against it
+        // (`orders.bag_id`), which must keep pointing at a real row even
+        // for a cancelled/collected order from days ago. A hard delete is
+        // only possible for a bag nobody ever ordered; otherwise withdraw
+        // it instead — same end state for the shop (gone from their list),
+        // but the row survives for order history to keep resolving.
+        if (e.code == '23503') {
+          await _client
+              .from('bags')
+              .update({
+                'status': 'withdrawn_by_merchant',
+                'updated_at': DateTime.now().toUtc().toIso8601String(),
+              })
+              .eq('id', id);
+        } else {
+          rethrow;
+        }
+      }
     }
     _bags.removeWhere((b) => b.id == id);
     notifyListeners();
