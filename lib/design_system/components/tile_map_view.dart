@@ -23,7 +23,7 @@ class MapPin {
 /// of this, rather than this widget growing a second interaction mode. A
 /// screen that just needs to show fixed [pins] passes them and nothing
 /// else.
-class TileMapView extends StatelessWidget {
+class TileMapView extends StatefulWidget {
   const TileMapView({
     required this.tileConfig,
     required this.center,
@@ -46,48 +46,91 @@ class TileMapView extends StatelessWidget {
   final bool interactive;
 
   @override
+  State<TileMapView> createState() => _TileMapViewState();
+}
+
+class _TileMapViewState extends State<TileMapView> {
+  // Owned here (rather than left implicit) so `_onMapTap` can project a
+  // pin's LatLng into the *current* screen position — a fixed
+  // meters-per-pin threshold can't work, since how many metres a marker's
+  // visual footprint covers changes with every zoom level.
+  final _controller = fm.MapController();
+
+  /// A plain `GestureDetector` on each marker widget turned out to reliably
+  /// miss taps on web — flutter_map's own pan/drag gesture recognizer wins
+  /// the gesture arena for a stationary click often enough that markers
+  /// were effectively untappable in testing, regardless of hit-test
+  /// behaviour or marker size. Handling taps at the map level instead (the
+  /// pattern flutter_map's own docs recommend for exactly this) and
+  /// picking whichever pin's *screen position* is closest to the tap,
+  /// within a fixed pixel radius, sidesteps the arena conflict entirely.
+  void _onMapTap(fm.TapPosition tapPosition, ll.LatLng point) {
+    final tapOffset = tapPosition.relative;
+    if (tapOffset == null) return;
+    const hitRadiusPx = 28.0;
+
+    MapPin? closest;
+    var closestDistance = double.infinity;
+    for (final pin in widget.pins) {
+      if (pin.onTap == null) continue;
+      final pinLatLng = ll.LatLng(pin.position.latitude, pin.position.longitude);
+      final screenOffset = _controller.camera.latLngToScreenOffset(pinLatLng);
+      final distance = (screenOffset - tapOffset).distance;
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closest = pin;
+      }
+    }
+    if (closest != null && closestDistance <= hitRadiusPx) {
+      closest.onTap!();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     return fm.FlutterMap(
+      mapController: _controller,
       options: fm.MapOptions(
-        initialCenter: ll.LatLng(center.latitude, center.longitude),
-        initialZoom: zoom,
+        initialCenter: ll.LatLng(widget.center.latitude, widget.center.longitude),
+        initialZoom: widget.zoom,
         interactionOptions: fm.InteractionOptions(
-          flags: interactive ? fm.InteractiveFlag.all : fm.InteractiveFlag.none,
+          flags: widget.interactive
+              ? fm.InteractiveFlag.all
+              : fm.InteractiveFlag.none,
         ),
-        onPositionChanged: onCenterChanged == null
+        onTap: widget.pins.isEmpty ? null : _onMapTap,
+        onPositionChanged: widget.onCenterChanged == null
             ? null
             : (position, hasGesture) {
                 final c = position.center;
-                onCenterChanged!(
+                widget.onCenterChanged!(
                   LatLng(latitude: c.latitude, longitude: c.longitude),
                 );
               },
       ),
       children: [
         fm.TileLayer(
-          urlTemplate: tileConfig.urlTemplate,
+          urlTemplate: widget.tileConfig.urlTemplate,
           userAgentPackageName: 'com.surplusmarketplace.app',
         ),
-        if (pins.isNotEmpty)
+        if (widget.pins.isNotEmpty)
           fm.MarkerLayer(
             markers: [
-              for (final pin in pins)
+              for (final pin in widget.pins)
                 fm.Marker(
                   point: ll.LatLng(
                     pin.position.latitude,
                     pin.position.longitude,
                   ),
-                  child: pin.onTap == null
-                      ? pin.child
-                      : GestureDetector(onTap: pin.onTap, child: pin.child),
+                  child: IgnorePointer(child: pin.child),
                 ),
             ],
           ),
         fm.RichAttributionWidget(
           attributions: [
             fm.TextSourceAttribution(
-              tileConfig.attribution,
+              widget.tileConfig.attribution,
               textStyle: context.type.caption.copyWith(
                 color: colors.textSecondary,
               ),
