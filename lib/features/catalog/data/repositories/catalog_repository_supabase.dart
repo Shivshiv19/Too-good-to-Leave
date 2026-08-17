@@ -193,9 +193,16 @@ final class CatalogRepositorySupabase implements CatalogRepository {
         .map((r) => _bagSummaryFromRow(r, query.anchor))
         .toList();
 
-    items = items
-        .where((b) => b.distanceMetres <= query.radiusKm * 1000)
-        .toList();
+    // Distance filtering is switched off for now, at the product owner's
+    // explicit direction (2026-08-17) — while shops and customers are
+    // still being test-registered anywhere, a real listing shouldn't be
+    // invisible just because it's far from wherever a tester's location
+    // happens to be set. `distanceMetres` is still computed above and
+    // still drives the "X km away" label and distance sort — only the
+    // hard cutoff is disabled. Re-enable by restoring:
+    //   items = items
+    //       .where((b) => b.distanceMetres <= query.radiusKm * 1000)
+    //       .toList();
     if (query.acceptedEnvelopes.isNotEmpty) {
       items = items
           .where((b) => query.acceptedEnvelopes.contains(b.dietaryEnvelope))
