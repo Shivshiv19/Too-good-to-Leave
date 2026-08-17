@@ -42,7 +42,12 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _phase = _Phase.loading);
+    // Only the very first load shows the full-screen spinner. A refresh
+    // triggered by returning from an order's detail/pickup screen updates
+    // the list quietly instead — the list was already rendered correctly a
+    // moment ago, so replacing it with a spinner on every return would be a
+    // visible regression for the common case where nothing changed.
+    if (_phase != _Phase.loaded) setState(() => _phase = _Phase.loading);
     try {
       final customer = await ref.read(authRepositoryProvider).restoreSession();
       if (customer == null) throw StateError('no session');
@@ -100,6 +105,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                     onSegmentChanged: (v) => setState(() => _segment = v),
                     clock: _clock,
                     l10n: l10n,
+                    onReturn: _load,
                   ),
         },
       ),
@@ -115,6 +121,7 @@ class _Loaded extends StatelessWidget {
     required this.onSegmentChanged,
     required this.clock,
     required this.l10n,
+    required this.onReturn,
   });
 
   final List<Order> active;
@@ -123,6 +130,13 @@ class _Loaded extends StatelessWidget {
   final ValueChanged<int> onSegmentChanged;
   final Clock clock;
   final AppLocalizations l10n;
+
+  /// Refetches active/past from scratch — called after returning from
+  /// either order-detail push below. Neither push is a dead end: a pickup
+  /// can complete (or a shop can cancel) while that screen is open, and an
+  /// order that was Active when this list last loaded may need to be in
+  /// Past by the time the user comes back to it.
+  final Future<void> Function() onReturn;
 
   @override
   Widget build(BuildContext context) {
@@ -143,10 +157,20 @@ class _Loaded extends StatelessWidget {
           child: segment == 0
               ? (active.isEmpty
                     ? _EmptyActive(l10n: l10n)
-                    : _ActiveList(orders: active, clock: clock, l10n: l10n))
+                    : _ActiveList(
+                        orders: active,
+                        clock: clock,
+                        l10n: l10n,
+                        onReturn: onReturn,
+                      ))
               : (past.isEmpty
                     ? _EmptyPast(l10n: l10n)
-                    : _PastList(orders: past, clock: clock, l10n: l10n)),
+                    : _PastList(
+                        orders: past,
+                        clock: clock,
+                        l10n: l10n,
+                        onReturn: onReturn,
+                      )),
         ),
       ],
     );
@@ -158,11 +182,13 @@ class _ActiveList extends StatelessWidget {
     required this.orders,
     required this.clock,
     required this.l10n,
+    required this.onReturn,
   });
 
   final List<Order> orders;
   final Clock clock;
   final AppLocalizations l10n;
+  final Future<void> Function() onReturn;
 
   @override
   Widget build(BuildContext context) {
@@ -178,8 +204,10 @@ class _ActiveList extends StatelessWidget {
           pickupWindow: hero.pickupWindow,
           clock: clock,
           stateLabel: windowStateLabel(hero.pickupWindow, clock, l10n),
-          onShowCode: () =>
-              OrderPickupRoute(orderId: hero.id).push<void>(context),
+          onShowCode: () async {
+            await OrderPickupRoute(orderId: hero.id).push<void>(context);
+            await onReturn();
+          },
           onDirections: () => openDirections(
             hero.merchantSnapshot.address.geo.latitude,
             hero.merchantSnapshot.address.geo.longitude,
@@ -198,7 +226,12 @@ class _ActiveList extends StatelessWidget {
         ),
         for (final order in rest) ...[
           const SizedBox(height: Space.listGap),
-          _OrderRow(order: order, clock: clock, l10n: l10n),
+          _OrderRow(
+            order: order,
+            clock: clock,
+            l10n: l10n,
+            onReturn: onReturn,
+          ),
         ],
         const SizedBox(height: Space.x6),
       ],
@@ -211,11 +244,13 @@ class _PastList extends StatelessWidget {
     required this.orders,
     required this.clock,
     required this.l10n,
+    required this.onReturn,
   });
 
   final List<Order> orders;
   final Clock clock;
   final AppLocalizations l10n;
+  final Future<void> Function() onReturn;
 
   @override
   Widget build(BuildContext context) {
@@ -226,8 +261,12 @@ class _PastList extends StatelessWidget {
       ),
       itemCount: orders.length,
       separatorBuilder: (_, _) => const SizedBox(height: Space.listGap),
-      itemBuilder: (context, i) =>
-          _OrderRow(order: orders[i], clock: clock, l10n: l10n),
+      itemBuilder: (context, i) => _OrderRow(
+        order: orders[i],
+        clock: clock,
+        l10n: l10n,
+        onReturn: onReturn,
+      ),
     );
   }
 }
@@ -237,11 +276,13 @@ class _OrderRow extends StatelessWidget {
     required this.order,
     required this.clock,
     required this.l10n,
+    required this.onReturn,
   });
 
   final Order order;
   final Clock clock;
   final AppLocalizations l10n;
+  final Future<void> Function() onReturn;
 
   @override
   Widget build(BuildContext context) {
@@ -262,7 +303,10 @@ class _OrderRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(Radii.card),
         child: InkWell(
           borderRadius: BorderRadius.circular(Radii.card),
-          onTap: () => OrderDetailRoute(orderId: order.id).push<void>(context),
+          onTap: () async {
+            await OrderDetailRoute(orderId: order.id).push<void>(context);
+            await onReturn();
+          },
           child: Container(
             padding: const EdgeInsets.all(Space.x3),
             decoration: BoxDecoration(

@@ -78,7 +78,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _phase = _Phase.loading);
+    // Only the very first load shows the full-screen spinner — see the
+    // matching comment on `OrdersScreen._load`.
+    if (_phase != _Phase.loaded) setState(() => _phase = _Phase.loading);
     try {
       final order = await ref
           .read(ordersRepositoryProvider)
@@ -377,8 +379,10 @@ class _Actions extends StatelessWidget {
           ..add(
             AppButton(
               label: l10n.orderActionShowPickupCode,
-              onPressed: () =>
-                  OrderPickupRoute(orderId: order.id).push<void>(context),
+              onPressed: () async {
+                await OrderPickupRoute(orderId: order.id).push<void>(context);
+                await onReload();
+              },
             ),
           )
           ..add(const SizedBox(height: Space.x3))
