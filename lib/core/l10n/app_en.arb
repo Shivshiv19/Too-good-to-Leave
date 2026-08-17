@@ -100,6 +100,12 @@
   "@phoneEntryTermsConsent": {
     "description": "Rendered as plain text for now — /account/legal/:docId (§5f.9) doesn't exist yet, so the links have nowhere to go."
   },
+  "phoneEntryOrDivider": "or",
+  "@phoneEntryOrDivider": {},
+  "phoneEntryGoogleCta": "Continue with Google",
+  "@phoneEntryGoogleCta": {},
+  "phoneEntryGoogleFailed": "Couldn't sign in with Google — please try again",
+  "@phoneEntryGoogleFailed": {},
 
   "@_COMMENT_OTP_SCREEN": {},
 

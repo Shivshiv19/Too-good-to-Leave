@@ -56,6 +56,15 @@ abstract interface class AuthRepository {
   /// per §5a.1's "secure storage read fails → treat as signed out" rule.
   Future<Customer?> restoreSession();
 
+  /// Google sign-in, offered alongside phone entry rather than replacing
+  /// it. On web this navigates the tab away to Google's consent screen and
+  /// back — the caller gets no [Customer] back directly. The app resumes
+  /// on reload already identified by Google but without a phone number on
+  /// file yet, and is routed through the same phone-entry/OTP screens a
+  /// first-time phone signup uses to collect one — see the Supabase
+  /// binding's class doc for the full handoff.
+  Future<void> signInWithGoogle();
+
   /// `POST /v1/auth/logout` (§7.2.5). Clears all local session state.
   Future<void> logout();
 }

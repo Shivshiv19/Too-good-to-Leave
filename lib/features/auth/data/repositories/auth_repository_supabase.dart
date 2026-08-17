@@ -42,6 +42,21 @@ Customer _customerFromRow(Map<String, dynamic> row) => Customer(
 /// Requires **Authentication > Settings > "Allow anonymous sign-ins"**
 /// enabled in the Supabase dashboard.
 ///
+/// **Google sign-in** ([signInWithGoogle]) is a genuinely different
+/// identity path, not another route to the same anonymous trick above: it
+/// calls Supabase's real OAuth flow, which on web means the tab navigates
+/// away to Google and back with a real, non-anonymous `auth.users` row
+/// already established by the time the app reloads. That user has no
+/// `customers` row yet, so [restoreSession] reports them as signed out —
+/// same as anyone else who hasn't finished signup — and the ordinary
+/// phone-entry/OTP screens pick them back up from there. The only branch
+/// this adds is in [_signInWithPhone]: when `auth.currentUser` is already a
+/// real (non-anonymous) session — i.e. someone arrived via Google, not
+/// `signInAnonymously` — it skips minting a new anonymous identity and
+/// attaches the phone number they type to that existing Google identity
+/// instead, pre-filling name/email/avatar from what Google already told us
+/// rather than asking them to retype it.
+///
 /// **`logout` never calls Supabase's real `signOut`.** An anonymous
 /// identity has no password/email to sign back in *with* — actually ending
 /// the session would make [logout] permanently and silently destroy the
@@ -103,6 +118,10 @@ final class AuthRepositorySupabase implements AuthRepository {
     // anything else that reads it) sees this session as live again.
     await _prefs.setBool(_locallySignedOutKey, value: false);
     var user = _client.auth.currentUser;
+    // A real (non-anonymous) session here means signInWithGoogle already
+    // ran and the tab came back — this phone number is being attached to
+    // that Google identity, not starting a fresh anonymous one.
+    final arrivedViaGoogle = user != null && !user.isAnonymous;
     if (user == null) {
       final AuthResponse res;
       try {
@@ -128,10 +147,34 @@ final class AuthRepositorySupabase implements AuthRepository {
         existing ??
         await _client
             .from('customers')
-            .insert({'id': user.id, 'phone_e164': phoneE164})
+            .insert({
+              'id': user.id,
+              'phone_e164': phoneE164,
+              // Google already told us who they are — reuse it instead of
+              // asking them to retype their name on the next screen.
+              if (arrivedViaGoogle) ..._googleProfileFields(user),
+            })
             .select()
             .single();
     return _customerFromRow(row);
+  }
+
+  Map<String, dynamic> _googleProfileFields(User user) {
+    final metadata = user.userMetadata ?? const {};
+    return {
+      'name': metadata['full_name'] ?? metadata['name'],
+      'email': metadata['email'] ?? user.email,
+      'avatar_url': metadata['avatar_url'] ?? metadata['picture'],
+    };
+  }
+
+  @override
+  Future<void> signInWithGoogle() async {
+    await _prefs.setBool(_locallySignedOutKey, value: false);
+    await _client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: Uri.base.origin,
+    );
   }
 
   @override

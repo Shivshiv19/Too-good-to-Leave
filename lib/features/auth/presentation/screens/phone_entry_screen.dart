@@ -25,6 +25,7 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen> {
   final _controller = TextEditingController();
   String? _error;
   bool _submitting = false;
+  bool _googleSubmitting = false;
 
   @override
   void dispose() {
@@ -80,6 +81,26 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(l10n.errorOfflineBody)));
+      }
+    }
+  }
+
+  Future<void> _continueWithGoogle() async {
+    final l10n = AppLocalizations.of(context);
+    setState(() => _googleSubmitting = true);
+    try {
+      await ref.read(authRepositoryProvider).signInWithGoogle();
+      // On web this line is only reached in the fake/dev handoff — a real
+      // Google sign-in navigates the tab away before this returns. Either
+      // way, the phone form on this same screen is what collects a phone
+      // number next, so there's nowhere further to navigate to here.
+      if (mounted) setState(() => _googleSubmitting = false);
+    } on Object {
+      if (mounted) {
+        setState(() => _googleSubmitting = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.phoneEntryGoogleFailed)));
       }
     }
   }
@@ -161,7 +182,34 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen> {
               AppButton(
                 label: l10n.continueCta,
                 isLoading: _submitting,
-                onPressed: _submitting ? null : _submit,
+                onPressed: _submitting || _googleSubmitting ? null : _submit,
+              ),
+              const SizedBox(height: Space.x5),
+              Row(
+                children: [
+                  Expanded(child: Divider(color: colors.borderSubtle)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: Space.x3,
+                    ),
+                    child: Text(
+                      l10n.phoneEntryOrDivider,
+                      style: context.type.caption.copyWith(
+                        color: colors.textTertiary,
+                      ),
+                    ),
+                  ),
+                  Expanded(child: Divider(color: colors.borderSubtle)),
+                ],
+              ),
+              const SizedBox(height: Space.x5),
+              AppButton(
+                label: l10n.phoneEntryGoogleCta,
+                variant: AppButtonVariant.secondary,
+                isLoading: _googleSubmitting,
+                onPressed: _submitting || _googleSubmitting
+                    ? null
+                    : _continueWithGoogle,
               ),
             ],
           ),

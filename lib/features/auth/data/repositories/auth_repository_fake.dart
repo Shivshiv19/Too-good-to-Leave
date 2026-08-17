@@ -48,6 +48,11 @@ final class AuthRepositoryFake implements AuthRepository {
   final _pending = <String, _PendingOtp>{};
   final _random = Random.secure();
 
+  /// Set by [signInWithGoogle], consumed by the next [verifyOtp] — stands
+  /// in for the real binding's "already has a non-anonymous session"
+  /// check, since there's no real OAuth redirect to come back from here.
+  bool _pendingGoogleHandoff = false;
+
   static const _devCode = '123456';
   static const _otpValidity = Duration(minutes: 10);
   static const _lockoutDuration = Duration(minutes: 15);
@@ -118,9 +123,24 @@ final class AuthRepositoryFake implements AuthRepository {
     }
 
     _pending.remove(requestId);
-    final customer = await _findOrCreateCustomer(pending.phoneE164);
+    final fromGoogle = _pendingGoogleHandoff;
+    _pendingGoogleHandoff = false;
+    final customer = await _findOrCreateCustomer(
+      pending.phoneE164,
+      fromGoogle: fromGoogle,
+    );
     await _persistSession(customer);
     return customer;
+  }
+
+  @override
+  Future<void> signInWithGoogle() async {
+    // No real redirect exists in this fake — the button just flags the
+    // handoff, then the ordinary phone-entry/OTP screens collect a phone
+    // number exactly as they would after a real Google round-trip, letting
+    // `dev` exercise the whole flow (name/email pre-filled, profile-setup
+    // skipped) with no real Google credentials.
+    _pendingGoogleHandoff = true;
   }
 
   @override
@@ -193,12 +213,25 @@ final class AuthRepositoryFake implements AuthRepository {
     await _prefs.remove(_sessionPhoneKey);
   }
 
-  Future<Customer> _findOrCreateCustomer(String phoneE164) async {
+  Future<Customer> _findOrCreateCustomer(
+    String phoneE164, {
+    bool fromGoogle = false,
+  }) async {
     final existingId = _prefs.getString(_customerIdKey(phoneE164));
     if (existingId != null) return _customerFor(existingId, phoneE164);
     final id = 'cust_${_randomHex(12)}';
     await _prefs.setString(_customerIdKey(phoneE164), id);
-    return Customer(id: id, phoneE164: phoneE164);
+    // Stands in for Google already having told us who they are — a real
+    // Google sign-in never needs the separate "what's your name" screen,
+    // and this fake should exercise that same skip.
+    if (fromGoogle) {
+      await _prefs.setString(_customerNameKey(phoneE164), 'Test Google User');
+      await _prefs.setString(
+        _customerEmailKey(phoneE164),
+        'testgoogleuser@example.com',
+      );
+    }
+    return _customerFor(id, phoneE164);
   }
 
   Customer _customerFor(String id, String phone) => Customer(

@@ -245,6 +245,60 @@ void main() {
     });
   });
 
+  group('AuthRepositoryFake — signInWithGoogle', () {
+    test(
+      'a phone verified right after signInWithGoogle arrives with a name '
+      'and email already filled in, and counts as profile-complete',
+      () async {
+        final repo = await _repository();
+        await repo.signInWithGoogle();
+        final customer = await repo.verifyOtp(
+          requestId: (await repo.requestOtp(phoneE164: phone)).requestId,
+          code: '123456',
+        );
+        expect(customer.phoneE164, phone);
+        expect(customer.name, isNotEmpty);
+        expect(customer.email, isNotEmpty);
+        expect(customer.isProfileComplete, isTrue);
+      },
+    );
+
+    test(
+      'a phone verified with no prior signInWithGoogle call behaves exactly '
+      "like today's phone-only signup — no name, not profile-complete",
+      () async {
+        final repo = await _repository();
+        final customer = await repo.verifyOtp(
+          requestId: (await repo.requestOtp(phoneE164: phone)).requestId,
+          code: '123456',
+        );
+        expect(customer.name, isNull);
+        expect(customer.isProfileComplete, isFalse);
+      },
+    );
+
+    test(
+      'the Google handoff only applies to the very next verifyOtp, not '
+      'ones after it',
+      () async {
+        final repo = await _repository();
+        await repo.signInWithGoogle();
+        await repo.verifyOtp(
+          requestId: (await repo.requestOtp(phoneE164: phone)).requestId,
+          code: '123456',
+        );
+        const secondPhone = '+919812345679';
+        final second = await repo.verifyOtp(
+          requestId: (await repo.requestOtp(
+            phoneE164: secondPhone,
+          )).requestId,
+          code: '123456',
+        );
+        expect(second.name, isNull);
+      },
+    );
+  });
+
   group(
     'AuthRepositoryFake — requestReverificationOtp/verifyReverificationOtp (§5f.11)',
     () {
