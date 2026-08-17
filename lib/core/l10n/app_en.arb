@@ -94,6 +94,10 @@
   "@phoneEntryContextBannerDefault": {
     "description": "§5a.6 — the real banner text is carried from the redirect target (e.g. 'Sign in to reserve your bag'), but no calling feature supplies one yet (no checkout). This generic fallback is used until one does."
   },
+  "phoneEntryContextBannerFromGoogle": "You're signed in with Google — just add your phone number to finish",
+  "@phoneEntryContextBannerFromGoogle": {
+    "description": "Shown instead of phoneEntryContextBannerDefault when the router sends someone back here right after a Google sign-in with no phone number on file yet."
+  },
   "phoneEntryInvalidNumber": "Enter a valid 10-digit mobile number",
   "@phoneEntryInvalidNumber": {},
   "phoneEntryTermsConsent": "By continuing, you agree to our Terms and Privacy Policy.",

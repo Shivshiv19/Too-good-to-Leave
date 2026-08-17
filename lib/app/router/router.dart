@@ -139,5 +139,15 @@ String? _redirect(SessionState session, String location) {
               location == _authOtp ||
               location == _authProfileSetup ||
               location == _sessionExpired));
-  return atTerminalRoute ? _discover : null;
+  if (!atTerminalRoute) return null;
+  // Google's own redirect always lands back here, at the app's normal
+  // entry point, never directly on the phone-entry screen — nothing
+  // Google-specific happens on the way back in. Catching it right here,
+  // the one place an unauthenticated session is about to fall through to
+  // Discover, sends it to finish signing up instead of leaving the person
+  // looking silently signed-out with no explanation.
+  if (session.hasPendingGoogleSignIn) {
+    return '$_authPhone?from-google=true';
+  }
+  return _discover;
 }

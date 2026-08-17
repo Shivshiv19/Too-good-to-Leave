@@ -178,6 +178,18 @@ final class AuthRepositorySupabase implements AuthRepository {
   }
 
   @override
+  Future<bool> hasPendingGoogleSignIn() async {
+    final user = _client.auth.currentUser;
+    if (user == null || user.isAnonymous) return false;
+    final existing = await _client
+        .from('customers')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle();
+    return existing == null;
+  }
+
+  @override
   Future<Customer> updateProfile({required String name}) async {
     final row = await _client
         .from('customers')

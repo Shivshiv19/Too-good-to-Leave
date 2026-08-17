@@ -56,6 +56,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     final isAuthenticated = customer != null;
     final isProfileComplete = customer?.isProfileComplete ?? false;
 
+    // Only meaningful when restoreSession() came back empty — a signed-in
+    // customer, Google-sourced or not, is never "pending" by definition.
+    final hasPendingGoogleSignIn =
+        !isAuthenticated &&
+        await ref
+            .read(authRepositoryProvider)
+            .hasPendingGoogleSignIn()
+            .catchError((_) => false);
+
     // A read failure here is the same "never a launch blocker" case as the
     // config fetch below — an unreadable cache is just "no location yet",
     // not a crash.
@@ -86,6 +95,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         isAuthenticated: isAuthenticated,
         isProfileComplete: isProfileComplete,
         hasLocation: hasLocation,
+        hasPendingGoogleSignIn: hasPendingGoogleSignIn,
         unresolvedPaymentOrderId: unresolvedPaymentOrderId,
       );
     } on Object {
@@ -98,6 +108,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         isAuthenticated: isAuthenticated,
         isProfileComplete: isProfileComplete,
         hasLocation: hasLocation,
+        hasPendingGoogleSignIn: hasPendingGoogleSignIn,
         unresolvedPaymentOrderId: unresolvedPaymentOrderId,
       );
     }

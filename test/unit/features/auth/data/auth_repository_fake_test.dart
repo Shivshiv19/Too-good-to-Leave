@@ -278,6 +278,22 @@ void main() {
     );
 
     test(
+      'hasPendingGoogleSignIn is true right after signInWithGoogle and '
+      'false again once the phone step completes',
+      () async {
+        final repo = await _repository();
+        expect(await repo.hasPendingGoogleSignIn(), isFalse);
+        await repo.signInWithGoogle();
+        expect(await repo.hasPendingGoogleSignIn(), isTrue);
+        await repo.verifyOtp(
+          requestId: (await repo.requestOtp(phoneE164: phone)).requestId,
+          code: '123456',
+        );
+        expect(await repo.hasPendingGoogleSignIn(), isFalse);
+      },
+    );
+
+    test(
       'the Google handoff only applies to the very next verifyOtp, not '
       'ones after it',
       () async {

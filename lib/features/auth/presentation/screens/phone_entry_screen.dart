@@ -11,11 +11,16 @@ import 'package:surplus_marketplace/features/auth/presentation/providers/auth_pr
 /// E.164 entry, begun at the point of highest intent (§4.2 `/auth/phone`,
 /// A4 — the wall sits at add-to-cart, not at launch).
 class PhoneEntryScreen extends ConsumerStatefulWidget {
-  const PhoneEntryScreen({this.redirect, super.key});
+  const PhoneEntryScreen({this.redirect, this.fromGoogle = false, super.key});
 
   /// Where to return to once auth completes. Carried through
   /// `/auth/otp` → `/auth/profile-setup` (§4.3 destination preservation).
   final String? redirect;
+
+  /// True when the router sent someone here specifically to finish a
+  /// Google sign-in — swaps the banner copy so it reads as "add your
+  /// number to finish" rather than the generic "sign in to continue".
+  final bool fromGoogle;
 
   @override
   ConsumerState<PhoneEntryScreen> createState() => _PhoneEntryScreenState();
@@ -126,7 +131,9 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen> {
                   borderRadius: BorderRadius.circular(Radii.sm),
                 ),
                 child: Text(
-                  l10n.phoneEntryContextBannerDefault,
+                  widget.fromGoogle
+                      ? l10n.phoneEntryContextBannerFromGoogle
+                      : l10n.phoneEntryContextBannerDefault,
                   style: context.type.body.copyWith(color: colors.info.fg),
                 ),
               ),
@@ -184,33 +191,37 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen> {
                 isLoading: _submitting,
                 onPressed: _submitting || _googleSubmitting ? null : _submit,
               ),
-              const SizedBox(height: Space.x5),
-              Row(
-                children: [
-                  Expanded(child: Divider(color: colors.borderSubtle)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: Space.x3,
-                    ),
-                    child: Text(
-                      l10n.phoneEntryOrDivider,
-                      style: context.type.caption.copyWith(
-                        color: colors.textTertiary,
+              // Already signed in with Google to get here — offering it
+              // again as a second option would just be confusing.
+              if (!widget.fromGoogle) ...[
+                const SizedBox(height: Space.x5),
+                Row(
+                  children: [
+                    Expanded(child: Divider(color: colors.borderSubtle)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: Space.x3,
+                      ),
+                      child: Text(
+                        l10n.phoneEntryOrDivider,
+                        style: context.type.caption.copyWith(
+                          color: colors.textTertiary,
+                        ),
                       ),
                     ),
-                  ),
-                  Expanded(child: Divider(color: colors.borderSubtle)),
-                ],
-              ),
-              const SizedBox(height: Space.x5),
-              AppButton(
-                label: l10n.phoneEntryGoogleCta,
-                variant: AppButtonVariant.secondary,
-                isLoading: _googleSubmitting,
-                onPressed: _submitting || _googleSubmitting
-                    ? null
-                    : _continueWithGoogle,
-              ),
+                    Expanded(child: Divider(color: colors.borderSubtle)),
+                  ],
+                ),
+                const SizedBox(height: Space.x5),
+                AppButton(
+                  label: l10n.phoneEntryGoogleCta,
+                  variant: AppButtonVariant.secondary,
+                  isLoading: _googleSubmitting,
+                  onPressed: _submitting || _googleSubmitting
+                      ? null
+                      : _continueWithGoogle,
+                ),
+              ],
             ],
           ),
         ),

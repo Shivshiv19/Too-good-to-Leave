@@ -65,6 +65,15 @@ abstract interface class AuthRepository {
   /// binding's class doc for the full handoff.
   Future<void> signInWithGoogle();
 
+  /// True right after a Google sign-in that hasn't collected a phone
+  /// number yet — Google's own redirect always lands back on the app's
+  /// normal entry point, not directly on the phone-entry screen, so
+  /// something has to notice this state exists and route them back to
+  /// finish rather than leaving them looking signed-out with no
+  /// explanation. Always false for a phone-only session or a fully signed
+  /// out one.
+  Future<bool> hasPendingGoogleSignIn();
+
   /// `POST /v1/auth/logout` (§7.2.5). Clears all local session state.
   Future<void> logout();
 }

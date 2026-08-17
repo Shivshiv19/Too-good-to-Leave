@@ -24,6 +24,7 @@ final class SessionState extends ChangeNotifier {
   bool _isAuthenticated = false;
   bool _isProfileComplete = false;
   bool _hasLocation = false;
+  bool _hasPendingGoogleSignIn = false;
   String? _unresolvedPaymentOrderId;
 
   /// Whether Splash has finished its bootstrap sequence.
@@ -50,6 +51,14 @@ final class SessionState extends ChangeNotifier {
   /// §4.3 rule 6.
   bool get hasLocation => _hasLocation;
 
+  /// True right after a Google sign-in with no phone number collected yet
+  /// — see the auth repository's `hasPendingGoogleSignIn`. Read once, at the
+  /// moment the router would otherwise land someone fresh out of Splash on
+  /// Discover, to send them to finish signing up instead — never rechecked
+  /// mid-session, so it can't yank someone back to the phone screen while
+  /// they're deliberately off browsing.
+  bool get hasPendingGoogleSignIn => _hasPendingGoogleSignIn;
+
   /// Amendment A3 — non-null while a debited order awaits reconciliation.
   String? get unresolvedPaymentOrderId => _unresolvedPaymentOrderId;
 
@@ -62,6 +71,7 @@ final class SessionState extends ChangeNotifier {
     required bool isAuthenticated,
     required bool isProfileComplete,
     required bool hasLocation,
+    bool hasPendingGoogleSignIn = false,
     DateTime? maintenanceEtaAt,
     String? unresolvedPaymentOrderId,
   }) {
@@ -73,6 +83,7 @@ final class SessionState extends ChangeNotifier {
     _isAuthenticated = isAuthenticated;
     _isProfileComplete = isProfileComplete;
     _hasLocation = hasLocation;
+    _hasPendingGoogleSignIn = hasPendingGoogleSignIn;
     _unresolvedPaymentOrderId = unresolvedPaymentOrderId;
     notifyListeners();
   }

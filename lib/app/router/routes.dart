@@ -127,15 +127,20 @@ class LocationSetupRoute extends GoRouteData with $LocationSetupRoute {
 
 @TypedGoRoute<PhoneEntryRoute>(path: '/auth/phone')
 class PhoneEntryRoute extends GoRouteData with $PhoneEntryRoute {
-  const PhoneEntryRoute({this.redirectTo});
+  const PhoneEntryRoute({this.redirectTo, this.fromGoogle = false});
 
   // Named `redirectTo`, not `redirect` — GoRouteData already declares a
   // `redirect` method for its own per-route redirect callback.
   final String? redirectTo;
 
+  /// Set only by the router's own redirect chain, when it's sending
+  /// someone back here to finish a Google sign-in that has no phone number
+  /// yet — swaps the generic "sign in" banner for one that says so.
+  final bool fromGoogle;
+
   @override
   Widget build(BuildContext context, GoRouterState state) =>
-      PhoneEntryScreen(redirect: redirectTo);
+      PhoneEntryScreen(redirect: redirectTo, fromGoogle: fromGoogle);
 }
 
 @TypedGoRoute<OtpVerifyRoute>(path: '/auth/otp')

@@ -144,6 +144,9 @@ final class AuthRepositoryFake implements AuthRepository {
   }
 
   @override
+  Future<bool> hasPendingGoogleSignIn() async => _pendingGoogleHandoff;
+
+  @override
   Future<Customer> updateProfile({required String name}) async {
     final phone = _requireSessionPhone();
     final id = _prefs.getString(_customerIdKey(phone))!;
