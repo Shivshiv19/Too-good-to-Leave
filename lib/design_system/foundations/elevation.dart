@@ -38,11 +38,23 @@ enum Elevation {
   /// blur radii relative to spread/offset (Airbnb-style: shadows read as
   /// ambient warmth around a surface, not a hard-edged drop shadow), tinted
   /// from the brand green rather than the old warm-neutral near-black.
+  ///
+  /// **Two layers per level** (Starbucks-inspired rebrand) — a tight,
+  /// near-zero-blur "contact" shadow directly under the surface, stacked
+  /// with the original wider "ambient" shadow. Real light does both at
+  /// once: a crisp near shadow where a surface actually touches the one
+  /// below it, and a soft diffuse one further out — a single shadow can
+  /// only approximate one or the other.
   List<BoxShadow> shadowsFor(Brightness brightness) {
     if (brightness == Brightness.dark) return const [];
     return switch (this) {
       Elevation.flat => const [],
       Elevation.card => const [
+        BoxShadow(
+          color: Color(0x1F1E2119),
+          blurRadius: 1,
+          offset: Offset(0, 1),
+        ),
         BoxShadow(
           color: Color(0x0F1E2119),
           blurRadius: 8,
@@ -51,6 +63,11 @@ enum Elevation {
       ],
       Elevation.sticky => const [
         BoxShadow(
+          color: Color(0x1F1E2119),
+          blurRadius: 2,
+          offset: Offset(0, 1),
+        ),
+        BoxShadow(
           color: Color(0x121E2119),
           blurRadius: 24,
           offset: Offset(0, 8),
@@ -58,12 +75,22 @@ enum Elevation {
       ],
       Elevation.overlay => const [
         BoxShadow(
+          color: Color(0x241E2119),
+          blurRadius: 2,
+          offset: Offset(0, 1),
+        ),
+        BoxShadow(
           color: Color(0x1A1E2119),
           blurRadius: 40,
           offset: Offset(0, 16),
         ),
       ],
       Elevation.highest => const [
+        BoxShadow(
+          color: Color(0x281E2119),
+          blurRadius: 3,
+          offset: Offset(0, 1),
+        ),
         BoxShadow(
           color: Color(0x231E2119),
           blurRadius: 56,

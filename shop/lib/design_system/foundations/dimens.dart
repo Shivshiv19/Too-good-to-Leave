@@ -38,8 +38,10 @@ abstract final class Radii {
   static const xl = 32.0;
   static const full = 999.0;
 
-  /// Cards.
-  static const card = md;
+  /// Cards. `12px` exactly, matching the reference palette's card radius —
+  /// its own value, not an alias of [md], since [md] is still used
+  /// elsewhere for non-card rounding that isn't part of this swap.
+  static const card = 12.0;
 
   /// Bottom sheets — top corners only.
   static const sheet = xl;

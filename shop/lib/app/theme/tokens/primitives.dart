@@ -11,7 +11,7 @@
 /// The `no_primitive_token_outside_theme` custom lint (§8.7) fails the build on
 /// a reference from outside `lib/app/theme/`.
 ///
-/// ## Status: rebrand — "Too Good To Leave"
+/// ## Status: rebrand — "Too Good To Leave" (Starbucks-inspired palette)
 ///
 /// Deep forest green + warm cream, replacing the original ember/terracotta
 /// palette. The original palette's own doc comment flagged green as
@@ -23,35 +23,45 @@
 /// any shade used here), and green is used here deliberately, at the user's
 /// direction, as this brand's own identity rather than as an homage to any
 /// other one.
+///
+/// The ramp is anchored on four named greens from a Starbucks-style
+/// reference palette (House Green, Green Uplift, Starbucks Green, Green
+/// Accent, darkest to lightest) plus its pale mint "Green Light" — the same
+/// four/five colours a designer would pick off that reference by name, laid
+/// out as a normal 9-step ramp so every existing `Green.cXXX` call site
+/// keeps working unchanged.
 library;
 
 import 'package:flutter/painting.dart';
 
-/// Primary ramp — deep forest green.
+/// Primary ramp — deep forest green, anchored on the reference palette's
+/// House Green (`c900`), Green Uplift (`c800`), Starbucks Green (`c600`),
+/// Green Accent (`c500`) and Green Light (`c200`).
 abstract final class Green {
-  static const c950 = Color(0xFF182615);
-  static const c900 = Color(0xFF20331B);
-  static const c800 = Color(0xFF2B4423);
-  static const c700 = Color(0xFF3C5C2C);
-  static const c600 = Color(0xFF4F7434);
-  static const c500 = Color(0xFF6B8F3D);
-  static const c400 = Color(0xFF8FB33F);
-  static const c300 = Color(0xFFB3D16B);
-  static const c200 = Color(0xFFD7E8AD);
-  static const c100 = Color(0xFFEEF5DA);
+  static const c950 = Color(0xFF12211D);
+  static const c900 = Color(0xFF1E3932);
+  static const c800 = Color(0xFF2B5148);
+  static const c700 = Color(0xFF165A44);
+  static const c600 = Color(0xFF006241);
+  static const c500 = Color(0xFF00754A);
+  static const c400 = Color(0xFF4C9B76);
+  static const c300 = Color(0xFF94C9AF);
+  static const c200 = Color(0xFFD4E9E2);
+  static const c100 = Color(0xFFEFF8F4);
 }
 
 /// Warm cream — the canvas, and light-mode card surfaces sit above it in
-/// white.
+/// white. `c100`/`c200` are the reference palette's Neutral Warm and Ceramic
+/// tones exactly.
 abstract final class Cream {
-  static const c100 = Color(0xFFFAF8F0);
-  static const c200 = Color(0xFFF4F0E2);
-  static const c300 = Color(0xFFECE5D0);
+  static const c100 = Color(0xFFF2F0EB);
+  static const c200 = Color(0xFFEDEBE9);
+  static const c300 = Color(0xFFE3E0DB);
 }
 
 /// Rewards / points accent. Used sparingly — never as a general UI colour.
 abstract final class Gold {
-  static const c500 = Color(0xFFC99A3F);
+  static const c500 = Color(0xFFCBA258);
 }
 
 /// Neutral ramp — warm, faintly green-tinted (harmonises with the brand
@@ -113,7 +123,7 @@ abstract final class FeedbackHues {
   static const successBgLight = Color(0xFFE6F4EC);
   static const successBgDark = Color(0xFF10291D);
 
-  static const criticalLight = Color(0xFFB3261E);
+  static const criticalLight = Color(0xFFC82014);
   static const criticalDark = Color(0xFFFF8A80);
   static const criticalBgLight = Color(0xFFFDECEA);
   static const criticalBgDark = Color(0xFF2E1614);

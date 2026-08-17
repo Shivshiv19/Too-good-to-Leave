@@ -92,18 +92,22 @@ final class AppColors extends ThemeExtension<AppColors> {
     textSecondary: Neutral.c600,
     textTertiary: Neutral.c500,
 
-    // `Green.c700`'s a dark fill, so the label goes light rather than dark —
+    // `Green.c500`'s a dark fill, so the label goes light rather than dark —
     // the inverse of the old ember palette's near-black-on-vivid-orange
     // choice, which was tuned for a *light* vibrant fill (§6.2.3's original
     // reasoning doesn't transfer; re-verify contrast if the fill shade
     // changes again).
-    textOnAction: Cream.c100,
+    //
+    // `c500` specifically (not the darker `c600`) — the reference palette's
+    // own primary-filled-button colour is its brighter "Accent" green, kept
+    // one step lighter than the darker green it reserves for headings.
+    textOnAction: Neutral.c0,
     borderSubtle: Neutral.c200,
     borderStrong: Neutral.c300,
-    actionPrimaryBg: Green.c700,
-    actionPrimaryFg: Cream.c100,
-    actionSecondaryFg: Green.c700,
-    actionSecondaryBorder: Green.c700,
+    actionPrimaryBg: Green.c500,
+    actionPrimaryFg: Neutral.c0,
+    actionSecondaryFg: Green.c500,
+    actionSecondaryBorder: Green.c500,
     actionDestructiveBg: FeedbackHues.criticalLight,
     actionDestructiveFg: Neutral.c0,
     scrim: Color(0x991A1614),
@@ -143,10 +147,10 @@ final class AppColors extends ThemeExtension<AppColors> {
     borderSubtle: DarkSurface.borderSubtle,
     borderStrong: DarkSurface.borderStrong,
 
-    // Lightened to the lime/olive accent tone in dark mode — a fully
-    // saturated deep-green fill vibrates against an already-dark-green
-    // surface, the same reasoning the old ember palette applied one step up
-    // its own ramp.
+    // Lightened one step further than the light-theme Accent fill in dark
+    // mode — a fully saturated deep-green fill vibrates against an
+    // already-dark-green surface, the same reasoning the old ember palette
+    // applied one step up its own ramp.
     actionPrimaryBg: Green.c400,
     actionPrimaryFg: Neutral.c900,
     actionSecondaryFg: Green.c300,

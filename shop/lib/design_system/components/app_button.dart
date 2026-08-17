@@ -99,6 +99,14 @@ class _AppButtonState extends State<AppButton> {
   Timer? _indicatorTimer;
   bool _showIndicator = false;
 
+  /// Starbucks-inspired rebrand's signature press feedback — every filled
+  /// or outlined tap target compresses to 95% on press, everywhere,
+  /// without exception. Driven by [InkWell.onHighlightChanged] rather than
+  /// a separate `GestureDetector`, since `InkWell` already tracks the exact
+  /// press state this needs — a second gesture arena entrant would only
+  /// risk fighting the first for the tap.
+  bool _pressed = false;
+
   @override
   void didUpdateWidget(AppButton oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -192,49 +200,61 @@ class _AppButtonState extends State<AppButton> {
       excludeSemantics: true,
       child: Opacity(
         opacity: isEnabled || widget.isLoading ? 1 : 0.45,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: Layout.minTouchTarget,
-            minWidth: widget.expand ? double.infinity : Layout.minTouchTarget,
-          ),
-          child: Material(
-            color: bg,
-            // `Material` asserts against setting both `shape` and
-            // `borderRadius` — when there's a border, `shape` alone (which
-            // already carries its own `borderRadius`) must express the
-            // rounding instead.
-            borderRadius: border == null
-                ? BorderRadius.circular(Radii.full)
-                : null,
-            shape: border == null
-                ? null
-                : RoundedRectangleBorder(
-                    side: BorderSide(color: border, width: 1.5),
-                    borderRadius: BorderRadius.circular(Radii.full),
+        child: AnimatedScale(
+          scale: _pressed ? 0.95 : 1,
+          duration: context.motion(Motion.quick),
+          curve: Curves.easeOut,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: Layout.minTouchTarget,
+              minWidth: widget.expand
+                  ? double.infinity
+                  : Layout.minTouchTarget,
+            ),
+            child: Material(
+              color: bg,
+              // `Material` asserts against setting both `shape` and
+              // `borderRadius` — when there's a border, `shape` alone (which
+              // already carries its own `borderRadius`) must express the
+              // rounding instead.
+              borderRadius: border == null
+                  ? BorderRadius.circular(Radii.full)
+                  : null,
+              shape: border == null
+                  ? null
+                  : RoundedRectangleBorder(
+                      side: BorderSide(color: border, width: 1.5),
+                      borderRadius: BorderRadius.circular(Radii.full),
+                    ),
+              child: InkWell(
+                onTap: isEnabled ? widget.onPressed : null,
+                onHighlightChanged: (value) =>
+                    setState(() => _pressed = value),
+                borderRadius: BorderRadius.circular(Radii.full),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: Space.x5,
+                    vertical: Space.x3,
                   ),
-            child: InkWell(
-              onTap: isEnabled ? widget.onPressed : null,
-              borderRadius: BorderRadius.circular(Radii.full),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: Space.x5,
-                  vertical: Space.x3,
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Kept in the tree so width never changes (behaviour 1).
-                    Opacity(opacity: _showIndicator ? 0 : 1, child: content),
-                    if (_showIndicator)
-                      SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation(fg),
-                        ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Kept in the tree so width never changes (behaviour 1).
+                      Opacity(
+                        opacity: _showIndicator ? 0 : 1,
+                        child: content,
                       ),
-                  ],
+                      if (_showIndicator)
+                        SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation(fg),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),

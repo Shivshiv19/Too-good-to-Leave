@@ -19,14 +19,25 @@ import 'package:google_fonts/google_fonts.dart';
 ///
 /// ## Fonts
 ///
-/// Display/heading roles use **Sora** (soft geometric, rounded terminals —
-/// the "Too Good To Leave" rebrand's Airbnb-calm direction); body roles stay
-/// on **Inter**, already on-brand for the original palette. Both are fetched
-/// via `google_fonts` rather than bundled binaries — no `assets/fonts/` files
-/// to manage, and the fallback-to-system-font gap the original bundled-font
-/// plan left open (see the commented `fonts:` block in `pubspec.yaml`) never
-/// opens in the first place. `NotoSansDevanagari` and `JetBrainsMono` remain
-/// unbundled system-font fallbacks — this rebrand didn't touch either.
+/// **One typeface everywhere** (Starbucks-inspired rebrand) — **Inter**
+/// across every display/heading/body role, rather than the previous
+/// Sora-for-headings/Inter-for-body split. The reference palette's own
+/// system uses a single proprietary corporate typeface universally (with
+/// tight negative tracking) and reserves alternate typefaces for two
+/// narrow, unrelated contexts this app has no equivalent of — Inter is the
+/// open-source substitute recommended for exactly this "one confident
+/// voice" role. Fetched via `google_fonts` rather than bundled binaries —
+/// no `assets/fonts/` files to manage, and the fallback-to-system-font gap
+/// the original bundled-font plan left open (see the commented `fonts:`
+/// block in `pubspec.yaml`) never opens in the first place.
+/// `NotoSansDevanagari` and `JetBrainsMono` remain unbundled system-font
+/// fallbacks — this rebrand didn't touch either.
+///
+/// **Tight tracking** (`-0.01em`, roughly `-fontSize * 0.01` in logical
+/// pixels) is applied to every role below except [codeMono] — pickup/order
+/// codes keep their deliberately *wide* spacing (see that field's own doc),
+/// since tightening a code meant to be read aloud across a shop counter
+/// would work against the reason it's wide in the first place.
 @immutable
 final class AppTypography extends ThemeExtension<AppTypography> {
   const AppTypography({
@@ -49,10 +60,18 @@ final class AppTypography extends ThemeExtension<AppTypography> {
   ///
   /// Not `const` — `GoogleFonts.*` resolves/loads the font at call time.
   factory AppTypography.standard() => AppTypography(
-    display: _sora(fontSize: 32, height: 40 / 32, fontWeight: FontWeight.w700),
-    headline: _sora(fontSize: 24, height: 32 / 24, fontWeight: FontWeight.w700),
-    title: _sora(fontSize: 20, height: 28 / 20, fontWeight: FontWeight.w600),
-    titleSmall: _sora(
+    display: _inter(
+      fontSize: 32,
+      height: 40 / 32,
+      fontWeight: FontWeight.w700,
+    ),
+    headline: _inter(
+      fontSize: 24,
+      height: 32 / 24,
+      fontWeight: FontWeight.w700,
+    ),
+    title: _inter(fontSize: 20, height: 28 / 20, fontWeight: FontWeight.w600),
+    titleSmall: _inter(
       fontSize: 18,
       height: 26 / 18,
       fontWeight: FontWeight.w600,
@@ -108,20 +127,12 @@ final class AppTypography extends ThemeExtension<AppTypography> {
   static const _mono = 'JetBrainsMono';
   static const _fallback = ['NotoSansDevanagari'];
 
-  /// `GoogleFonts.sora(...)` has no `fontFamilyFallback` parameter — it's
+  /// `GoogleFonts.inter(...)` has no `fontFamilyFallback` parameter — it's
   /// applied via `copyWith` on the `TextStyle` it returns instead.
-  static TextStyle _sora({
-    required double fontSize,
-    required double height,
-    required FontWeight fontWeight,
-    List<FontFeature>? fontFeatures,
-  }) => GoogleFonts.sora(
-    fontSize: fontSize,
-    height: height,
-    fontWeight: fontWeight,
-    fontFeatures: fontFeatures,
-  ).copyWith(fontFamilyFallback: _fallback);
-
+  ///
+  /// Every role routes through here, so the tight `-0.01em` tracking (see
+  /// the class doc) is applied in exactly one place rather than repeated at
+  /// every call site.
   static TextStyle _inter({
     required double fontSize,
     required double height,
@@ -131,6 +142,7 @@ final class AppTypography extends ThemeExtension<AppTypography> {
     fontSize: fontSize,
     height: height,
     fontWeight: fontWeight,
+    letterSpacing: fontSize * -0.01,
     fontFeatures: fontFeatures,
   ).copyWith(fontFamilyFallback: _fallback);
 
