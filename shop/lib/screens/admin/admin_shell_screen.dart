@@ -5,6 +5,7 @@ import 'package:too_good_to_leave_shop/design_system/foundations/breakpoints.dar
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/elevation.dart';
 import 'package:too_good_to_leave_shop/screens/admin/admin_orders_screen.dart';
+import 'package:too_good_to_leave_shop/screens/admin/admin_overview_screen.dart';
 import 'package:too_good_to_leave_shop/screens/admin/admin_pending_shops_screen.dart';
 import 'package:too_good_to_leave_shop/screens/admin/admin_shops_screen.dart';
 
@@ -21,6 +22,11 @@ class _Destination {
 }
 
 const _destinations = [
+  _Destination(
+    icon: Icons.dashboard_outlined,
+    selectedIcon: Icons.dashboard,
+    label: 'Overview',
+  ),
   _Destination(
     icon: Icons.pending_actions_outlined,
     selectedIcon: Icons.pending_actions,
@@ -57,6 +63,7 @@ class _AdminShellScreenState extends State<AdminShellScreen> {
   int _index = 0;
 
   List<Widget> _pages() => [
+    AdminOverviewScreen(repository: widget.repository),
     AdminPendingShopsScreen(repository: widget.repository),
     AdminShopsScreen(repository: widget.repository),
     AdminOrdersScreen(repository: widget.repository),

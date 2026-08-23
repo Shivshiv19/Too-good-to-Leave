@@ -10,7 +10,9 @@ import 'package:too_good_to_leave_shop/core/domain/dietary_envelope.dart';
 import 'package:too_good_to_leave_shop/core/domain/money.dart';
 import 'package:too_good_to_leave_shop/core/domain/pickup_token.dart';
 import 'package:too_good_to_leave_shop/core/domain/pickup_window.dart';
+import 'package:too_good_to_leave_shop/core/utils/day_bucket.dart';
 import 'package:too_good_to_leave_shop/domain/admin_models.dart';
+import 'package:too_good_to_leave_shop/domain/impact_estimate.dart';
 import 'package:too_good_to_leave_shop/domain/payout.dart';
 import 'package:too_good_to_leave_shop/domain/shop_bag.dart';
 import 'package:too_good_to_leave_shop/domain/shop_category.dart';
@@ -907,6 +909,117 @@ class ShopRepository extends ChangeNotifier {
           'updated_at': DateTime.now().toUtc().toIso8601String(),
         })
         .eq('id', bagId);
+  }
+
+  /// The back office's overview dashboard — every figure sourced from the
+  /// same formulas the shop app's own single-shop "Impact & analytics"
+  /// screen already uses ([EarningsBreakdown]'s commission split,
+  /// [ImpactEstimate]'s meals/kg/CO2e), just summed platform-wide instead
+  /// of for one shop. [days] must be day-only (see [dateOnly]) and
+  /// contiguous, oldest first — the same shape [lastNDays]/[daysInRange]
+  /// already produce for the shop's own analytics screen.
+  Future<AdminOverviewStats> adminGetOverview(List<DateTime> days) async {
+    final start = days.first;
+    final end = days.last.add(const Duration(days: 1)); // exclusive
+
+    final shopStatusRows =
+        (await _client.from('shops').select('approval_status')) as List;
+    var verified = 0, pending = 0, rejected = 0;
+    for (final r in shopStatusRows.cast<Map<String, dynamic>>()) {
+      switch (r['approval_status'] as String) {
+        case 'verified':
+          verified++;
+        case 'rejected':
+          rejected++;
+        default:
+          pending++;
+      }
+    }
+
+    // A plain row fetch rather than a server-side count — this project's
+    // customer volume is small enough that this is simpler and just as
+    // fast in practice; worth revisiting with a real `count: exact` query
+    // once there are enough customers for it to matter.
+    final customerRows =
+        (await _client.from('customers').select('id')) as List;
+
+    final orderRows =
+        (await _client
+                .from('orders')
+                .select('status, price_breakdown, created_at, shop_snapshot')
+                .gte('created_at', start.toUtc().toIso8601String())
+                .lt('created_at', end.toUtc().toIso8601String()))
+            as List;
+
+    var collected = 0, cancelled = 0, noShow = 0;
+    var grossPaise = 0;
+    final revenueByDay = <DateTime, double>{for (final d in days) d: 0};
+    final ordersByDay = <DateTime, int>{for (final d in days) d: 0};
+    final revenueByShop = <String, int>{};
+
+    for (final row in orderRows.cast<Map<String, dynamic>>()) {
+      final status = row['status'] as String;
+      final day = dateOnly(DateTime.parse(row['created_at'] as String));
+      if (ordersByDay.containsKey(day)) {
+        ordersByDay[day] = ordersByDay[day]! + 1;
+      }
+
+      switch (status) {
+        case 'collected':
+          collected++;
+        case 'cancelled_by_customer' || 'cancelled_by_merchant':
+          cancelled++;
+        case 'expired_uncollected':
+          noShow++;
+      }
+
+      // Revenue only realises on an actually-collected order — a pending
+      // or cancelled reservation never became real money.
+      if (status != 'collected') continue;
+      final priceBreakdown = (row['price_breakdown'] as Map)
+          .cast<String, dynamic>();
+      final gross = (priceBreakdown['total'] as num).round();
+      grossPaise += gross;
+      if (revenueByDay.containsKey(day)) {
+        revenueByDay[day] = revenueByDay[day]! + gross / 100;
+      }
+      final shopName =
+          ((row['shop_snapshot'] as Map).cast<String, dynamic>()['displayName']
+              as String?) ??
+          'Shop';
+      revenueByShop[shopName] = (revenueByShop[shopName] ?? 0) + gross;
+    }
+
+    final gross = Money(grossPaise);
+    final commission = EarningsBreakdown(gross: gross).commission;
+
+    final topShops =
+        revenueByShop.entries
+            .map(
+              (e) => AdminShopRevenue(shopName: e.key, grossPaise: e.value),
+            )
+            .toList()
+          ..sort((a, b) => b.grossPaise.compareTo(a.grossPaise));
+
+    return AdminOverviewStats(
+      verifiedShopCount: verified,
+      pendingShopCount: pending,
+      rejectedShopCount: rejected,
+      customerCount: customerRows.length,
+      ordersInRange: orderRows.length,
+      collectedInRange: collected,
+      cancelledInRange: cancelled,
+      noShowInRange: noShow,
+      grossRevenue: gross,
+      platformCommission: commission,
+      shopPayouts: gross - commission,
+      mealsSaved: ImpactEstimate.mealsSaved(collected),
+      kgSaved: ImpactEstimate.kgSaved(collected),
+      co2eKgAvoided: ImpactEstimate.co2eKgAvoided(collected),
+      revenueByDay: revenueByDay,
+      ordersByDay: ordersByDay,
+      topShopsByRevenue: topShops,
+    );
   }
 
   Future<void> updateProfile(ShopProfile updated) async {

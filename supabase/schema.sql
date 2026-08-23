@@ -642,11 +642,14 @@ alter table admins enable row level security;
 create policy admins_self_read on admins
   for select using (user_id = auth.uid());
 
--- Read access the back office needs: every shop, every order, regardless
--- of which owner/customer they belong to.
+-- Read access the back office needs: every shop, every order, and a count
+-- of customers for the overview dashboard — regardless of which
+-- owner/customer they belong to.
 create policy shops_admin_read on shops
   for select using (exists (select 1 from admins where user_id = auth.uid()));
 create policy orders_admin_read on orders
+  for select using (exists (select 1 from admins where user_id = auth.uid()));
+create policy customers_admin_read on customers
   for select using (exists (select 1 from admins where user_id = auth.uid()));
 
 -- Write access: approve/reject/deactivate/reactivate a shop (and its
