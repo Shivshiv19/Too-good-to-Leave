@@ -1,12 +1,14 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
+import 'package:too_good_to_leave_shop/core/domain/clock.dart';
 import 'package:too_good_to_leave_shop/core/domain/money.dart';
 import 'package:too_good_to_leave_shop/core/utils/day_bucket.dart';
 import 'package:too_good_to_leave_shop/core/utils/formatters.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/domain/admin_models.dart';
+import 'package:too_good_to_leave_shop/screens/admin/admin_order_detail_screen.dart';
 
 enum _DateRangeMode {
   daily('Daily'),
@@ -36,6 +38,8 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
   _DateRangeMode _mode = _DateRangeMode.weekly;
   DateTimeRange? _customRange;
   late Future<AdminOverviewStats> _future = _load();
+  late Future<List<AdminOrderSummary>> _stuckFuture = widget.repository
+      .adminGetStuckOrders();
 
   DateTime get _today => dateOnly(widget.repository.clock.now());
 
@@ -52,8 +56,11 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
       widget.repository.adminGetOverview(_days);
 
   Future<void> _reload() async {
-    setState(() => _future = _load());
-    await _future;
+    setState(() {
+      _future = _load();
+      _stuckFuture = widget.repository.adminGetStuckOrders();
+    });
+    await Future.wait([_future, _stuckFuture]);
   }
 
   Future<void> _pickCustomRange() async {
@@ -129,6 +136,56 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                   ],
                 ),
                 const SizedBox(height: Space.x6),
+                FutureBuilder<List<AdminOrderSummary>>(
+                  future: _stuckFuture,
+                  builder: (context, stuckSnapshot) {
+                    final stuck = stuckSnapshot.data ?? const [];
+                    if (stuck.isEmpty) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: Space.x6),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.warning_amber, color: colors.attention.fg),
+                              const SizedBox(width: Space.x2),
+                              Text('Needs attention', style: context.type.title),
+                            ],
+                          ),
+                          const SizedBox(height: Space.x1),
+                          Text(
+                            '${stuck.length} order${stuck.length == 1 ? '' : 's'} '
+                            "past pickup time, still not marked collected, "
+                            'cancelled, or expired.',
+                            style: context.type.caption.copyWith(
+                              color: colors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: Space.x3),
+                          for (final order in stuck.take(10)) ...[
+                            _StuckOrderTile(
+                              order: order,
+                              clock: widget.repository.clock,
+                              onTap: () async {
+                                await Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => AdminOrderDetailScreen(
+                                      repository: widget.repository,
+                                      orderId: order.id,
+                                    ),
+                                  ),
+                                );
+                                await _reload();
+                              },
+                            ),
+                            const SizedBox(height: Space.x2),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                ),
                 if (stats == null && !snapshot.hasError)
                   const Padding(
                     padding: EdgeInsets.only(top: Space.x12),
@@ -700,6 +757,63 @@ class _TopShopsChart extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _StuckOrderTile extends StatelessWidget {
+  const _StuckOrderTile({
+    required this.order,
+    required this.clock,
+    required this.onTap,
+  });
+
+  final AdminOrderSummary order;
+  final Clock clock;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Material(
+      color: colors.attention.bg,
+      borderRadius: BorderRadius.circular(Radii.sm),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(Radii.sm),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: Space.x3,
+            vertical: Space.x2,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${order.orderCode} · ${order.shopName}',
+                      style: context.type.body.copyWith(
+                        color: colors.attention.fg,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      'Pickup ended ${Fmt.relativeTime(order.pickupEnd, clock)} '
+                      '· for ${order.customerName}',
+                      style: context.type.caption.copyWith(
+                        color: colors.attention.fg,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: colors.attention.fg),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -61,6 +61,7 @@ final class AdminOrderSummary {
     required this.bagTitle,
     required this.status,
     required this.createdAt,
+    required this.pickupEnd,
     required this.totalPaise,
   });
 
@@ -71,6 +72,7 @@ final class AdminOrderSummary {
   final String bagTitle;
   final AdminOrderStatus status;
   final DateTime createdAt;
+  final DateTime pickupEnd;
   final int totalPaise;
 
   /// Whether [ShopRepository.adminCancelOrder] can act on this order — a
@@ -80,6 +82,124 @@ final class AdminOrderSummary {
       status == AdminOrderStatus.pendingPayment ||
       status == AdminOrderStatus.confirmed ||
       status == AdminOrderStatus.readyForPickup;
+
+  /// A reserved-and-paid order whose pickup window has already passed
+  /// without anyone marking it collected, cancelled, or expired — the
+  /// overview's "needs attention" signal, per
+  /// [ShopRepository.adminGetStuckOrders].
+  bool get isStuck =>
+      (status == AdminOrderStatus.confirmed ||
+          status == AdminOrderStatus.readyForPickup) &&
+      pickupEnd.isBefore(DateTime.now());
+}
+
+/// One order's full detail, timeline, and refund state — what
+/// [AdminOrderSummary] doesn't carry, for the back office's single-order
+/// screen (support's "what actually happened to this order").
+final class AdminOrderDetail {
+  const AdminOrderDetail({
+    required this.id,
+    required this.orderCode,
+    required this.shopName,
+    required this.customerName,
+    required this.bagTitle,
+    required this.quantity,
+    required this.status,
+    required this.createdAt,
+    required this.pickupStart,
+    required this.pickupEnd,
+    required this.collectedAt,
+    required this.cancelledAt,
+    required this.cancellationReason,
+    required this.totalPaise,
+    required this.paymentStatus,
+    required this.refundedAt,
+    required this.refundReason,
+  });
+
+  final String id;
+  final String orderCode;
+  final String shopName;
+  final String customerName;
+  final String bagTitle;
+  final int quantity;
+  final AdminOrderStatus status;
+  final DateTime createdAt;
+  final DateTime pickupStart;
+  final DateTime pickupEnd;
+  final DateTime? collectedAt;
+  final DateTime? cancelledAt;
+  final String? cancellationReason;
+  final int totalPaise;
+
+  /// The wire `payment_status` value (`captured`, `refunded`, ...) — see
+  /// `payment_status` in `supabase/schema.sql`.
+  final String paymentStatus;
+  final DateTime? refundedAt;
+  final String? refundReason;
+
+  /// [ShopRepository.adminRefundOrder] only makes sense once a payment was
+  /// actually captured, and only once — a `captured` payment is the one
+  /// state where money was taken and hasn't already been given back.
+  bool get isRefundable => paymentStatus == 'captured';
+}
+
+/// One customer as the back office sees them — for support lookups
+/// ("customer says their order didn't show") and for spotting repeat
+/// no-shows, neither of which [AdminOrderSummary] alone can answer.
+final class AdminCustomerSummary {
+  const AdminCustomerSummary({
+    required this.id,
+    required this.name,
+    required this.phoneE164,
+    required this.email,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String name;
+  final String phoneE164;
+  final String? email;
+  final DateTime createdAt;
+}
+
+/// One admin action, for the back office's own accountability trail —
+/// see `admin_audit_log` in `supabase/schema.sql`.
+final class AdminAuditLogEntry {
+  const AdminAuditLogEntry({
+    required this.id,
+    required this.adminEmail,
+    required this.action,
+    required this.targetType,
+    required this.targetId,
+    required this.detail,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String adminEmail;
+  final String action;
+  final String targetType;
+  final String? targetId;
+  final String? detail;
+  final DateTime createdAt;
+}
+
+/// One verified shop's outstanding balance — every collected order not
+/// yet covered by a past admin payout, per
+/// [ShopRepository.adminGetPayoutQueue].
+final class AdminPayoutQueueEntry {
+  const AdminPayoutQueueEntry({
+    required this.shopId,
+    required this.shopName,
+    required this.pendingPaise,
+    required this.orderCount,
+  });
+
+  final String shopId;
+  final String shopName;
+  final int pendingPaise;
+  final int orderCount;
 }
 
 /// One shop's revenue within a reporting period — the back office's own

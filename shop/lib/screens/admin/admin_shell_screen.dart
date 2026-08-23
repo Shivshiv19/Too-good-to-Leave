@@ -4,8 +4,11 @@ import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/breakpoints.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/elevation.dart';
+import 'package:too_good_to_leave_shop/screens/admin/admin_audit_log_screen.dart';
+import 'package:too_good_to_leave_shop/screens/admin/admin_customers_screen.dart';
 import 'package:too_good_to_leave_shop/screens/admin/admin_orders_screen.dart';
 import 'package:too_good_to_leave_shop/screens/admin/admin_overview_screen.dart';
+import 'package:too_good_to_leave_shop/screens/admin/admin_payouts_screen.dart';
 import 'package:too_good_to_leave_shop/screens/admin/admin_pending_shops_screen.dart';
 import 'package:too_good_to_leave_shop/screens/admin/admin_shops_screen.dart';
 
@@ -42,6 +45,21 @@ const _destinations = [
     selectedIcon: Icons.receipt_long,
     label: 'Orders',
   ),
+  _Destination(
+    icon: Icons.people_outline,
+    selectedIcon: Icons.people,
+    label: 'Customers',
+  ),
+  _Destination(
+    icon: Icons.account_balance_wallet_outlined,
+    selectedIcon: Icons.account_balance_wallet,
+    label: 'Payouts',
+  ),
+  _Destination(
+    icon: Icons.history_outlined,
+    selectedIcon: Icons.history,
+    label: 'Audit log',
+  ),
 ];
 
 /// The back office's own shell — same responsive-shell shape as
@@ -67,6 +85,9 @@ class _AdminShellScreenState extends State<AdminShellScreen> {
     AdminPendingShopsScreen(repository: widget.repository),
     AdminShopsScreen(repository: widget.repository),
     AdminOrdersScreen(repository: widget.repository),
+    AdminCustomersScreen(repository: widget.repository),
+    AdminPayoutsScreen(repository: widget.repository),
+    AdminAuditLogScreen(repository: widget.repository),
   ];
 
   @override

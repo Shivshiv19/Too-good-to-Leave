@@ -663,6 +663,32 @@ create policy orders_admin_update on orders
 create policy bags_admin_update on bags
   for update using (exists (select 1 from admins where user_id = auth.uid()));
 
+-- Support tooling: reading a payment to check whether it's refundable,
+-- marking it refunded once it is, and recording the refund itself. All
+-- three tables already existed for shape (see the "payments / refunds"
+-- section above) — an admin-issued refund here is record-only, same as
+-- payouts below: no real gateway sits behind it yet, so it logs that
+-- money should go back rather than actually moving it.
+create policy payments_admin_read on payments
+  for select using (exists (select 1 from admins where user_id = auth.uid()));
+create policy payments_admin_update on payments
+  for update using (exists (select 1 from admins where user_id = auth.uid()));
+create policy refunds_admin_all on refunds
+  for all using (exists (select 1 from admins where user_id = auth.uid()))
+  with check (exists (select 1 from admins where user_id = auth.uid()));
+
+-- Payout tracking: an admin's own record of "I paid this shop," kept
+-- entirely separate from a shop's own (local-only, not synced here)
+-- payout *requests* — these policies are additive alongside
+-- payouts_owner_only/payout_order_items_owner_only above, so a shop's
+-- own read/write access is unaffected.
+create policy payouts_admin_all on payouts
+  for all using (exists (select 1 from admins where user_id = auth.uid()))
+  with check (exists (select 1 from admins where user_id = auth.uid()));
+create policy payout_order_items_admin_all on payout_order_items
+  for all using (exists (select 1 from admins where user_id = auth.uid()))
+  with check (exists (select 1 from admins where user_id = auth.uid()));
+
 -- Blocks a shop from approving itself through its own existing update
 -- policy (`shops_owner_update` lets a shop edit its address/phone/etc.,
 -- but was never meant to let it flip its own approval_status) — silently
@@ -683,6 +709,35 @@ $$ language plpgsql security definer set search_path = public;
 create trigger shops_prevent_self_approval
   before update on shops
   for each row execute function prevent_self_approval();
+
+
+-- admin_audit_log — who did what from the back office, and when. Every
+-- admin-initiated approve/reject/cancel/refund/payout writes one row here.
+-- admin_email is denormalized at write time (same reasoning as orders'
+-- shop/bag/customer snapshots): the log should read the same years later
+-- even if that admin's account is later removed.
+create table admin_audit_log (
+  id uuid primary key default gen_random_uuid(),
+  admin_id uuid not null references admins (user_id),
+  admin_email text not null,
+  action text not null,
+  target_type text not null,
+  target_id text,
+  detail text,
+  created_at timestamptz not null default now()
+);
+
+create index admin_audit_log_created_at_idx on admin_audit_log (created_at desc);
+
+alter table admin_audit_log enable row level security;
+
+-- Any admin can see the full log (one shared back office, full
+-- transparency between admins) but can only write an entry attributed to
+-- themselves — never impersonate another admin in the log.
+create policy admin_audit_log_read on admin_audit_log
+  for select using (exists (select 1 from admins where user_id = auth.uid()));
+create policy admin_audit_log_insert on admin_audit_log
+  for insert with check (admin_id = auth.uid());
 
 
 -- =============================================================================

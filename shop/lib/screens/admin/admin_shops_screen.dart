@@ -25,7 +25,15 @@ class _AdminShopsScreenState extends State<AdminShopsScreen> {
   late Future<List<AdminShopSummary>> _future = widget.repository
       .adminGetAllShops();
   final _busyIds = <String>{};
+  final _searchController = TextEditingController();
   ShopApprovalStatus? _filter;
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   Future<void> _reload() async {
     setState(() => _future = widget.repository.adminGetAllShops());
@@ -75,12 +83,47 @@ class _AdminShopsScreenState extends State<AdminShopsScreen> {
             if (!snapshot.hasData && !snapshot.hasError) {
               return const Center(child: CircularProgressIndicator());
             }
+            final q = _query.trim().toLowerCase();
             final shops = (snapshot.data ?? const [])
                 .where((s) => _filter == null || s.status == _filter)
+                .where(
+                  (s) =>
+                      q.isEmpty ||
+                      s.businessName.toLowerCase().contains(q) ||
+                      s.ownerName.toLowerCase().contains(q) ||
+                      s.phone.toLowerCase().contains(q) ||
+                      s.city.toLowerCase().contains(q) ||
+                      s.locality.toLowerCase().contains(q),
+                )
                 .toList();
             return ListView(
               padding: const EdgeInsets.all(Space.x4),
               children: [
+                TextField(
+                  controller: _searchController,
+                  onChanged: (v) => setState(() => _query = v),
+                  decoration: InputDecoration(
+                    hintText: 'Search by name, owner, phone, or city',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _query.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _query = '');
+                            },
+                          ),
+                    isDense: true,
+                    filled: true,
+                    fillColor: colors.surfaceRaised,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(Radii.sm),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: Space.x3),
                 Wrap(
                   spacing: Space.x2,
                   runSpacing: Space.x2,

@@ -254,6 +254,7 @@ AdminOrderSummary _adminOrderFromRow(Map<String, dynamic> row) {
     bagTitle: bagSnapshot['title'] as String? ?? 'Surprise bag',
     status: _adminOrderStatusFromWire(row['status'] as String),
     createdAt: DateTime.parse(row['created_at'] as String),
+    pickupEnd: DateTime.parse(row['pickup_end_at'] as String),
     totalPaise: (priceBreakdown['total'] as num).round(),
   );
 }
@@ -758,6 +759,32 @@ class ShopRepository extends ChangeNotifier {
   // method below.
   // ---------------------------------------------------------------------
 
+  /// Records one admin action to `admin_audit_log` — best-effort. The
+  /// action it's called after already succeeded server-side by the time
+  /// this runs, so a logging failure is swallowed rather than surfaced as
+  /// if the action itself had failed.
+  Future<void> _logAdminAction(
+    String action, {
+    required String targetType,
+    String? targetId,
+    String? detail,
+  }) async {
+    try {
+      final user = _client.auth.currentUser;
+      if (user == null) return;
+      await _client.from('admin_audit_log').insert({
+        'admin_id': user.id,
+        'admin_email': user.email ?? 'unknown',
+        'action': action,
+        'target_type': targetType,
+        'target_id': targetId,
+        'detail': detail,
+      });
+    } catch (_) {
+      // Best-effort — see doc comment above.
+    }
+  }
+
   Future<List<AdminShopSummary>> _adminShopsFromRows(
     List<Map<String, dynamic>> rows,
   ) async {
@@ -801,6 +828,10 @@ class ShopRepository extends ChangeNotifier {
     return _adminShopsFromRows((rows as List).cast<Map<String, dynamic>>());
   }
 
+  /// Every shop, unfiltered — [AdminShopsScreen] filters this client-side
+  /// (by status chip and by its own search field) the same way
+  /// [AdminOrdersScreen]'s search worked before it grew a "more than what's
+  /// already loaded" need; this table has no such limit to work around.
   Future<List<AdminShopSummary>> adminGetAllShops() async {
     final rows = await _client
         .from('shops')
@@ -827,6 +858,7 @@ class ShopRepository extends ChangeNotifier {
           'updated_at': DateTime.now().toUtc().toIso8601String(),
         })
         .eq('shop_id', shopId);
+    await _logAdminAction('approve_shop', targetType: 'shop', targetId: shopId);
   }
 
   /// Rejects a pending shop, or deactivates one that was previously
@@ -848,21 +880,183 @@ class ShopRepository extends ChangeNotifier {
           'updated_at': DateTime.now().toUtc().toIso8601String(),
         })
         .eq('shop_id', shopId);
+    await _logAdminAction(
+      'reject_shop',
+      targetType: 'shop',
+      targetId: shopId,
+      detail: reason,
+    );
   }
 
-  /// Most recent 200 orders across every shop — enough for a back office
-  /// to spot and act on something recent without paginating a table that
-  /// has no search/filter UI yet.
-  Future<List<AdminOrderSummary>> adminGetOrders() async {
+  /// Most recent 200 orders across every shop, optionally narrowed to a
+  /// [query] matching the order code, shop name, or customer name — same
+  /// "merge three single-column searches" approach as
+  /// [adminGetAllShops], since the shop/customer names live inside this
+  /// row's own JSONB snapshots rather than a joinable column.
+  Future<List<AdminOrderSummary>> adminGetOrders({String? query}) async {
+    final q = query?.trim() ?? '';
+    if (q.isEmpty) {
+      final rows = await _client
+          .from('orders')
+          .select()
+          .order('created_at', ascending: false)
+          .limit(200);
+      return [
+        for (final r in (rows as List).cast<Map<String, dynamic>>())
+          _adminOrderFromRow(r),
+      ];
+    }
+    final results = await Future.wait([
+      _client.from('orders').select().ilike('order_code', '%$q%'),
+      _client
+          .from('orders')
+          .select()
+          .ilike('shop_snapshot->>displayName', '%$q%'),
+      _client
+          .from('orders')
+          .select()
+          .ilike('customer_snapshot->>name', '%$q%'),
+    ]);
+    final merged = <String, Map<String, dynamic>>{};
+    for (final rows in results) {
+      for (final r in (rows as List).cast<Map<String, dynamic>>()) {
+        merged[r['id'] as String] = r;
+      }
+    }
+    final sorted = merged.values.toList()
+      ..sort(
+        (a, b) =>
+            (b['created_at'] as String).compareTo(a['created_at'] as String),
+      );
+    return [for (final r in sorted.take(200)) _adminOrderFromRow(r)];
+  }
+
+  /// Reserved-and-paid orders whose pickup window has already passed
+  /// without anyone marking them collected, cancelled, or expired — the
+  /// overview's "needs attention" list (see [AdminOrderSummary.isStuck]).
+  Future<List<AdminOrderSummary>> adminGetStuckOrders() async {
+    final nowIso = DateTime.now().toUtc().toIso8601String();
     final rows = await _client
         .from('orders')
         .select()
-        .order('created_at', ascending: false)
-        .limit(200);
+        .inFilter('status', ['confirmed', 'ready_for_pickup'])
+        .lt('pickup_end_at', nowIso)
+        .order('pickup_end_at')
+        .limit(50);
     return [
       for (final r in (rows as List).cast<Map<String, dynamic>>())
         _adminOrderFromRow(r),
     ];
+  }
+
+  /// Every order a given customer has placed, newest first — the back
+  /// office's own customer-detail screen.
+  Future<List<AdminOrderSummary>> adminGetOrdersForCustomer(
+    String customerId,
+  ) async {
+    final rows = await _client
+        .from('orders')
+        .select()
+        .eq('customer_id', customerId)
+        .order('created_at', ascending: false);
+    return [
+      for (final r in (rows as List).cast<Map<String, dynamic>>())
+        _adminOrderFromRow(r),
+    ];
+  }
+
+  /// One order's full detail — timeline timestamps, payment status, and
+  /// refund state (if any) — for the back office's single-order screen.
+  Future<AdminOrderDetail> adminGetOrderDetail(String orderId) async {
+    final row = await _client.from('orders').select().eq('id', orderId).single();
+    final paymentRow = await _client
+        .from('payments')
+        .select()
+        .eq('order_id', orderId)
+        .maybeSingle();
+
+    String? refundReason;
+    DateTime? refundedAt;
+    if (paymentRow != null) {
+      final refundRow = await _client
+          .from('refunds')
+          .select()
+          .eq('payment_id', paymentRow['id'] as String)
+          .maybeSingle();
+      if (refundRow != null) {
+        refundReason = refundRow['reason'] as String?;
+        refundedAt = DateTime.parse(refundRow['initiated_at'] as String);
+      }
+    }
+
+    final shopSnapshot = (row['shop_snapshot'] as Map).cast<String, dynamic>();
+    final bagSnapshot = (row['bag_snapshot'] as Map).cast<String, dynamic>();
+    final customerSnapshot = (row['customer_snapshot'] as Map)
+        .cast<String, dynamic>();
+    final priceBreakdown = (row['price_breakdown'] as Map)
+        .cast<String, dynamic>();
+
+    return AdminOrderDetail(
+      id: row['id'] as String,
+      orderCode: row['order_code'] as String,
+      shopName: shopSnapshot['displayName'] as String? ?? 'Shop',
+      customerName: customerSnapshot['name'] as String? ?? 'Customer',
+      bagTitle: bagSnapshot['title'] as String? ?? 'Surprise bag',
+      quantity: row['quantity'] as int,
+      status: _adminOrderStatusFromWire(row['status'] as String),
+      createdAt: DateTime.parse(row['created_at'] as String),
+      pickupStart: DateTime.parse(row['pickup_start_at'] as String),
+      pickupEnd: DateTime.parse(row['pickup_end_at'] as String),
+      collectedAt: row['collected_at'] == null
+          ? null
+          : DateTime.parse(row['collected_at'] as String),
+      cancelledAt: row['cancelled_at'] == null
+          ? null
+          : DateTime.parse(row['cancelled_at'] as String),
+      cancellationReason: row['cancellation_reason'] as String?,
+      totalPaise: (priceBreakdown['total'] as num).round(),
+      paymentStatus: paymentRow?['status'] as String? ?? 'created',
+      refundedAt: refundedAt,
+      refundReason: refundReason,
+    );
+  }
+
+  /// Records a refund against this order's captured payment — no real
+  /// payment gateway sits behind this yet, so this is a record-only
+  /// action (matches [PayoutRecord]'s own "money doesn't actually move"
+  /// contract): it logs that the customer should get their money back and
+  /// marks the payment refunded, so this same button becomes the real
+  /// thing once a gateway is wired up.
+  Future<void> adminRefundOrder(String orderId, {required String reason}) async {
+    final paymentRow = await _client
+        .from('payments')
+        .select('id, status, amount_paise')
+        .eq('order_id', orderId)
+        .maybeSingle();
+    if (paymentRow == null || paymentRow['status'] != 'captured') {
+      throw StateError('This order has no captured payment to refund.');
+    }
+    final paymentId = paymentRow['id'] as String;
+    final nowIso = DateTime.now().toUtc().toIso8601String();
+
+    await _client.from('refunds').insert({
+      'payment_id': paymentId,
+      'amount_paise': paymentRow['amount_paise'],
+      'reason': reason,
+      'status': 'refunded',
+      'initiated_at': nowIso,
+      'expected_by_at': nowIso,
+    });
+    await _client
+        .from('payments')
+        .update({'status': 'refunded', 'updated_at': nowIso})
+        .eq('id', paymentId);
+    await _logAdminAction(
+      'refund_order',
+      targetType: 'order',
+      targetId: orderId,
+      detail: reason,
+    );
   }
 
   /// Same shape as the shop app's own [cancelOrder]/[markNoShow] — flip
@@ -909,6 +1103,7 @@ class ShopRepository extends ChangeNotifier {
           'updated_at': DateTime.now().toUtc().toIso8601String(),
         })
         .eq('id', bagId);
+    await _logAdminAction('cancel_order', targetType: 'order', targetId: orderId);
   }
 
   /// The back office's overview dashboard — every figure sourced from the
@@ -1020,6 +1215,172 @@ class ShopRepository extends ChangeNotifier {
       ordersByDay: ordersByDay,
       topShopsByRevenue: topShops,
     );
+  }
+
+  /// Every customer, optionally narrowed to a [query] matching name,
+  /// phone, or email — same merge-by-id search approach as
+  /// [adminGetAllShops].
+  Future<List<AdminCustomerSummary>> adminGetCustomers({String? query}) async {
+    final q = query?.trim() ?? '';
+    List<Map<String, dynamic>> rows;
+    if (q.isEmpty) {
+      rows =
+          ((await _client
+                      .from('customers')
+                      .select()
+                      .order('created_at', ascending: false)
+                      .limit(200))
+                  as List)
+              .cast<Map<String, dynamic>>();
+    } else {
+      final results = await Future.wait([
+        _client.from('customers').select().ilike('name', '%$q%'),
+        _client.from('customers').select().ilike('phone_e164', '%$q%'),
+        _client.from('customers').select().ilike('email', '%$q%'),
+      ]);
+      final merged = <String, Map<String, dynamic>>{};
+      for (final r in results) {
+        for (final row in (r as List).cast<Map<String, dynamic>>()) {
+          merged[row['id'] as String] = row;
+        }
+      }
+      rows = merged.values.toList()
+        ..sort(
+          (a, b) => (b['created_at'] as String).compareTo(
+            a['created_at'] as String,
+          ),
+        );
+    }
+    return [
+      for (final r in rows)
+        AdminCustomerSummary(
+          id: r['id'] as String,
+          name: (r['name'] as String?)?.isNotEmpty == true
+              ? r['name'] as String
+              : 'Customer',
+          phoneE164: r['phone_e164'] as String,
+          email: r['email'] as String?,
+          createdAt: DateTime.parse(r['created_at'] as String),
+        ),
+    ];
+  }
+
+  /// Collected-order rows not yet covered by any past admin payout,
+  /// optionally narrowed to one [shopId] — the shared basis for both
+  /// [adminGetPayoutQueue] (grouped across every shop) and
+  /// [adminMarkShopPaid] (one shop's own unpaid orders).
+  Future<List<Map<String, dynamic>>> _unpaidCollectedOrderRows({
+    String? shopId,
+  }) async {
+    final paidRows =
+        await _client.from('payout_order_items').select('order_id') as List;
+    final paidOrderIds = {
+      for (final r in paidRows.cast<Map<String, dynamic>>())
+        r['order_id'] as String,
+    };
+    var query = _client
+        .from('orders')
+        .select('id, shop_id, shop_snapshot, price_breakdown')
+        .eq('status', 'collected');
+    if (shopId != null) query = query.eq('shop_id', shopId);
+    final orderRows = (await query) as List;
+    return orderRows
+        .cast<Map<String, dynamic>>()
+        .where((r) => !paidOrderIds.contains(r['id'] as String))
+        .toList();
+  }
+
+  /// What the back office still owes each verified shop — every collected
+  /// order not yet marked paid via [adminMarkShopPaid], summed to the
+  /// shop's own net (after commission) and grouped per shop, highest
+  /// balance first. No real payment gateway sits behind "paid" yet (same
+  /// as [adminRefundOrder]) — this is the ledger, ready for when one
+  /// exists.
+  Future<List<AdminPayoutQueueEntry>> adminGetPayoutQueue() async {
+    final unpaid = await _unpaidCollectedOrderRows();
+    final pendingPaiseByShop = <String, int>{};
+    final orderCountByShop = <String, int>{};
+    final shopNameById = <String, String>{};
+    for (final row in unpaid) {
+      final shopId = row['shop_id'] as String;
+      final shopSnapshot = (row['shop_snapshot'] as Map).cast<String, dynamic>();
+      shopNameById[shopId] = shopSnapshot['displayName'] as String? ?? 'Shop';
+      final priceBreakdown = (row['price_breakdown'] as Map)
+          .cast<String, dynamic>();
+      final gross = (priceBreakdown['total'] as num).round();
+      final net = EarningsBreakdown(gross: Money(gross)).net.amountInPaise;
+      pendingPaiseByShop[shopId] = (pendingPaiseByShop[shopId] ?? 0) + net;
+      orderCountByShop[shopId] = (orderCountByShop[shopId] ?? 0) + 1;
+    }
+    final entries = [
+      for (final shopId in pendingPaiseByShop.keys)
+        AdminPayoutQueueEntry(
+          shopId: shopId,
+          shopName: shopNameById[shopId] ?? 'Shop',
+          pendingPaise: pendingPaiseByShop[shopId]!,
+          orderCount: orderCountByShop[shopId]!,
+        ),
+    ]..sort((a, b) => b.pendingPaise.compareTo(a.pendingPaise));
+    return entries;
+  }
+
+  /// Marks every currently-unpaid collected order for [shopId] as paid —
+  /// inserts one `payouts` row plus one `payout_order_items` row per
+  /// order it covers, so a later call never double-counts these same
+  /// orders. Throws if there's nothing pending for this shop (mirrors
+  /// [requestPayout]'s own "no ₹0 payout record" reasoning).
+  Future<void> adminMarkShopPaid(String shopId) async {
+    final unpaid = await _unpaidCollectedOrderRows(shopId: shopId);
+    if (unpaid.isEmpty) {
+      throw StateError('Nothing pending for this shop.');
+    }
+    var totalNet = 0;
+    for (final row in unpaid) {
+      final priceBreakdown = (row['price_breakdown'] as Map)
+          .cast<String, dynamic>();
+      final gross = (priceBreakdown['total'] as num).round();
+      totalNet += EarningsBreakdown(gross: Money(gross)).net.amountInPaise;
+    }
+    final payoutRow = await _client
+        .from('payouts')
+        .insert({'shop_id': shopId, 'amount_paise': totalNet})
+        .select('id')
+        .single();
+    final payoutId = payoutRow['id'] as String;
+    await _client
+        .from('payout_order_items')
+        .insert([
+          for (final row in unpaid)
+            {'payout_id': payoutId, 'order_id': row['id'] as String},
+        ]);
+    await _logAdminAction(
+      'mark_shop_paid',
+      targetType: 'shop',
+      targetId: shopId,
+      detail: '$totalNet paise, ${unpaid.length} orders',
+    );
+  }
+
+  /// Most recent 200 admin actions, newest first — the back office's own
+  /// accountability trail (see `admin_audit_log` in `supabase/schema.sql`).
+  Future<List<AdminAuditLogEntry>> adminGetAuditLog() async {
+    final rows = await _client
+        .from('admin_audit_log')
+        .select()
+        .order('created_at', ascending: false)
+        .limit(200);
+    return [
+      for (final r in (rows as List).cast<Map<String, dynamic>>())
+        AdminAuditLogEntry(
+          id: r['id'] as String,
+          adminEmail: r['admin_email'] as String,
+          action: r['action'] as String,
+          targetType: r['target_type'] as String,
+          targetId: r['target_id'] as String?,
+          detail: r['detail'] as String?,
+          createdAt: DateTime.parse(r['created_at'] as String),
+        ),
+    ];
   }
 
   Future<void> updateProfile(ShopProfile updated) async {

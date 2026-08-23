@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/core/domain/money.dart';
@@ -6,6 +8,7 @@ import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/design_system/components/app_button.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
 import 'package:too_good_to_leave_shop/domain/admin_models.dart';
+import 'package:too_good_to_leave_shop/screens/admin/admin_order_detail_screen.dart';
 
 /// The 200 most recent orders across every shop — see
 /// [ShopRepository.adminGetOrders]'s own doc for why that's a plain limit
@@ -24,10 +27,40 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   late Future<List<AdminOrderSummary>> _future = widget.repository
       .adminGetOrders();
   final _busyIds = <String>{};
+  final _searchController = TextEditingController();
+  Timer? _debounce;
+  String _query = '';
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
 
   Future<void> _reload() async {
-    setState(() => _future = widget.repository.adminGetOrders());
+    setState(
+      () => _future = widget.repository.adminGetOrders(query: _query),
+    );
     await _future;
+  }
+
+  void _onSearchChanged(String query) {
+    _debounce?.cancel();
+    _query = query;
+    _debounce = Timer(const Duration(milliseconds: 400), _reload);
+  }
+
+  Future<void> _openDetail(AdminOrderSummary order) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AdminOrderDetailScreen(
+          repository: widget.repository,
+          orderId: order.id,
+        ),
+      ),
+    );
+    await _reload();
   }
 
   Future<void> _cancel(AdminOrderSummary order) async {
@@ -75,60 +108,105 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
         backgroundColor: colors.surfaceBase,
         title: Text('Orders', style: context.type.title),
       ),
-      body: RefreshIndicator(
-        onRefresh: _reload,
-        child: FutureBuilder<List<AdminOrderSummary>>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (!snapshot.hasData && !snapshot.hasError) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return ListView(
-                children: [
-                  const SizedBox(height: Space.x12),
-                  Center(
-                    child: Text(
-                      "Couldn't load orders.",
-                      style: context.type.body.copyWith(
-                        color: colors.textSecondary,
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              Space.x4,
+              Space.x4,
+              Space.x4,
+              0,
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: _onSearchChanged,
+              decoration: InputDecoration(
+                hintText: 'Search by order code, shop, or customer',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _query.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          _onSearchChanged('');
+                        },
                       ),
-                    ),
-                  ),
-                ],
-              );
-            }
-            final orders = snapshot.data!;
-            if (orders.isEmpty) {
-              return ListView(
-                children: [
-                  const SizedBox(height: Space.x12),
-                  Center(
-                    child: Text(
-                      'No orders yet.',
-                      style: context.type.body.copyWith(
-                        color: colors.textSecondary,
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            }
-            return ListView.separated(
-              padding: const EdgeInsets.all(Space.x4),
-              itemCount: orders.length,
-              separatorBuilder: (_, _) => const SizedBox(height: Space.x3),
-              itemBuilder: (context, i) {
-                final order = orders[i];
-                return _OrderRow(
-                  order: order,
-                  busy: _busyIds.contains(order.id),
-                  onCancel: () => _cancel(order),
-                );
-              },
-            );
-          },
-        ),
+                isDense: true,
+                filled: true,
+                fillColor: colors.surfaceRaised,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(Radii.sm),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _reload,
+              child: FutureBuilder<List<AdminOrderSummary>>(
+                future: _future,
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData && !snapshot.hasError) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return ListView(
+                      children: [
+                        const SizedBox(height: Space.x12),
+                        Center(
+                          child: Text(
+                            "Couldn't load orders.",
+                            style: context.type.body.copyWith(
+                              color: colors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  final orders = snapshot.data!;
+                  if (orders.isEmpty) {
+                    return ListView(
+                      children: [
+                        const SizedBox(height: Space.x12),
+                        Center(
+                          child: Text(
+                            _query.isEmpty
+                                ? 'No orders yet.'
+                                : 'No orders match this search.',
+                            style: context.type.body.copyWith(
+                              color: colors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  return ListView.separated(
+                    padding: const EdgeInsets.all(Space.x4),
+                    itemCount: orders.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: Space.x3),
+                    itemBuilder: (context, i) {
+                      final order = orders[i];
+                      return InkWell(
+                        borderRadius: BorderRadius.circular(Radii.card),
+                        onTap: () => _openDetail(order),
+                        child: _OrderRow(
+                          order: order,
+                          busy: _busyIds.contains(order.id),
+                          onCancel: () => _cancel(order),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
