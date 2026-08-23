@@ -33,15 +33,21 @@ ShopProfile _testProfile() => ShopProfile(
 
 Future<ShopRepository> _verifiedRepository() async {
   final repo = ShopRepository();
-  await repo.register(_testProfile());
-  await repo.simulateApproval();
+  // Fixture-mode `register()` stores the profile exactly as given (see its
+  // own `!_useBackend` branch) — constructing it already-verified is the
+  // direct fixture equivalent of a real admin approving it, now that
+  // approval only happens through the back office, not a self-service
+  // shortcut this app used to expose.
+  await repo.register(
+    _testProfile().copyWith(status: ShopApprovalStatus.verified),
+  );
   return repo;
 }
 
 void main() {
-  // register()/simulateApproval()/createBag()/etc. all persist via
-  // shared_preferences now, which every test touches whether or not it
-  // cares about persistence specifically.
+  // register()/createBag()/etc. all persist via shared_preferences now,
+  // which every test touches whether or not it cares about persistence
+  // specifically.
   setUp(() {
     SharedPreferences.setMockInitialValues({});
   });
@@ -63,31 +69,22 @@ void main() {
     },
   );
 
-  testWidgets('submitting registration moves to the pending-review screen', (
-    tester,
-  ) async {
-    final repository = ShopRepository();
-    await tester.pumpWidget(ShopApp(repository: repository));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'submitting registration moves to the pending-review screen, with no '
+    'self-approval shortcut — approval only happens from the back office '
+    'now',
+    (tester) async {
+      final repository = ShopRepository();
+      await tester.pumpWidget(ShopApp(repository: repository));
+      await tester.pumpAndSettle();
 
-    await repository.register(_testProfile());
-    await tester.pumpAndSettle();
+      await repository.register(_testProfile());
+      await tester.pumpAndSettle();
 
-    expect(find.text('Under review'), findsOneWidget);
-
-    // The photo banner above the content pushes the button below the
-    // default 800x600 test viewport — scroll it into view first, the
-    // same pattern the Account screen's log-out test already uses below.
-    await tester.scrollUntilVisible(
-      find.text('Simulate approval'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.tap(find.text('Simulate approval'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Your bags'), findsOneWidget);
-  });
+      expect(find.text('Under review'), findsOneWidget);
+      expect(find.text('Simulate approval'), findsNothing);
+    },
+  );
 
   testWidgets('a verified shop launches to the bag list with seeded fixtures', (
     tester,

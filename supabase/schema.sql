@@ -625,6 +625,64 @@ create policy shop_notifications_owner_only on shop_notifications
 
 
 -- =============================================================================
+-- admins — the back office. One row per admin's Supabase Auth user id,
+-- same account-creation pattern as a shop's optional email+password login
+-- (create the user via the Supabase dashboard's Authentication > Users >
+-- "Add user", then insert their id here — never a public sign-up path).
+-- =============================================================================
+create table admins (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+alter table admins enable row level security;
+
+-- An admin can confirm their own membership (the shop app's login flow
+-- checks this to decide whether to route into the back office).
+create policy admins_self_read on admins
+  for select using (user_id = auth.uid());
+
+-- Read access the back office needs: every shop, every order, regardless
+-- of which owner/customer they belong to.
+create policy shops_admin_read on shops
+  for select using (exists (select 1 from admins where user_id = auth.uid()));
+create policy orders_admin_read on orders
+  for select using (exists (select 1 from admins where user_id = auth.uid()));
+
+-- Write access: approve/reject/deactivate/reactivate a shop (and its
+-- rejection reason), and cancel any order (with its stock restored).
+create policy shops_admin_update on shops
+  for update using (exists (select 1 from admins where user_id = auth.uid()));
+create policy shop_billing_admin_update on shop_billing
+  for update using (exists (select 1 from admins where user_id = auth.uid()));
+create policy orders_admin_update on orders
+  for update using (exists (select 1 from admins where user_id = auth.uid()));
+create policy bags_admin_update on bags
+  for update using (exists (select 1 from admins where user_id = auth.uid()));
+
+-- Blocks a shop from approving itself through its own existing update
+-- policy (`shops_owner_update` lets a shop edit its address/phone/etc.,
+-- but was never meant to let it flip its own approval_status) — silently
+-- reverts approval_status to whatever it already was unless the caller is
+-- an admin, rather than rejecting the whole update (a shop editing its
+-- address shouldn't get an error just because approval_status came along
+-- unchanged in the same row).
+create or replace function prevent_self_approval() returns trigger as $$
+begin
+  if new.approval_status <> old.approval_status
+     and not exists (select 1 from admins where user_id = auth.uid()) then
+    new.approval_status := old.approval_status;
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+create trigger shops_prevent_self_approval
+  before update on shops
+  for each row execute function prevent_self_approval();
+
+
+-- =============================================================================
 -- Realtime — the actual point of this whole schema. Both apps subscribe
 -- to these two tables so a change on one side shows up live on the other
 -- with no manual refresh.

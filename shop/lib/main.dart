@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:too_good_to_leave_shop/app/theme/app_theme.dart';
 import 'package:too_good_to_leave_shop/data/shop_repository.dart';
 import 'package:too_good_to_leave_shop/domain/shop_profile.dart';
+import 'package:too_good_to_leave_shop/screens/admin/admin_shell_screen.dart';
 import 'package:too_good_to_leave_shop/screens/login_or_register_screen.dart';
 import 'package:too_good_to_leave_shop/screens/login_screen.dart';
 import 'package:too_good_to_leave_shop/screens/pending_approval_screen.dart';
@@ -88,6 +89,7 @@ class ShopApp extends StatefulWidget {
 class _ShopAppState extends State<ShopApp> {
   _EntryStep _step = _EntryStep.landing;
   late bool _wasRegistered = widget.repository.isRegistered;
+  late bool _wasAdmin = widget.repository.isAdmin;
 
   @override
   void initState() {
@@ -103,12 +105,15 @@ class _ShopAppState extends State<ShopApp> {
 
   void _handleRepositoryChange() {
     final isRegistered = widget.repository.isRegistered;
-    if (_wasRegistered && !isRegistered) {
-      // A log-out just happened — the next session should start back at
-      // the landing choice, not wherever this one happened to leave off.
+    final isAdmin = widget.repository.isAdmin;
+    if ((_wasRegistered && !isRegistered) || (_wasAdmin && !isAdmin)) {
+      // A shop or admin log-out just happened — the next session should
+      // start back at the landing choice, not wherever this one happened
+      // to leave off.
       setState(() => _step = _EntryStep.landing);
     }
     _wasRegistered = isRegistered;
+    _wasAdmin = isAdmin;
   }
 
   @override
@@ -125,6 +130,9 @@ class _ShopAppState extends State<ShopApp> {
     home: ListenableBuilder(
       listenable: widget.repository,
       builder: (context, _) {
+        if (widget.repository.isAdmin) {
+          return AdminShellScreen(repository: widget.repository);
+        }
         final profile = widget.repository.profile;
         if (profile == null) {
           return switch (_step) {

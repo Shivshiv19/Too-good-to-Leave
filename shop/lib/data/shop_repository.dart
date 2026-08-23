@@ -10,6 +10,7 @@ import 'package:too_good_to_leave_shop/core/domain/dietary_envelope.dart';
 import 'package:too_good_to_leave_shop/core/domain/money.dart';
 import 'package:too_good_to_leave_shop/core/domain/pickup_token.dart';
 import 'package:too_good_to_leave_shop/core/domain/pickup_window.dart';
+import 'package:too_good_to_leave_shop/domain/admin_models.dart';
 import 'package:too_good_to_leave_shop/domain/payout.dart';
 import 'package:too_good_to_leave_shop/domain/shop_bag.dart';
 import 'package:too_good_to_leave_shop/domain/shop_category.dart';
@@ -224,6 +225,37 @@ ShopOrderStatus _shopOrderStatusFromWire(String value) => switch (value) {
   _ => ShopOrderStatus.reserved,
 };
 
+AdminOrderStatus _adminOrderStatusFromWire(String value) => switch (value) {
+  'pending_payment' => AdminOrderStatus.pendingPayment,
+  'confirmed' => AdminOrderStatus.confirmed,
+  'payment_failed' => AdminOrderStatus.paymentFailed,
+  'ready_for_pickup' => AdminOrderStatus.readyForPickup,
+  'collected' => AdminOrderStatus.collected,
+  'cancelled_by_customer' => AdminOrderStatus.cancelledByCustomer,
+  'cancelled_by_merchant' => AdminOrderStatus.cancelledByMerchant,
+  'expired_uncollected' => AdminOrderStatus.expiredUncollected,
+  _ => AdminOrderStatus.pendingPayment,
+};
+
+AdminOrderSummary _adminOrderFromRow(Map<String, dynamic> row) {
+  final shopSnapshot = (row['shop_snapshot'] as Map).cast<String, dynamic>();
+  final bagSnapshot = (row['bag_snapshot'] as Map).cast<String, dynamic>();
+  final customerSnapshot = (row['customer_snapshot'] as Map)
+      .cast<String, dynamic>();
+  final priceBreakdown = (row['price_breakdown'] as Map)
+      .cast<String, dynamic>();
+  return AdminOrderSummary(
+    id: row['id'] as String,
+    orderCode: row['order_code'] as String,
+    shopName: shopSnapshot['displayName'] as String? ?? 'Shop',
+    customerName: customerSnapshot['name'] as String? ?? 'Customer',
+    bagTitle: bagSnapshot['title'] as String? ?? 'Surprise bag',
+    status: _adminOrderStatusFromWire(row['status'] as String),
+    createdAt: DateTime.parse(row['created_at'] as String),
+    totalPaise: (priceBreakdown['total'] as num).round(),
+  );
+}
+
 PickupToken _tokenFromRow(Map<String, dynamic>? json) {
   if (json == null) {
     // Every order the customer app creates populates this at insert time —
@@ -341,7 +373,14 @@ class ShopRepository extends ChangeNotifier {
         .select()
         .eq('auth_user_id', user.id)
         .maybeSingle();
-    if (shopRow == null) return repo;
+    if (shopRow == null) {
+      // No shop under this account — a real session with nothing
+      // registered is exactly what an admin's own account looks like too,
+      // so a browser refresh needs to restore *that* state on its own
+      // merits rather than leaving an admin looking signed-out.
+      repo._isAdmin = await repo._checkIsAdmin(user.id);
+      return repo;
+    }
 
     final billingRow = await repo._client
         .from('shop_billing')
@@ -363,6 +402,25 @@ class ShopRepository extends ChangeNotifier {
 
   String? _shopId;
   RealtimeChannel? _ordersChannel;
+
+  bool _isAdmin = false;
+
+  /// True once a signed-in account is confirmed to be in the `admins`
+  /// table — see [logIn]/[load]'s own "no shop found, check for admin
+  /// instead" branch. `main.dart`'s reactive builder checks this before
+  /// [profile], so an admin account never falls through to the shop
+  /// registration flow just because it (correctly) has no shop of its own.
+  bool get isAdmin => _isAdmin;
+
+  Future<bool> _checkIsAdmin(String userId) async {
+    if (!_useBackend) return false;
+    final row = await _client
+        .from('admins')
+        .select('user_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+    return row != null;
+  }
 
   ShopProfile? _profile;
   final List<ShopBag> _bags = [];
@@ -642,7 +700,10 @@ class ShopRepository extends ChangeNotifier {
   /// signed in, so the caller can proceed straight to [register] and it
   /// will attach the new shop to this same identity rather than creating a
   /// throwaway anonymous one (see [register]'s own "already signed in"
-  /// check).
+  /// check). **Also** returns `true` — without registering anything — when
+  /// the account turns out to be an admin's: same "no shop, but a real
+  /// signed-in identity" shape, just routed into the back office instead
+  /// of shop registration. [isAdmin] is how the caller tells the two apart.
   Future<bool> logIn({required String email, required String password}) async {
     if (!_useBackend) return false;
     await _client.auth.signInWithPassword(email: email, password: password);
@@ -656,7 +717,11 @@ class ShopRepository extends ChangeNotifier {
         .select()
         .eq('auth_user_id', user.id)
         .maybeSingle();
-    if (shopRow == null) return false;
+    if (shopRow == null) {
+      _isAdmin = await _checkIsAdmin(user.id);
+      if (_isAdmin) notifyListeners();
+      return _isAdmin;
+    }
 
     final billingRow = await _client
         .from('shop_billing')
@@ -683,26 +748,165 @@ class ShopRepository extends ChangeNotifier {
     await _client.auth.resetPasswordForEmail(email);
   }
 
-  /// Stands in for a real review process — there's no admin surface in this
-  /// standalone build, so approval is a demo action the registration flow's
-  /// own "pending review" screen exposes, rather than something that
-  /// silently never resolves.
-  Future<void> simulateApproval() async {
-    final current = _profile;
-    if (current == null) return;
-    if (_useBackend) {
-      final shopId = _shopId;
-      if (shopId == null) return;
-      await _client
-          .from('shops')
-          .update({
-            'approval_status': 'verified',
-            'updated_at': DateTime.now().toUtc().toIso8601String(),
-          })
-          .eq('id', shopId);
+  // ---------------------------------------------------------------------
+  // Admin back office — every method here requires the signed-in account
+  // to be in the `admins` table; the RLS policies in supabase/schema.sql
+  // enforce that server-side regardless of what this client sends, so
+  // there's no separate `if (!_isAdmin) throw` guard duplicated in each
+  // method below.
+  // ---------------------------------------------------------------------
+
+  Future<List<AdminShopSummary>> _adminShopsFromRows(
+    List<Map<String, dynamic>> rows,
+  ) async {
+    if (rows.isEmpty) return [];
+    final ids = rows.map((r) => r['id'] as String).toList();
+    final billingRows =
+        (await _client
+                .from('shop_billing')
+                .select('shop_id, owner_name, owner_email, rejection_reason')
+                .inFilter('shop_id', ids))
+            as List;
+    final billingByShopId = {
+      for (final b in billingRows.cast<Map<String, dynamic>>())
+        b['shop_id'] as String: b,
+    };
+    return [
+      for (final r in rows)
+        AdminShopSummary(
+          id: r['id'] as String,
+          businessName: r['display_name'] as String,
+          ownerName: billingByShopId[r['id']]?['owner_name'] as String? ?? '',
+          phone: r['phone'] as String,
+          email: billingByShopId[r['id']]?['owner_email'] as String? ?? '',
+          category: _categoryFromWire(r['category'] as String),
+          locality: r['locality'] as String,
+          city: r['city'] as String,
+          status: _approvalFromWire(r['approval_status'] as String),
+          createdAt: DateTime.parse(r['created_at'] as String),
+          rejectionReason:
+              billingByShopId[r['id']]?['rejection_reason'] as String?,
+        ),
+    ];
+  }
+
+  Future<List<AdminShopSummary>> adminGetPendingShops() async {
+    final rows = await _client
+        .from('shops')
+        .select()
+        .eq('approval_status', 'pending_review')
+        .order('created_at');
+    return _adminShopsFromRows((rows as List).cast<Map<String, dynamic>>());
+  }
+
+  Future<List<AdminShopSummary>> adminGetAllShops() async {
+    final rows = await _client
+        .from('shops')
+        .select()
+        .order('created_at', ascending: false);
+    return _adminShopsFromRows((rows as List).cast<Map<String, dynamic>>());
+  }
+
+  /// Approves a pending shop, or reactivates one that was previously
+  /// rejected/deactivated — the same transition either way, so one method
+  /// covers both back-office actions.
+  Future<void> adminApproveShop(String shopId) async {
+    await _client
+        .from('shops')
+        .update({
+          'approval_status': 'verified',
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', shopId);
+    await _client
+        .from('shop_billing')
+        .update({
+          'rejection_reason': null,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('shop_id', shopId);
+  }
+
+  /// Rejects a pending shop, or deactivates one that was previously
+  /// verified — [reason] always lands on the shop's own profile (see
+  /// [ShopProfile.rejectionReason]'s "always knows why" contract), so a
+  /// deactivation reads the same as a rejection to the shop owner.
+  Future<void> adminRejectShop(String shopId, {required String reason}) async {
+    await _client
+        .from('shops')
+        .update({
+          'approval_status': 'rejected',
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', shopId);
+    await _client
+        .from('shop_billing')
+        .update({
+          'rejection_reason': reason,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('shop_id', shopId);
+  }
+
+  /// Most recent 200 orders across every shop — enough for a back office
+  /// to spot and act on something recent without paginating a table that
+  /// has no search/filter UI yet.
+  Future<List<AdminOrderSummary>> adminGetOrders() async {
+    final rows = await _client
+        .from('orders')
+        .select()
+        .order('created_at', ascending: false)
+        .limit(200);
+    return [
+      for (final r in (rows as List).cast<Map<String, dynamic>>())
+        _adminOrderFromRow(r),
+    ];
+  }
+
+  /// Same shape as the shop app's own [cancelOrder]/[markNoShow] — flip
+  /// the order to cancelled, then give the reserved stock back to the bag
+  /// (capped at its total, and flipped off sold-out if it was) — just
+  /// reachable for any order, not only ones this signed-in account owns.
+  Future<void> adminCancelOrder(String orderId) async {
+    final orderRow = await _client
+        .from('orders')
+        .select('bag_id, quantity, status')
+        .eq('id', orderId)
+        .single();
+    final status = orderRow['status'] as String;
+    const cancellable = {'pending_payment', 'confirmed', 'ready_for_pickup'};
+    if (!cancellable.contains(status)) {
+      throw StateError('Order is not in a cancellable state.');
     }
-    _profile = current.copyWith(status: ShopApprovalStatus.verified);
-    notifyListeners();
+
+    await _client
+        .from('orders')
+        .update({
+          'status': 'cancelled_by_merchant',
+          'cancelled_at': DateTime.now().toUtc().toIso8601String(),
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', orderId);
+
+    final bagId = orderRow['bag_id'] as String;
+    final quantity = orderRow['quantity'] as int;
+    final bagRow = await _client
+        .from('bags')
+        .select('quantity_available, quantity_total, status')
+        .eq('id', bagId)
+        .single();
+    final available = bagRow['quantity_available'] as int;
+    final total = bagRow['quantity_total'] as int;
+    final bagStatus = bagRow['status'] as String;
+    final restored = available + quantity;
+    await _client
+        .from('bags')
+        .update({
+          'quantity_available': restored > total ? total : restored,
+          if (bagStatus == 'sold_out') 'status': 'live',
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', bagId);
   }
 
   Future<void> updateProfile(ShopProfile updated) async {
@@ -732,6 +936,7 @@ class ShopRepository extends ChangeNotifier {
     }
     _profile = null;
     _shopId = null;
+    _isAdmin = false;
     _bags.clear();
     _orders.clear();
     _nextBagId = 1;

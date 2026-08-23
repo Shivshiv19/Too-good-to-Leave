@@ -5,12 +5,13 @@ import 'package:too_good_to_leave_shop/design_system/components/app_button.dart'
 import 'package:too_good_to_leave_shop/design_system/components/hero_visual.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/breakpoints.dart';
 import 'package:too_good_to_leave_shop/design_system/foundations/dimens.dart';
+import 'package:too_good_to_leave_shop/domain/shop_profile.dart';
 
-/// Shown between submitting registration and a review clearing it. There's
-/// no admin/reviewer surface in this standalone build, so the "simulate
-/// approval" action stands in for what a real review process would
-/// eventually do — without it, this screen would be a dead end no demo
-/// could get past.
+/// Shown between submitting registration and a review clearing it — and,
+/// for a rejected/deactivated shop, shown again with the reason instead of
+/// "under review" (this screen renders for any non-verified status, per
+/// `main.dart`'s reactive builder). Approval itself only ever happens from
+/// the back office now — there is no self-service shortcut here.
 class PendingApprovalScreen extends StatelessWidget {
   const PendingApprovalScreen({required this.repository, super.key});
 
@@ -21,6 +22,7 @@ class PendingApprovalScreen extends StatelessWidget {
     final colors = context.colors;
     final profile = repository.profile!;
     final isDesktop = context.isDesktopWidth;
+    final isRejected = profile.status == ShopApprovalStatus.rejected;
 
     final content = Padding(
       padding: const EdgeInsets.all(Space.x6),
@@ -28,46 +30,35 @@ class PendingApprovalScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.hourglass_top, size: 48, color: colors.attention.fg),
+          Icon(
+            isRejected ? Icons.block_outlined : Icons.hourglass_top,
+            size: 48,
+            color: isRejected ? colors.critical.fg : colors.attention.fg,
+          ),
           const SizedBox(height: Space.x4),
-          Text('Under review', style: context.type.headline),
+          Text(
+            isRejected ? 'Not approved' : 'Under review',
+            style: context.type.headline,
+          ),
           const SizedBox(height: Space.x2),
           Text(
-            "Thanks, ${profile.businessName}. We're reviewing your "
-            'FSSAI licence and details — this usually takes 1–2 '
-            'business days. You can list bags and manage orders once '
-            "you're approved.",
+            isRejected
+                ? "${profile.businessName} isn't listing right now. "
+                      '${profile.rejectionReason?.trim().isNotEmpty ?? false ? profile.rejectionReason! : 'Contact support for details.'}'
+                : "Thanks, ${profile.businessName}. We're reviewing your "
+                      'FSSAI licence and details — this usually takes 1–2 '
+                      'business days. You can list bags and manage orders '
+                      "once you're approved.",
             style: context.type.body.copyWith(color: colors.textSecondary),
           ),
-          const SizedBox(height: Space.x8),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(Space.x4),
-            decoration: BoxDecoration(
-              color: colors.surfaceSunken,
-              borderRadius: BorderRadius.circular(Radii.card),
+          if (isRejected) ...[
+            const SizedBox(height: Space.x6),
+            AppButton(
+              label: 'Log out',
+              variant: AppButtonVariant.secondary,
+              onPressed: repository.logOut,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Demo shortcut', style: context.type.label),
-                const SizedBox(height: Space.x1),
-                Text(
-                  'There is no real reviewer in this standalone build — '
-                  'use this button to approve yourself and continue.',
-                  style: context.type.caption.copyWith(
-                    color: colors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: Space.x3),
-                AppButton(
-                  label: 'Simulate approval',
-                  variant: AppButtonVariant.secondary,
-                  onPressed: repository.simulateApproval,
-                ),
-              ],
-            ),
-          ),
+          ],
         ],
       ),
     );
@@ -80,12 +71,16 @@ class PendingApprovalScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(
+                SizedBox(
                   height: 220,
                   child: HeroVisual(
-                    icon: Icons.hourglass_top_rounded,
-                    title: 'Almost there',
-                    subtitle: "We're reviewing your shop's details.",
+                    icon: isRejected
+                        ? Icons.block_outlined
+                        : Icons.hourglass_top_rounded,
+                    title: isRejected ? "Not approved" : 'Almost there',
+                    subtitle: isRejected
+                        ? "This shop isn't currently listing."
+                        : "We're reviewing your shop's details.",
                   ),
                 ),
                 Align(
@@ -123,12 +118,16 @@ class PendingApprovalScreen extends StatelessWidget {
               ),
             ),
           ),
-          const Expanded(
+          Expanded(
             flex: 9,
             child: HeroVisual(
-              icon: Icons.hourglass_top_rounded,
-              title: 'Almost there',
-              subtitle: "We're reviewing your shop's details.",
+              icon: isRejected
+                  ? Icons.block_outlined
+                  : Icons.hourglass_top_rounded,
+              title: isRejected ? "Not approved" : 'Almost there',
+              subtitle: isRejected
+                  ? "This shop isn't currently listing."
+                  : "We're reviewing your shop's details.",
             ),
           ),
         ],
