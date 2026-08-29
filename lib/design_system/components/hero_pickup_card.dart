@@ -67,12 +67,22 @@ class HeroPickupCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: colors.surfaceRaised,
           borderRadius: BorderRadius.circular(Radii.card),
-          border: Border.all(color: colors.actionSecondaryBorder, width: 1.5),
+          // A bolder, urgency-coloured border rather than a fixed brand
+          // green one — the same signal [OrderStatusChip] gives elsewhere,
+          // so "this card wants your attention" reads at a glance without
+          // recolouring the countdown text itself (its colour is load-
+          // bearing for §6.2.7's urgency mapping — see that widget's own
+          // doc on why it always overrides any style passed in).
+          border: Border.all(
+            color: colors.urgencyForeground(urgency),
+            width: 2,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(Radii.sm),
@@ -109,33 +119,43 @@ class HeroPickupCard extends StatelessWidget {
                     ],
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: Space.x3),
-            Row(
-              children: [
                 ExcludeSemantics(
-                  child: Text(
-                    stateLabel,
-                    style: context.type.body.copyWith(
-                      color: colors.urgencyForeground(urgency),
-                      fontWeight: FontWeight.w600,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: Space.x2,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colors.urgencyForeground(urgency).withValues(
+                        alpha: 0.12,
+                      ),
+                      borderRadius: BorderRadius.circular(Radii.full),
+                    ),
+                    child: Text(
+                      stateLabel,
+                      style: context.type.caption.copyWith(
+                        color: colors.urgencyForeground(urgency),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),
-                const Spacer(),
-                if (urgency == WindowUrgency.upcoming ||
-                    urgency == WindowUrgency.openNow ||
-                    urgency == WindowUrgency.closingSoon)
-                  CountdownText(
-                    target: urgency == WindowUrgency.upcoming
-                        ? pickupWindow.startAt
-                        : pickupWindow.endAt,
-                    clock: clock,
-                    urgency: urgency,
-                  ),
               ],
             ),
+            const SizedBox(height: Space.x3),
+            if (urgency == WindowUrgency.upcoming ||
+                urgency == WindowUrgency.openNow ||
+                urgency == WindowUrgency.closingSoon)
+              Center(
+                child: CountdownText(
+                  target: urgency == WindowUrgency.upcoming
+                      ? pickupWindow.startAt
+                      : pickupWindow.endAt,
+                  clock: clock,
+                  urgency: urgency,
+                  style: context.type.display,
+                ),
+              ),
             const SizedBox(height: Space.x4),
             Row(
               children: [

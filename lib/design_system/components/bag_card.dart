@@ -61,97 +61,146 @@ class BagCard extends StatelessWidget {
               border: Border.all(color: colors.borderSubtle),
             ),
             clipBehavior: Clip.antiAlias,
-            child: Row(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(
-                  width: 96,
-                  height: 96,
-                  child: CachedNetworkImage(
-                    imageUrl: bag.imageUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) =>
-                        Container(color: colors.surfaceSunken),
-                    errorWidget: (context, url, error) => Container(
-                      color: colors.surfaceSunken,
-                      child: Icon(
-                        Icons.image_not_supported_outlined,
-                        color: colors.textTertiary,
+                // Image-forward — a full-width photo with the pickup window
+                // as a pill badge over it, rather than a small thumbnail
+                // beside the text.
+                Stack(
+                  children: [
+                    AspectRatio(
+                      aspectRatio: 4 / 3,
+                      child: CachedNetworkImage(
+                        imageUrl: bag.imageUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) =>
+                            Container(color: colors.surfaceSunken),
+                        errorWidget: (context, url, error) => Container(
+                          color: colors.surfaceSunken,
+                          child: Icon(
+                            Icons.image_not_supported_outlined,
+                            color: colors.textTertiary,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    Positioned(
+                      left: Space.x2,
+                      bottom: Space.x2,
+                      child: _PickupBadge(
+                        text: Fmt.pickupWindowCompact(bag.pickupWindow),
+                      ),
+                    ),
+                  ],
                 ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(Space.x3),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          bag.merchant.displayName,
-                          style: context.type.caption.copyWith(
-                            color: colors.textSecondary,
+                Padding(
+                  padding: const EdgeInsets.all(Space.x3),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              bag.merchant.displayName.toUpperCase(),
+                              style: context.type.labelSmall.copyWith(
+                                color: colors.textSecondary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          bag.title,
-                          style: context.type.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: Space.x1),
-                        DietaryMarkChip(
-                          envelope: bag.dietaryEnvelope,
-                          label: dietaryLabel,
-                          compact: true,
-                        ),
-                        const SizedBox(height: Space.x2),
-                        Wrap(
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: Space.x2,
-                          children: [
-                            Text(
-                              Fmt.money(bag.price),
-                              style: context.type.title.copyWith(
-                                color: colors.success.fg,
-                                fontWeight: FontWeight.w700,
-                              ),
+                          Text(
+                            Fmt.distance(bag.distanceMetres),
+                            style: context.type.caption.copyWith(
+                              color: colors.textTertiary,
                             ),
-                            Text(
-                              Fmt.money(bag.statedRetailValue),
-                              style: context.type.caption.copyWith(
-                                color: colors.textTertiary,
-                                decoration: TextDecoration.lineThrough,
-                              ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: Space.x1),
+                      Text(
+                        bag.title,
+                        style: context.type.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: Space.x2),
+                      DietaryMarkChip(
+                        envelope: bag.dietaryEnvelope,
+                        label: dietaryLabel,
+                        compact: true,
+                      ),
+                      const SizedBox(height: Space.x2),
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: Space.x2,
+                        children: [
+                          Text(
+                            Fmt.money(bag.price),
+                            style: context.type.priceMedium.copyWith(
+                              color: colors.actionPrimaryBg,
                             ),
+                          ),
+                          Text(
+                            Fmt.money(bag.statedRetailValue),
+                            style: context.type.caption.copyWith(
+                              color: colors.textTertiary,
+                              decoration: TextDecoration.lineThrough,
+                            ),
+                          ),
+                          if (bag.scarcity == Scarcity.few)
                             Text(
-                              '${bag.discountPercent}% off',
+                              'Only a few left',
                               style: context.type.caption.copyWith(
-                                color: colors.success.fg,
+                                color: colors.attention.fg,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: Space.x1),
-                        Text(
-                          '${Fmt.distance(bag.distanceMetres)} · '
-                          '${Fmt.pickupWindowCompact(bag.pickupWindow)}'
-                          '${bag.scarcity == Scarcity.few ? ' · Only a few left' : ''}',
-                          style: context.type.caption.copyWith(
-                            color: colors.textSecondary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The pickup-window pill overlaid on a [BagCard]'s photo. Purely
+/// decorative alongside the card's own merged semantic label — excluded
+/// from the tree so a screen reader doesn't hit it as a second node.
+class _PickupBadge extends StatelessWidget {
+  const _PickupBadge({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return ExcludeSemantics(
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: Space.x2,
+          vertical: 4,
+        ),
+        decoration: BoxDecoration(
+          // `surfaceRaised` rather than a literal white — this pill sits
+          // over an arbitrary photo, not a themed surface, but every
+          // colour here still has to route through a token (§6.1).
+          color: colors.surfaceRaised.withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(Radii.chip),
+        ),
+        child: Text(
+          'Pickup $text',
+          style: context.type.caption.copyWith(
+            color: colors.textPrimary,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),

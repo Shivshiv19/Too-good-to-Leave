@@ -36,7 +36,7 @@ class PaymentMethodSheet extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             for (final (method, label, available) in methods) ...[
-              _MethodRow(
+              PaymentMethodOptionRow(
                 label: label,
                 recommended: method == PaymentMethod.upi,
                 available: available,
@@ -56,8 +56,11 @@ class PaymentMethodSheet extends StatelessWidget {
   }
 }
 
-class _MethodRow extends StatelessWidget {
-  const _MethodRow({
+/// One selectable payment method — a bordered pill with a radio icon,
+/// shared between [PaymentMethodSheet] and [ReviewPayScreen]'s own inline
+/// method list (§5c.3, §5c.2's Payment Method section).
+class PaymentMethodOptionRow extends StatelessWidget {
+  const PaymentMethodOptionRow({
     required this.label,
     required this.recommended,
     required this.available,
@@ -65,6 +68,7 @@ class _MethodRow extends StatelessWidget {
     required this.colors,
     required this.l10n,
     required this.onTap,
+    super.key,
   });
 
   final String label;

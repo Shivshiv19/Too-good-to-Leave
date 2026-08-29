@@ -165,6 +165,68 @@ class _BagDetailScreenState extends ConsumerState<BagDetailScreen> {
                         onPressed: () => Navigator.of(context).maybePop(),
                       ),
                     ),
+                    if (merchant.ratingAggregate.hasReviews)
+                      Positioned(
+                        left: Space.x2,
+                        bottom: Space.x2,
+                        child: ExcludeSemantics(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: Space.x2,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colors.surfaceRaised.withValues(
+                                alpha: 0.92,
+                              ),
+                              borderRadius: BorderRadius.circular(Radii.full),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.star,
+                                  size: 14,
+                                  color: colors.actionPrimaryBg,
+                                ),
+                                const SizedBox(width: Space.x1),
+                                Text(
+                                  '${merchant.ratingAggregate.average.toStringAsFixed(1)} '
+                                  '(${merchant.ratingAggregate.count})',
+                                  style: context.type.caption.copyWith(
+                                    color: colors.textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (!isTerminal)
+                      Positioned(
+                        right: Space.x2,
+                        bottom: Space.x2,
+                        child: ExcludeSemantics(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: Space.x3,
+                              vertical: Space.x1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colors.actionPrimaryBg,
+                              borderRadius: BorderRadius.circular(Radii.full),
+                            ),
+                            child: Text(
+                              'Pickup ${Fmt.pickupWindowCompact(bag.pickupWindow)}',
+                              style: context.type.caption.copyWith(
+                                color: colors.actionPrimaryFg,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
                 Padding(
@@ -208,35 +270,81 @@ class _BagDetailScreenState extends ConsumerState<BagDetailScreen> {
                           l10n: l10n,
                         )
                       else ...[
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              Fmt.money(bag.price),
-                              style: context.type.display.copyWith(
-                                color: colors.success.fg,
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(Space.x4),
+                          decoration: BoxDecoration(
+                            color: colors.surfaceSunken,
+                            borderRadius: BorderRadius.circular(Radii.card),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                l10n.bagValueBreakdownLabel,
+                                style: context.type.label.copyWith(
+                                  color: colors.textSecondary,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: Space.x2),
-                            Text(
-                              Fmt.money(bag.statedRetailValue),
-                              semanticsLabel: Fmt.wasPriceSemantics(
-                                bag.statedRetailValue,
+                              const SizedBox(height: Space.x3),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    l10n.bagOriginalValueLabel,
+                                    style: context.type.body.copyWith(
+                                      color: colors.textSecondary,
+                                    ),
+                                  ),
+                                  Text(
+                                    Fmt.money(bag.statedRetailValue),
+                                    semanticsLabel: Fmt.wasPriceSemantics(
+                                      bag.statedRetailValue,
+                                    ),
+                                    style: context.type.body.copyWith(
+                                      color: colors.textTertiary,
+                                      decoration: TextDecoration.lineThrough,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              style: context.type.body.copyWith(
-                                color: colors.textTertiary,
-                                decoration: TextDecoration.lineThrough,
+                              const SizedBox(height: Space.x2),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    l10n.bagRescuePriceLabel,
+                                    style: context.type.body.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        Fmt.money(bag.price),
+                                        style: context.type.priceMedium
+                                            .copyWith(
+                                              color: colors.actionPrimaryBg,
+                                            ),
+                                      ),
+                                      const SizedBox(width: Space.x2),
+                                      Text(
+                                        l10n.bagDiscountBadge(
+                                          bag.discountPercent,
+                                        ),
+                                        style: context.type.caption.copyWith(
+                                          color: colors.success.fg,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                            ),
-                            const SizedBox(width: Space.x2),
-                            Text(
-                              l10n.bagDiscountBadge(bag.discountPercent),
-                              style: context.type.body.copyWith(
-                                color: colors.success.fg,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                         const SizedBox(height: Space.x2),
                         Text(
@@ -340,23 +448,6 @@ class _BagDetailScreenState extends ConsumerState<BagDetailScreen> {
                           color: colors.textSecondary,
                         ),
                       ),
-                      const SizedBox(height: Space.x6),
-                      if (merchant.ratingAggregate.hasReviews)
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.star,
-                              size: 16,
-                              color: colors.success.fg,
-                            ),
-                            const SizedBox(width: Space.x1),
-                            Text(
-                              '${merchant.ratingAggregate.average.toStringAsFixed(1)} '
-                              '(${merchant.ratingAggregate.count})',
-                              style: context.type.body,
-                            ),
-                          ],
-                        ),
                     ],
                   ),
                 ),

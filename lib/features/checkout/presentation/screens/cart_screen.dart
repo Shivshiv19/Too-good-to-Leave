@@ -213,6 +213,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 
   Widget _buildActive(BuildContext context, AppLocalizations l10n) {
+    final colors = context.colors;
     final hold = _hold!;
     final bag = _bag!;
 
@@ -225,37 +226,83 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           label: l10n.cartHoldBanner,
           onExpired: _onExpired,
         ),
-        const SizedBox(height: Space.x4),
-        Text(bag.title, style: context.type.title),
-        const SizedBox(height: Space.x1),
-        DietaryMarkChip(
-          envelope: bag.dietaryEnvelope,
-          label: dietaryEnvelopeLabel(bag.dietaryEnvelope, l10n),
-          compact: true,
-        ),
-        const SizedBox(height: Space.x4),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(Fmt.money(bag.price), style: context.type.body),
-            QuantityStepper(
-              value: _quantity,
-              onChanged: _onQuantityChanged,
-              max: bag.quantityAvailable,
-              decreaseLabel: l10n.cartQuantityDecrease,
-              increaseLabel: l10n.cartQuantityIncrease,
-            ),
-          ],
-        ),
-        const SizedBox(height: Space.x4),
-        Text(
-          Fmt.pickupWindow(bag.pickupWindow, _clock),
-          style: context.type.body,
+        const SizedBox(height: Space.x6),
+        Text(l10n.cartYourBagLabel, style: context.type.title),
+        const SizedBox(height: Space.x3),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(Space.x4),
+          decoration: BoxDecoration(
+            color: colors.surfaceRaised,
+            borderRadius: BorderRadius.circular(Radii.card),
+            border: Border.all(color: colors.borderSubtle),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(bag.title, style: context.type.title),
+                        const SizedBox(height: Space.x1),
+                        DietaryMarkChip(
+                          envelope: bag.dietaryEnvelope,
+                          label: dietaryEnvelopeLabel(
+                            bag.dietaryEnvelope,
+                            l10n,
+                          ),
+                          compact: true,
+                        ),
+                        const SizedBox(height: Space.x2),
+                        Text(
+                          Fmt.pickupWindow(bag.pickupWindow, _clock),
+                          style: context.type.caption.copyWith(
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    Fmt.money(bag.price),
+                    style: context.type.priceMedium.copyWith(
+                      color: colors.actionPrimaryBg,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: Space.x3),
+              Align(
+                alignment: Alignment.centerRight,
+                child: QuantityStepper(
+                  value: _quantity,
+                  onChanged: _onQuantityChanged,
+                  max: bag.quantityAvailable,
+                  decreaseLabel: l10n.cartQuantityDecrease,
+                  increaseLabel: l10n.cartQuantityIncrease,
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: Space.x6),
-        PriceBreakdownList(
-          breakdown: hold.breakdown,
-          isRequoting: _phase == _Phase.requoting,
+        Text(l10n.cartOrderSummaryLabel, style: context.type.title),
+        const SizedBox(height: Space.x3),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(Space.x4),
+          decoration: BoxDecoration(
+            color: colors.surfaceSunken,
+            borderRadius: BorderRadius.circular(Radii.card),
+          ),
+          child: PriceBreakdownList(
+            breakdown: hold.breakdown,
+            isRequoting: _phase == _Phase.requoting,
+          ),
         ),
         const SizedBox(height: Space.x6),
         AppButton(

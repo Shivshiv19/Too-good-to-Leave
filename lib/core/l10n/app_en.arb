@@ -340,6 +340,12 @@
   "@bagDiscountBadge": {
     "placeholders": { "percent": { "type": "int" } }
   },
+  "bagValueBreakdownLabel": "Value Breakdown",
+  "@bagValueBreakdownLabel": {},
+  "bagOriginalValueLabel": "Original Value",
+  "@bagOriginalValueLabel": {},
+  "bagRescuePriceLabel": "Rescue Price",
+  "@bagRescuePriceLabel": {},
   "bagScarcityFew": "Only a few left",
   "@bagScarcityFew": {
     "description": "Qualitative in cached contexts. Exact counts only after a fresh fetch (A8)."
@@ -659,6 +665,10 @@
   "@cartTitle": {},
   "cartHoldBanner": "Held for you",
   "@cartHoldBanner": {},
+  "cartYourBagLabel": "Your Bag",
+  "@cartYourBagLabel": {},
+  "cartOrderSummaryLabel": "Order Summary",
+  "@cartOrderSummaryLabel": {},
   "cartHoldFrozen": "Held while we confirm your payment",
   "@cartHoldFrozen": {
     "description": "A2 — a countdown ticking toward a deadline that no longer applies would mislead."
@@ -744,6 +754,8 @@
   "@checkoutMethodUnavailable": {},
   "checkoutRememberUpiApp": "Remember my choice",
   "@checkoutRememberUpiApp": {},
+  "checkoutPaymentMethodLabel": "Payment Method",
+  "@checkoutPaymentMethodLabel": {},
   "checkoutMethodUpi": "UPI",
   "@checkoutMethodUpi": {},
   "checkoutMethodCard": "Cards",

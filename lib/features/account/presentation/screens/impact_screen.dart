@@ -113,20 +113,29 @@ class _ImpactScreenState extends ConsumerState<ImpactScreen> {
               value: '${ImpactEstimate.mealsSaved(_collectedCount)}',
             ),
             const SizedBox(height: Space.x3),
-            _ImpactCard(
-              icon: Icons.scale,
-              label: l10n.impactFoodSaved,
-              value:
-                  '${ImpactEstimate.kgSaved(_collectedCount)
-                      .toStringAsFixed(1)} kg',
-            ),
-            const SizedBox(height: Space.x3),
-            _ImpactCard(
-              icon: Icons.eco,
-              label: l10n.impactCo2Avoided,
-              value:
-                  '${ImpactEstimate.co2eKgAvoided(_collectedCount)
-                      .toStringAsFixed(1)} kg',
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _ImpactCard(
+                    icon: Icons.scale,
+                    label: l10n.impactFoodSaved,
+                    value:
+                        '${ImpactEstimate.kgSaved(_collectedCount).toStringAsFixed(1)} kg',
+                    stacked: true,
+                  ),
+                ),
+                const SizedBox(width: Space.x3),
+                Expanded(
+                  child: _ImpactCard(
+                    icon: Icons.eco,
+                    label: l10n.impactCo2Avoided,
+                    value:
+                        '${ImpactEstimate.co2eKgAvoided(_collectedCount).toStringAsFixed(1)} kg',
+                    stacked: true,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: Space.x4),
             Text(
@@ -183,15 +192,55 @@ class _ImpactCard extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
+    this.stacked = false,
   });
 
   final IconData icon;
   final String label;
   final String value;
 
+  /// A narrower, icon-above-value layout for the two-up grid (food saved /
+  /// CO2e avoided) — [Row] would clip at half the screen's width.
+  final bool stacked;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final content = stacked
+        ? [
+            Icon(icon, color: colors.actionPrimaryBg, size: 24),
+            const SizedBox(height: Space.x2),
+            Text(
+              value,
+              style: context.type.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              label,
+              style: context.type.labelSmall.copyWith(
+                color: colors.textSecondary,
+              ),
+            ),
+          ]
+        : [
+            Icon(icon, color: colors.actionPrimaryBg, size: 28),
+            const SizedBox(width: Space.x4),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(value, style: context.type.headline),
+                  Text(
+                    label,
+                    style: context.type.caption.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ];
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(Space.x4),
@@ -199,26 +248,9 @@ class _ImpactCard extends StatelessWidget {
         color: colors.surfaceRaised,
         borderRadius: BorderRadius.circular(Radii.card),
       ),
-      child: Row(
-        children: [
-          Icon(icon, color: colors.actionPrimaryBg, size: 28),
-          const SizedBox(width: Space.x4),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(value, style: context.type.headline),
-                Text(
-                  label,
-                  style: context.type.caption.copyWith(
-                    color: colors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      child: stacked
+          ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: content)
+          : Row(children: content),
     );
   }
 }

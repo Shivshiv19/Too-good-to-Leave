@@ -103,14 +103,42 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (context.prefersReducedMotion)
-                    Text(
-                      l10n.processingTitle,
-                      style: context.type.title,
-                      textAlign: TextAlign.center,
-                    )
-                  else
-                    CircularProgressIndicator(color: colors.actionPrimaryFg),
+                  // Decorative — the real content is the text below.
+                  ExcludeSemantics(
+                    child: SizedBox(
+                      width: 96,
+                      height: 96,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          if (!context.prefersReducedMotion)
+                            SizedBox(
+                              width: 96,
+                              height: 96,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: colors.actionPrimaryBg.withValues(
+                                  alpha: 0.35,
+                                ),
+                              ),
+                            ),
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: colors.actionPrimaryBg,
+                            ),
+                            child: Icon(
+                              Icons.lock_outline,
+                              color: colors.actionPrimaryFg,
+                              size: 28,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: Space.x6),
                   Text(
                     l10n.processingTitle,

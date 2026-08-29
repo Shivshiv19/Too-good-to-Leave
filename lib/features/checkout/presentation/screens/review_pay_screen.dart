@@ -89,14 +89,9 @@ class _ReviewPayScreenState extends ConsumerState<ReviewPayScreen> {
     }
   }
 
-  Future<void> _chooseMethod() async {
-    final result = await showModalBottomSheet<PaymentMethod>(
-      context: context,
-      builder: (context) => PaymentMethodSheet(selected: _method),
-    );
-    if (result == null) return;
-    setState(() => _method = result);
-    if (result == PaymentMethod.upi) await _chooseUpiApp();
+  Future<void> _selectMethod(PaymentMethod method) async {
+    setState(() => _method = method);
+    if (method == PaymentMethod.upi) await _chooseUpiApp();
   }
 
   Future<void> _chooseUpiApp() async {
@@ -200,15 +195,12 @@ class _ReviewPayScreenState extends ConsumerState<ReviewPayScreen> {
     final hold = _hold!;
     final bag = _bag!;
     final merchant = _merchant!;
-    final methodLabel = switch (_method) {
-      PaymentMethod.upi =>
-        _upiApp == null
-            ? l10n.checkoutMethodUpi
-            : '${l10n.checkoutMethodUpi} · $_upiApp',
-      PaymentMethod.card => l10n.checkoutMethodCard,
-      PaymentMethod.netBanking => l10n.checkoutMethodNetBanking,
-      PaymentMethod.wallet => l10n.checkoutMethodWallet,
-    };
+    final methods = <(PaymentMethod, String, bool)>[
+      (PaymentMethod.upi, l10n.checkoutMethodUpi, true),
+      (PaymentMethod.card, l10n.checkoutMethodCard, true),
+      (PaymentMethod.netBanking, l10n.checkoutMethodNetBanking, true),
+      (PaymentMethod.wallet, l10n.checkoutMethodWallet, false),
+    ];
 
     return ListView(
       padding: const EdgeInsets.all(Space.x4),
@@ -229,25 +221,33 @@ class _ReviewPayScreenState extends ConsumerState<ReviewPayScreen> {
           style: context.type.caption.copyWith(color: colors.textSecondary),
         ),
         const SizedBox(height: Space.x6),
-        InkWell(
-          onTap: _phase == _Phase.submitting ? null : _chooseMethod,
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: Space.x3),
-            child: Row(
-              children: [
-                Icon(Icons.payment, color: colors.textSecondary),
-                const SizedBox(width: Space.x3),
-                Expanded(
-                  child: Text(methodLabel, style: context.type.body),
-                ),
-                Icon(Icons.chevron_right, color: colors.textTertiary),
-              ],
-            ),
+        Text(l10n.checkoutPaymentMethodLabel, style: context.type.title),
+        const SizedBox(height: Space.x3),
+        for (final (method, label, available) in methods) ...[
+          PaymentMethodOptionRow(
+            label: method == PaymentMethod.upi && _upiApp != null
+                ? '$label · $_upiApp'
+                : label,
+            recommended: method == PaymentMethod.upi,
+            available: available,
+            selected: _method == method,
+            colors: colors,
+            l10n: l10n,
+            onTap: available && _phase != _Phase.submitting
+                ? () => _selectMethod(method)
+                : null,
           ),
-        ),
-        const Divider(),
+          const SizedBox(height: Space.x2),
+        ],
         const SizedBox(height: Space.x4),
-        PriceBreakdownList(breakdown: hold.breakdown),
+        Container(
+          padding: const EdgeInsets.all(Space.x4),
+          decoration: BoxDecoration(
+            color: colors.surfaceSunken,
+            borderRadius: BorderRadius.circular(Radii.card),
+          ),
+          child: PriceBreakdownList(breakdown: hold.breakdown),
+        ),
         const SizedBox(height: Space.x6),
         Container(
           padding: const EdgeInsets.all(Space.x3),

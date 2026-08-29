@@ -6,6 +6,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:surplus_marketplace/app/router/routes.dart';
+import 'package:surplus_marketplace/app/theme/app_colors.dart';
 import 'package:surplus_marketplace/app/theme/app_theme.dart';
 import 'package:surplus_marketplace/core/domain/clock.dart';
 import 'package:surplus_marketplace/core/l10n/generated/app_localizations.dart';
@@ -125,24 +126,10 @@ class _ConfirmedScreenState extends ConsumerState<ConfirmedScreen> {
                   children: [
                     const SizedBox(height: Space.x8),
                     Center(
-                      child: context.prefersReducedMotion
-                          ? Icon(
-                              Icons.check_circle,
-                              size: 64,
-                              color: colors.success.fg,
-                            )
-                          : TweenAnimationBuilder<double>(
-                              tween: Tween(begin: 0, end: 1),
-                              duration: Motion.standard,
-                              builder: (context, value, child) => Opacity(
-                                opacity: value,
-                                child: Icon(
-                                  Icons.check_circle,
-                                  size: 64,
-                                  color: colors.success.fg,
-                                ),
-                              ),
-                            ),
+                      child: _CheckmarkRing(
+                        colors: colors,
+                        reducedMotion: context.prefersReducedMotion,
+                      ),
                     ),
                     const SizedBox(height: Space.x4),
                     Text(
@@ -151,24 +138,34 @@ class _ConfirmedScreenState extends ConsumerState<ConfirmedScreen> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: Space.x6),
-                    Center(
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: Space.x4,
+                        vertical: Space.x3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colors.actionPrimaryBg,
+                        borderRadius: BorderRadius.circular(Radii.card),
+                      ),
                       child: Column(
                         children: [
                           Text(
-                            l10n.confirmedOrderCode,
-                            style: context.type.caption.copyWith(
-                              color: colors.textSecondary,
+                            l10n.confirmedOrderCode.toUpperCase(),
+                            style: context.type.labelSmall.copyWith(
+                              color: colors.actionPrimaryFg.withValues(
+                                alpha: 0.8,
+                              ),
                             ),
                           ),
+                          const SizedBox(height: Space.x1),
                           Semantics(
                             label: order.orderCode.split('').join(' '),
                             excludeSemantics: true,
                             child: Text(
                               order.orderCode,
-                              style: context.type.title.copyWith(
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures(),
-                                ],
+                              style: context.type.codeMono.copyWith(
+                                color: colors.actionPrimaryFg,
                               ),
                             ),
                           ),
@@ -232,6 +229,42 @@ class _ConfirmedScreenState extends ConsumerState<ConfirmedScreen> {
                 ),
               ),
       ),
+    );
+  }
+}
+
+/// A checkmark inside a soft ring — the confirmation's one decorative
+/// element (§5c.8's "calm and premium, not a confetti burst"). Excluded
+/// from semantics; [ConfirmedScreen._announceSuccess] already carries the
+/// success announcement.
+class _CheckmarkRing extends StatelessWidget {
+  const _CheckmarkRing({required this.colors, required this.reducedMotion});
+
+  final AppColors colors;
+  final bool reducedMotion;
+
+  @override
+  Widget build(BuildContext context) {
+    final ring = Container(
+      width: 96,
+      height: 96,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: colors.success.fg, width: 3),
+      ),
+      alignment: Alignment.center,
+      child: Icon(Icons.check, size: 40, color: colors.success.fg),
+    );
+    return ExcludeSemantics(
+      child: reducedMotion
+          ? ring
+          : TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: Motion.standard,
+              builder: (context, value, child) =>
+                  Opacity(opacity: value, child: child),
+              child: ring,
+            ),
     );
   }
 }

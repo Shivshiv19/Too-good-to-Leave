@@ -287,11 +287,6 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
           ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            tooltip: l10n.discoverSearchHint,
-            onPressed: () => const DiscoverSearchRoute().push<void>(context),
-          ),
           // Notifications aren't built yet (`engagement`, Phase 8 §8.12 step
           // 8) — left as a non-interactive icon rather than inventing
           // unspecced "coming soon" copy for a single affordance.
@@ -299,11 +294,24 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
             icon: Icon(Icons.notifications_none),
             onPressed: null,
           ),
+          const SizedBox(width: Space.x2),
         ],
       ),
       body: SafeArea(
         child: Column(
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                Space.x4,
+                0,
+                Space.x4,
+                Space.x2,
+              ),
+              child: _SearchBarButton(
+                hint: l10n.discoverSearchHint,
+                onTap: () => const DiscoverSearchRoute().push<void>(context),
+              ),
+            ),
             if (query != null)
               Padding(
                 padding: const EdgeInsets.symmetric(
@@ -621,6 +629,46 @@ class _MapControlButton extends StatelessWidget {
   }
 }
 
+/// The pill search bar pinned to the top of Discover — visually a search
+/// field, functionally a button that opens [DiscoverSearchRoute]. Typing
+/// happens on that screen, not here, so a real `TextField` (with its own
+/// focus/keyboard handling) would be misleading.
+class _SearchBarButton extends StatelessWidget {
+  const _SearchBarButton({required this.hint, required this.onTap});
+
+  final String hint;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Material(
+      color: colors.surfaceSunken,
+      borderRadius: BorderRadius.circular(Radii.full),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(Radii.full),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: Layout.minTouchTarget),
+          padding: const EdgeInsets.symmetric(horizontal: Space.x4),
+          child: Row(
+            children: [
+              Icon(Icons.search, color: colors.textSecondary),
+              const SizedBox(width: Space.x2),
+              Text(
+                hint,
+                style: context.type.bodyLarge.copyWith(
+                  color: colors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _FacetBarButton extends StatelessWidget {
   const _FacetBarButton({
     required this.label,
@@ -639,7 +687,9 @@ class _FacetBarButton extends StatelessWidget {
     final colors = context.colors;
     final fg = active ? colors.actionSecondaryFg : colors.textSecondary;
     return Material(
-      color: active ? colors.info.bg : colors.surfaceRaised,
+      color: active
+          ? colors.actionPrimaryBg.withValues(alpha: 0.12)
+          : colors.surfaceSunken,
       borderRadius: BorderRadius.circular(Radii.chip),
       child: InkWell(
         onTap: onTap,

@@ -104,10 +104,16 @@ final class AppColors extends ThemeExtension<AppColors> {
     textOnAction: Neutral.c0,
     borderSubtle: Neutral.c200,
     borderStrong: Neutral.c300,
-    actionPrimaryBg: Green.c500,
+
+    // `Green.c600` (#006241) — the mockup refresh's "Primary Green," one
+    // step darker than this token's previous `c500`. `c500` (#00754A,
+    // the reference palette's "Starbucks Green") is kept in the ramp for
+    // the one place the new mockups actually use it as a distinct accent
+    // rather than the primary action colour — see [hero_pickup_card.dart].
+    actionPrimaryBg: Green.c600,
     actionPrimaryFg: Neutral.c0,
-    actionSecondaryFg: Green.c500,
-    actionSecondaryBorder: Green.c500,
+    actionSecondaryFg: Green.c600,
+    actionSecondaryBorder: Green.c600,
     actionDestructiveBg: FeedbackHues.criticalLight,
     actionDestructiveFg: Neutral.c0,
     scrim: Color(0x991A1614),

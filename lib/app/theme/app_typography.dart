@@ -49,6 +49,7 @@ final class AppTypography extends ThemeExtension<AppTypography> {
     required this.body,
     required this.caption,
     required this.label,
+    required this.labelSmall,
     required this.priceLarge,
     required this.priceMedium,
     required this.codeMono,
@@ -81,13 +82,24 @@ final class AppTypography extends ThemeExtension<AppTypography> {
       height: 24 / 16,
       fontWeight: FontWeight.w400,
     ),
-    body: _inter(fontSize: 14, height: 22 / 14, fontWeight: FontWeight.w400),
+    body: _inter(fontSize: 14, height: 20 / 14, fontWeight: FontWeight.w400),
     caption: _inter(
       fontSize: 12,
       height: 18 / 12,
       fontWeight: FontWeight.w400,
     ),
     label: _inter(fontSize: 14, height: 20 / 14, fontWeight: FontWeight.w600),
+
+    // Small all-caps "eyebrow" labels — stat-card headers ("MEALS SAVED"),
+    // info-row labels ("PICKUP CODE", "COLLECTION TIME"). Positive tracking
+    // (the opposite of every other role's tight `-0.01em`) is deliberate:
+    // wide-set capitals read as a label, not a sentence, at this size.
+    labelSmall: _inter(
+      fontSize: 12,
+      height: 16 / 12,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.12,
+    ),
     priceLarge: _inter(
       fontSize: 28,
       height: 36 / 28,
@@ -142,11 +154,12 @@ final class AppTypography extends ThemeExtension<AppTypography> {
     required double height,
     required FontWeight fontWeight,
     List<FontFeature>? fontFeatures,
+    double? letterSpacing,
   }) => GoogleFonts.inter(
     fontSize: fontSize,
     height: height,
     fontWeight: fontWeight,
-    letterSpacing: fontSize * -0.01,
+    letterSpacing: letterSpacing ?? fontSize * -0.01,
     fontFeatures: fontFeatures,
   ).copyWith(fontFamilyFallback: _fallback);
 
@@ -158,6 +171,7 @@ final class AppTypography extends ThemeExtension<AppTypography> {
   final TextStyle body;
   final TextStyle caption;
   final TextStyle label;
+  final TextStyle labelSmall;
   final TextStyle priceLarge;
   final TextStyle priceMedium;
   final TextStyle codeMono;
@@ -173,6 +187,7 @@ final class AppTypography extends ThemeExtension<AppTypography> {
     TextStyle? body,
     TextStyle? caption,
     TextStyle? label,
+    TextStyle? labelSmall,
     TextStyle? priceLarge,
     TextStyle? priceMedium,
     TextStyle? codeMono,
@@ -186,6 +201,7 @@ final class AppTypography extends ThemeExtension<AppTypography> {
     body: body ?? this.body,
     caption: caption ?? this.caption,
     label: label ?? this.label,
+    labelSmall: labelSmall ?? this.labelSmall,
     priceLarge: priceLarge ?? this.priceLarge,
     priceMedium: priceMedium ?? this.priceMedium,
     codeMono: codeMono ?? this.codeMono,
@@ -204,6 +220,7 @@ final class AppTypography extends ThemeExtension<AppTypography> {
       body: TextStyle.lerp(body, other.body, t)!,
       caption: TextStyle.lerp(caption, other.caption, t)!,
       label: TextStyle.lerp(label, other.label, t)!,
+      labelSmall: TextStyle.lerp(labelSmall, other.labelSmall, t)!,
       priceLarge: TextStyle.lerp(priceLarge, other.priceLarge, t)!,
       priceMedium: TextStyle.lerp(priceMedium, other.priceMedium, t)!,
       codeMono: TextStyle.lerp(codeMono, other.codeMono, t)!,
